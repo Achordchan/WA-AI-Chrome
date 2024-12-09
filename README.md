@@ -40,9 +40,7 @@
 ## 📸 预览
 
 <div align="center">
-<img src="screenshots/preview1.png" width="280">
-<img src="screenshots/preview2.png" width="280">
-<img src="screenshots/preview3.png" width="280">
+<div>暂无，自己安装体验</div>
 </div>
 
 ## 🔑 API 配置

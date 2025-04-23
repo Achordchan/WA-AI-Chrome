@@ -2,11 +2,8 @@
 async function checkPluginStatus(retryCount = 0, maxRetries = 3) {
   const statusArea = document.getElementById('statusArea');
   const reloadBtn = document.getElementById('reloadBtn');
-
-  if (!statusArea || !reloadBtn) {
-    console.error('Required DOM elements not found');
-    return;
-  }
+  
+  if (!statusArea || !reloadBtn) return;
 
   try {
     // 检查 WhatsApp 标签页
@@ -59,7 +56,7 @@ async function checkPluginStatus(retryCount = 0, maxRetries = 3) {
     } catch (error) {
       // 如果还有重试次数，则等待后重试
       if (retryCount < maxRetries) {
-        console.log(`Retrying... (${retryCount + 1}/${maxRetries})`);
+        console.debug(`Retrying... (${retryCount + 1}/${maxRetries})`);
         statusArea.innerHTML = `
           <div class="status-icon">⟳</div>
           <div class="status-text">
@@ -121,33 +118,62 @@ document.addEventListener('DOMContentLoaded', async () => {
   const reloadBtn = document.getElementById('reloadBtn');
   if(reloadBtn) {
     reloadBtn.addEventListener('click', async () => {
-      // 禁用按钮,显示加载状态
-      reloadBtn.disabled = true;
-      reloadBtn.textContent = '正在重新加载...';
-      
-      try {
-        // 重新加载当前 WhatsApp 标签页
-        const tabs = await chrome.tabs.query({url: "*://web.whatsapp.com/*"});
-        if(tabs.length > 0) {
-          await chrome.tabs.reload(tabs[0].id);
-          // 等待页面加载完成
-          setTimeout(async () => {
-            await checkPluginStatus();
-            reloadBtn.disabled = false;
-            reloadBtn.textContent = '重新加载插件';
-          }, 2000);
-        } else {
-          throw new Error('未找到 WhatsApp 页面');
-        }
-      } catch(error) {
-        const statusArea = document.getElementById('statusArea');
-        if(statusArea) {
-          statusArea.className = 'status-area status-error';
-          statusArea.textContent = '重新加载失败: ' + error.message;
-        }
-        reloadBtn.disabled = false;
-        reloadBtn.textContent = '重新加载插件';
-      }
+      await reloadPlugin();
     });
   }
+
+  // 添加更新日志按钮点击事件
+  document.getElementById('viewUpdateLog')?.addEventListener('click', async () => {
+    // 获取当前标签页
+    const tabs = await chrome.tabs.query({url: "*://web.whatsapp.com/*"});
+    if (tabs.length > 0) {
+      // 在 WhatsApp 页面中显示更新日志
+      chrome.tabs.sendMessage(tabs[0].id, {
+        type: 'SHOW_UPDATE_LOG'
+      });
+    } else {
+      alert('请先打开 WhatsApp Web 页面');
+    }
+  });
 });
+
+// 重新加载插件
+async function reloadPlugin() {
+  const reloadBtn = document.getElementById('reloadBtn');
+  if (!reloadBtn) return;
+
+  try {
+    // 禁用按钮,显示加载状态
+    reloadBtn.disabled = true;
+    reloadBtn.textContent = '正在重新加载...';
+    
+    // 重新加载当前 WhatsApp 标签页
+    const tabs = await chrome.tabs.query({url: "*://web.whatsapp.com/*"});
+    if (tabs.length > 0) {
+      await chrome.tabs.reload(tabs[0].id);
+      // 等待页面加载完成
+      setTimeout(async () => {
+        await checkPluginStatus();
+        reloadBtn.disabled = false;
+        reloadBtn.textContent = '重新加载插件';
+      }, 2000);
+    } else {
+      throw new Error('未找到 WhatsApp 页面');
+    }
+  } catch (error) {
+    console.error('重新加载失败:', error);
+    const statusArea = document.getElementById('statusArea');
+    if (statusArea) {
+      statusArea.className = 'status-area status-error';
+      statusArea.innerHTML = `
+        <div class="status-icon">!</div>
+        <div class="status-text">
+          <div>重新加载失败: ${error.message}</div>
+          <div class="status-detail">请刷新 WhatsApp 页面后重试</div>
+        </div>
+      `;
+    }
+    reloadBtn.disabled = false;
+    reloadBtn.textContent = '重新加载插件';
+  }
+}

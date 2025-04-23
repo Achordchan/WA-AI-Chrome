@@ -1,18 +1,22 @@
 {
   "manifest_version": 3,
   "name": "WhatsApp AI Assistant",
-  "version": "1.0.1",
+  "version": "2.0.0",
   "description": "AI + Translate WhatsApp messages | WhatsApp消息翻译助手 | 作者:Achord | Email:achordchan@gmail.com",
   "permissions": [
     "storage",
-    "webRequest"
+    "webRequest",
+    "scripting",
+    "activeTab"
   ],
   "host_permissions": [
     "*://*.whatsapp.com/*",
     "*://*.googleapis.com/*",
     "*://*.deepseek.com/*",
     "*://*.aliyuncs.com/*",
-    "*://*.volcengineapi.com/*"
+    "*://*.volcengineapi.com/*",
+    "*://*.baidu.com/*",
+    "*://*.fanyi-api.baidu.com/*"
   ],
   "web_accessible_resources": [{
     "resources": ["add.html"],
@@ -30,7 +34,11 @@
       "js": [
         "api-services.js",
         "input-translate.js",
-        "content.js"
+        "update-modal.js",
+        "content.js",
+        "quick-chat.js",
+        "md5.js",
+        "fix-translation-service.js"
       ]
     }
   ],
@@ -39,5 +47,9 @@
   },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
   }
-} 
+}

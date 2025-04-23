@@ -7,12 +7,30 @@ async function translateText(text, targetLang = 'zh') {
   
   try {
     // 获取翻译服务设置
-    const { service, apiKey } = await window.getTranslationService();
+    const { service, apiKey, secretKey, apiUrl, model } = await window.getTranslationService();
     console.log('获取到翻译服务:', service);
 
     // 调用翻译服务
-    const translation = await window.ApiServices.translation[service](text, apiKey);
+    let translation;
+    if (service === 'baidu') {
+      // 百度翻译需要额外的secretKey参数
+      translation = await window.ApiServices.translation[service](text, apiKey, secretKey, 'auto', targetLang);
+    } else if (service === 'google') {
+      // 谷歌翻译不需要 apiKey
+      translation = await window.ApiServices.translation[service](text, 'auto', targetLang);
+    } else if (service === 'siliconflow') {
+      // OpenAI翻译需要额外的apiUrl和model参数
+      translation = await window.ApiServices.translation[service](text, apiKey, apiUrl, model, targetLang);
+    } else {
+      // 其他翻译服务
+      translation = await window.ApiServices.translation[service](text, apiKey);
+    }
     console.log('翻译完成:', translation);
+    
+    // 检查是否有思考过程，如果有则只返回翻译部分
+    if (translation && typeof translation === 'object' && translation.hasThinking) {
+      return translation.translation;
+    }
     
     return translation;
   } catch (error) {
@@ -31,9 +49,18 @@ async function performTranslation(text, targetLang, type = 'normal') {
       console.log('使用 AI 服务:', service);
       return await window.ApiServices.analysis[service]([{ sender: '我方', text }], apiKey);
     } else {
-      const { service, apiKey } = await window.getTranslationService();
+      const { service, apiKey, secretKey, apiUrl, model } = await window.getTranslationService();
       console.log('使用翻译服务:', service);
-      return await window.ApiServices.translation[service](text, targetLang, apiKey);
+      
+      if (service === 'baidu') {
+        return await window.ApiServices.translation[service](text, apiKey, secretKey, 'auto', targetLang);
+      } else if (service === 'google') {
+        return await window.ApiServices.translation[service](text, 'auto', targetLang);
+      } else if (service === 'siliconflow') {
+        return await window.ApiServices.translation[service](text, apiKey, apiUrl, model, targetLang);
+      } else {
+        return await window.ApiServices.translation[service](text, apiKey);
+      }
     }
   } catch (error) {
     console.error('翻译失败:', error);
@@ -527,7 +554,7 @@ async function aiTranslate(text, targetLang) {
             content: `请将以下文本翻译成${langName}。只需要返回翻译结果，不要解释，不要加引号：\n\n${text}`
           }
         ],
-        temperature: 0.7
+        temperature: 1.3
       })
     });
 
@@ -570,52 +597,42 @@ async function modalTranslation(text, targetLang, type = 'normal') {
   console.log(`开始模态框翻译:`, {
     type: type === 'ai' ? 'AI翻译' : '普通翻译',
     text,
-    targetLang,
-    timestamp: new Date().toISOString()
+    targetLang
   });
   
   try {
+    let translation;
     if (type === 'ai') {
-      // 直接使用新的 aiTranslate 方法
-      const translation = await aiTranslate(text, targetLang);
-      console.log('AI 翻译完成:', {
-        originalText: text,
-        translation,
-        targetLang,
-        timestamp: new Date().toISOString()
-      });
-      return translation;
+      const { service, apiKey } = await window.getAiService();
+      translation = await window.ApiServices.analysis[service](text, apiKey);
     } else {
-      // Google 翻译部分保持不变
-      const { service } = await window.getTranslationService();
-      console.log('普通翻译配置:', {
-        service,
-        targetLang,
-        timestamp: new Date().toISOString()
-      });
-
-      let translation;
-      if (service === 'google') {
-        translation = await googleTranslate(text, targetLang);
+      const { service, apiKey, secretKey, apiUrl, model } = await window.getTranslationService();
+      console.log('使用翻译服务:', service);
+      
+      if (service === 'baidu') {
+        translation = await window.ApiServices.translation[service](text, apiKey, secretKey, 'auto', targetLang);
+      } else if (service === 'google') {
+        translation = await window.ApiServices.translation[service](text, 'auto', targetLang);
+      } else if (service === 'siliconflow') {
+        translation = await window.ApiServices.translation[service](text, apiKey, apiUrl, model, targetLang);
       } else {
-        const { apiKey } = await window.getTranslationService();
-        translation = await window.ApiServices.translation[service](text, targetLang, apiKey);
+        translation = await window.ApiServices.translation[service](text, apiKey);
       }
-
-      if (translation === text) {
-        console.warn('翻译结果与原文相同，可能翻译失败');
+      
+      // 检查是否有思考过程，获取翻译部分
+      if (translation && typeof translation === 'object' && translation.hasThinking) {
+        console.log('检测到带思考过程的翻译结果:', { 
+          hasThinking: true,
+          thinkingLength: translation.thinking?.length || 0,
+          translationLength: translation.translation?.length || 0
+        });
+        translation = translation.translation;
       }
-
-      return translation;
     }
+    
+    return translation;
   } catch (error) {
-    console.error('模态框翻译失败:', {
-      error,
-      type: type === 'ai' ? 'AI翻译' : '普通翻译',
-      text,
-      targetLang,
-      timestamp: new Date().toISOString()
-    });
+    console.error('模态框翻译失败:', error);
     throw error;
   }
 }
@@ -746,13 +763,12 @@ function createTranslateModal(text, inputBox) {
           <div class="result-content"></div>
         </div>
         <div class="verify-result" style="display: none">
-          <div class="text-label">验证结果（反向翻译）</div>
+          <div class="text-label">验证结果（反向翻译 默认Google）</div>
           <div class="verify-content"></div>
         </div>
       </div>
       <div class="translate-modal-footer">
-        <button class="ai-translate-btn">AI 翻译</button>
-        <button class="normal-translate-btn">普通翻译</button>
+        <button class="translate-btn">翻译</button>
         <button class="verify-btn" style="display: none">验证</button>
         <button class="apply-btn" disabled>应用</button>
       </div>
@@ -895,15 +911,9 @@ function createTranslateModal(text, inputBox) {
       transition: all 0.2s;
     }
 
-    .ai-translate-btn {
+    .translate-btn {
       background: #00a884;
       color: white;
-    }
-
-    .normal-translate-btn {
-      background: #f0f2f5;
-      color: #41525d;
-      border: 1px solid #e9edef;
     }
 
     .apply-btn {
@@ -997,8 +1007,7 @@ function createTranslateModal(text, inputBox) {
 
   // 事件处理
   const closeBtn = modal.querySelector('.modal-close');
-  const aiTranslateBtn = modal.querySelector('.ai-translate-btn');
-  const normalTranslateBtn = modal.querySelector('.normal-translate-btn');
+  const translateBtn = modal.querySelector('.translate-btn');
   const verifyBtn = modal.querySelector('.verify-btn');
   const applyBtn = modal.querySelector('.apply-btn');
   const resultContent = modal.querySelector('.result-content');
@@ -1017,64 +1026,40 @@ function createTranslateModal(text, inputBox) {
     });
   });
 
-  // AI 翻译
-  aiTranslateBtn.onclick = async () => {
-    console.log('点击AI翻译按钮');
+  // 翻译按钮事件处理
+  translateBtn.onclick = async () => {
+    console.log('点击翻译按钮');
     try {
-      aiTranslateBtn.classList.add('btn-loading');
+      translateBtn.classList.add('btn-loading');
       const targetLang = langSelect.value;
-      console.log('开始AI翻译:', {
-        text,
-        targetLang,
-        timestamp: new Date().toISOString()
-      });
-
-      const translation = await modalTranslation(text, targetLang, 'ai');
-      console.log('AI翻译完成:', {
-        originalText: text,
-        translation,
-        timestamp: new Date().toISOString()
-      });
-
-      resultContent.textContent = translation;
-      verifyBtn.style.display = 'inline-block';
-      applyBtn.disabled = false;
-      verifyResult.style.display = 'none';
-      
-      // 保存语言选择
-      rememberLanguageChoice(chatWindow, targetLang);
-    } catch (error) {
-      console.error('AI翻译出错:', {
-        error,
-        text,
-        timestamp: new Date().toISOString()
-      });
-      resultContent.textContent = '翻译失败: ' + error.message;
-    } finally {
-      aiTranslateBtn.classList.remove('btn-loading');
-    }
-  };
-
-  // 普通翻译
-  normalTranslateBtn.onclick = async () => {
-    console.log('点击普通翻译按钮');
-    try {
-      normalTranslateBtn.classList.add('btn-loading');
-      const targetLang = langSelect.value;
-      console.log('开始普通翻译:', {
+      console.log('开始翻译:', {
         text,
         targetLang,
         timestamp: new Date().toISOString()
       });
 
       const translation = await modalTranslation(text, targetLang, 'normal');
-      console.log('普通翻译完成:', {
+      console.log('翻译完成:', {
         originalText: text,
         translation,
         timestamp: new Date().toISOString()
       });
 
-      resultContent.textContent = translation;
+      // 检查翻译结果是否为对象
+      if (translation && typeof translation === 'object') {
+        // 如果是对象，检查是否有hasThinking标志
+        if (translation.hasThinking) {
+          // 只显示翻译部分，不显示思考过程
+          resultContent.textContent = translation.translation;
+        } else {
+          // 显示整个对象的字符串表示（这种情况应该不常见）
+          resultContent.textContent = JSON.stringify(translation);
+        }
+      } else {
+        // 常规字符串结果
+        resultContent.textContent = translation;
+      }
+
       verifyBtn.style.display = 'inline-block';
       applyBtn.disabled = false;
       verifyResult.style.display = 'none';
@@ -1082,14 +1067,27 @@ function createTranslateModal(text, inputBox) {
       // 保存语言选择
       rememberLanguageChoice(chatWindow, targetLang);
     } catch (error) {
-      console.error('普通翻译出错:', {
-        error,
-        text,
-        timestamp: new Date().toISOString()
+      console.error('翻译出错:', {
+        message: error.message,
+        stack: error.stack,
+        details: error.toString()
       });
-      resultContent.textContent = '翻译失败: ' + error.message;
+      
+      // 直接在结果区域显示错误信息
+      resultContent.textContent = '翻译失败: ' + (error.message || '未知错误');
+      
+      // 显示一个简单的toast通知
+      const toast = document.createElement('div');
+      toast.className = 'translate-toast translate-toast-error';
+      toast.textContent = '翻译失败: ' + (error.message || '未知错误');
+      document.body.appendChild(toast);
+      
+      // 3秒后自动移除通知
+      setTimeout(() => {
+        toast.remove();
+      }, 3000);
     } finally {
-      normalTranslateBtn.classList.remove('btn-loading');
+      translateBtn.classList.remove('btn-loading');
     }
   };
 
@@ -1138,107 +1136,117 @@ function createTranslateModal(text, inputBox) {
 
   // 应用翻译结果
   applyBtn.onclick = async () => {
+    // 获取翻译结果文本
     const translation = resultContent.textContent;
-    if (translation) {
-      try {
-        // 从 footer 开始查找输入框
-        const footer = document.querySelector('footer._ak1i');
-        console.log('找到 footer:', {
-          found: !!footer,
-          footerHtml: footer?.outerHTML
-        });
+    
+    if (!translation) {
+      console.error('没有可应用的翻译结果');
+      return;
+    }
+    
+    console.log('应用翻译结果:', {
+      translationText: translation,
+      timestamp: new Date().toISOString()
+    });
+    
+    try {
+      // 从 footer 开始查找输入框
+      const footer = document.querySelector('footer._ak1i');
+      console.log('找到 footer:', {
+        found: !!footer,
+        footerHtml: footer?.outerHTML
+      });
 
-        if (!footer) {
-          throw new Error('未找到输入框容器');
-        }
-
-        // 查找富文本输入框
-        const richTextInput = footer.querySelector('.lexical-rich-text-input div[contenteditable="true"]');
-        console.log('找到富文本输入框:', {
-          found: !!richTextInput,
-          html: richTextInput?.outerHTML,
-          currentContent: richTextInput?.textContent
-        });
-
-        if (!richTextInput) {
-          throw new Error('未找到输入框');
-        }
-
-        try {
-          // 1. 检测操作系统
-          const isMac = /Mac|iPod|iPhone|iPad/.test(navigator.platform);
-          console.log('操作系统检测:', {
-            platform: navigator.platform,
-            isMac
-          });
-
-          // 2. 聚焦输入框
-          richTextInput.focus();
-          console.log('输入框已聚焦');
-
-          // 3. 模拟 Ctrl+A/Command+A
-          const selectAll = new KeyboardEvent('keydown', {
-            key: 'a',
-            code: 'KeyA',
-            ctrlKey: !isMac,
-            metaKey: isMac,
-            bubbles: true
-          });
-          richTextInput.dispatchEvent(selectAll);
-
-          // 4. 模拟退格键
-          const backspace = new KeyboardEvent('keydown', {
-            key: 'Backspace',
-            code: 'Backspace',
-            bubbles: true
-          });
-          richTextInput.dispatchEvent(backspace);
-
-          // 5. 使用现代剪贴板 API
-          await navigator.clipboard.writeText(translation);
-          console.log('内容已复制到剪贴板');
-
-          // 6. 模拟 Ctrl+V/Command+V
-          const paste = new KeyboardEvent('keydown', {
-            key: 'v',
-            code: 'KeyV',
-            ctrlKey: !isMac,
-            metaKey: isMac,
-            bubbles: true
-          });
-          richTextInput.dispatchEvent(paste);
-
-          // 7. 触发输入事件
-          const inputEvent = new InputEvent('input', {
-            bubbles: true,
-            cancelable: true,
-            inputType: 'insertFromPaste',
-            data: translation
-          });
-          richTextInput.dispatchEvent(inputEvent);
-
-          // 8. 检查最终状态
-          console.log('最终状态:', {
-            expectedContent: translation,
-            actualContent: richTextInput.textContent,
-            html: richTextInput.innerHTML,
-            success: richTextInput.textContent === translation
-          });
-
-          // 关闭模态框
-          modal.remove();
-        } catch (inputError) {
-          console.error('输入操作失败:', inputError);
-          throw inputError;
-        }
-      } catch (error) {
-        console.error('应用翻译结果失败:', {
-          error,
-          translation,
-          timestamp: new Date().toISOString()
-        });
-        alert('应用翻译结果失败: ' + error.message);
+      if (!footer) {
+        throw new Error('未找到输入框容器');
       }
+
+      // 查找富文本输入框
+      const richTextInput = footer.querySelector('.lexical-rich-text-input div[contenteditable="true"]');
+      console.log('找到富文本输入框:', {
+        found: !!richTextInput,
+        html: richTextInput?.outerHTML,
+        currentContent: richTextInput?.textContent
+      });
+
+      if (!richTextInput) {
+        throw new Error('未找到输入框');
+      }
+
+      try {
+        // 1. 检测操作系统
+        const isMac = /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+        console.log('操作系统检测:', {
+          platform: navigator.platform,
+          isMac
+        });
+
+        // 2. 聚焦输入框
+        richTextInput.focus();
+        console.log('输入框已聚焦');
+
+        // 3. 模拟 Ctrl+A/Command+A
+        const selectAll = new KeyboardEvent('keydown', {
+          key: 'a',
+          code: 'KeyA',
+          ctrlKey: !isMac,
+          metaKey: isMac,
+          bubbles: true
+        });
+        richTextInput.dispatchEvent(selectAll);
+
+        // 4. 模拟退格键
+        const backspace = new KeyboardEvent('keydown', {
+          key: 'Backspace',
+          code: 'Backspace',
+          bubbles: true
+        });
+        richTextInput.dispatchEvent(backspace);
+
+        // 5. 使用现代剪贴板 API
+        await navigator.clipboard.writeText(translation);
+        console.log('内容已复制到剪贴板');
+
+        // 6. 模拟 Ctrl+V/Command+V
+        const paste = new KeyboardEvent('keydown', {
+          key: 'v',
+          code: 'KeyV',
+          ctrlKey: !isMac,
+          metaKey: isMac,
+          bubbles: true
+        });
+        richTextInput.dispatchEvent(paste);
+
+        // 7. 触发输入事件
+        const inputEvent = new InputEvent('input', {
+          bubbles: true,
+          cancelable: true,
+          inputType: 'insertFromPaste',
+          data: translation
+        });
+        richTextInput.dispatchEvent(inputEvent);
+
+        // 8. 检查最终状态
+        console.log('最终状态:', {
+          expectedContent: translation,
+          actualContent: richTextInput.textContent,
+          html: richTextInput.innerHTML,
+          success: richTextInput.textContent === translation
+        });
+
+        // 关闭模态框
+        modal.remove();
+      } catch (inputError) {
+        console.error('输入操作失败:', inputError);
+        throw inputError;
+      }
+    } catch (error) {
+      console.error('应用翻译结果失败:', {
+        error,
+        translation,
+        timestamp: new Date().toISOString()
+      });
+      alert('应用翻译结果失败: ' + error.message);
     }
   };
 
@@ -1248,6 +1256,69 @@ function createTranslateModal(text, inputBox) {
   };
 
   return modal;
+}
+
+// 添加错误显示函数
+function showTranslationError(message, code) {
+  const errorDiv = document.createElement('div');
+  errorDiv.className = 'translation-error';
+  errorDiv.innerHTML = `
+    <div class="error-icon">⚠️</div>
+    <div class="error-message">${message}</div>
+    ${code ? `<div class="error-code">${code}</div>` : ''}
+  `;
+  
+  // 添加错误提示样式
+  const style = document.createElement('style');
+  style.textContent = `
+    .translation-error {
+      color: #e74c3c;
+      padding: 8px 12px;
+      margin: 8px 0;
+      border-radius: 4px;
+      background: #fdeaea;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+    }
+    .error-icon {
+      font-size: 16px;
+    }
+    .error-code {
+      color: #95a5a6;
+      font-size: 12px;
+    }
+  `;
+  document.head.appendChild(style);
+  
+  // 创建一个toast通知而不是依赖verifyResult元素
+  const toast = document.createElement('div');
+  toast.className = 'translate-toast translate-toast-error';
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  
+  // 3秒后自动隐藏
+  setTimeout(() => {
+    toast.remove();
+  }, 3000);
+}
+
+// 修改模态框翻译的错误处理
+async function handleModalTranslation(error) {
+  if (error) {
+    console.error('模态框翻译失败:', {
+      message: error.message,
+      stack: error.stack,
+      details: error.toString()
+    });
+    
+    // 显示错误提示
+    showTranslationError(
+      '模态框翻译失败: ' + (error.message || '未知错误'),
+      'MODAL_TRANSLATION_ERROR'
+    );
+  }
 }
 
 // 启动输入框翻译功能

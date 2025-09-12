@@ -1,65 +1,154 @@
 <div align="center">
 
-# WhatsApp AI Assistant
+# WhatsApp Assistant Pro+
 
-<img src="images/icon.png" width="128" height="128" alt="WhatsApp AI Assistant Logo">
+<img src="images/icon.svg" width="128" height="128" alt="WhatsApp Assistant Pro+ Logo">
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.0.0-green.svg)](https://github.com/Achordchan/WA-AI-chrome/releases)
+[![Version](https://img.shields.io/badge/version-V2.5-green.svg)](https://github.com/Achordchan/WA-AI-chrome/releases)
 ![Chrome Web Store](https://img.shields.io/chrome-web-store/rating/pending)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/Achordchan/WA-AI-chrome/pulls)
 
-🌍 一个强大的 WhatsApp 网页版 AI 助手，支持实时消息翻译和对话分析
+🌍 一个功能强大的 WhatsApp 网页版 AI 助手，集成实时翻译、对话分析、智能号码识别、天气信息等多项功能
 
 [English](./README_EN.md) | 简体中文
 
 </div>
 
-## ✨ 特性
+## ✨ 核心特性
 
-- 🎯 实时消息翻译
-- 🤖 AI 对话分析
-- 💬 输入框实时翻译
-- 🔄 多种翻译引擎支持
-- 🎨 优雅的 UI 设计
-- ⚡ 高性能，低延迟
+### 🌟 全新功能 (V2.5)
+- 🌍 **智能号码识别** - 自动识别对方手机号码归属地
+- 🌤️ **实时天气信息** - 显示对方所在地区的当前天气状况  
+- ⏰ **当地时间显示** - 实时显示对方时区的本地时间
+- 📍 **地理位置信息** - 基于号码前缀智能识别国家和地区
+
+### 🤖 AI 功能
+- 🎯 **实时消息翻译** - 支持多种语言互译
+- 🤖 **AI 对话分析** - 智能分析对话内容和情感
+- 💬 **输入框实时翻译** - 边输入边翻译
+- 🔄 **多引擎支持** - DeepSeek、通义千问、火山翻译等
+
+### 🎨 用户体验
+- 🎨 **现代化界面** - 优雅简洁的 UI 设计
+- ⚡ **高性能** - 低延迟，快速响应
+- 🌐 **国际化支持** - 多语言界面
+- 📱 **跨平台兼容** - 适配各种设备
 
 ## 🚀 快速开始
 
-1. 从 [Chrome 网上应用店](https://chrome.google.com/webstore/pending) 安装扩展
-2. 打开 [WhatsApp Web](https://web.whatsapp.com/)
-3. 配置你的 API Key（可选）
+### 📦 安装方式
+
+#### 方式一：Chrome 网上应用店（推荐）
+1. 访问 [Chrome 网上应用店](https://chrome.google.com/webstore/pending)
+2. 搜索 "WhatsApp Assistant Pro+"
+3. 点击"添加至 Chrome"
+
+#### 方式二：开发者模式安装
+1. 下载最新 [Release](https://github.com/Achordchan/WA-AI-chrome/releases)
+2. 解压到本地文件夹
+3. 打开 Chrome 扩展管理页面 (`chrome://extensions/`)
+4. 开启"开发者模式"
+5. 点击"加载已解压的扩展程序"，选择解压的文件夹
+
+### 🎯 使用步骤
+1. 安装完成后，访问 [WhatsApp Web](https://web.whatsapp.com/)
+2. 在扩展弹窗中配置 API Key（可选，部分功能需要）
+3. 选择聊天对象，即可看到号码归属地、天气、时间等信息
 4. 开始使用翻译和 AI 分析功能
 
-## 🛠️ 支持的翻译服务
+## 🛠️ 支持的服务
 
-- [DeepSeek AI](https://deepseek.com/)
-- [通义千问](https://tongyi.aliyun.com/)
-- [火山翻译](https://translate.volcengine.com/)
+### 🌐 翻译服务
+- [DeepSeek AI](https://deepseek.com/) - 高质量 AI 翻译
+- [通义千问](https://tongyi.aliyun.com/) - 阿里云 AI 翻译
+- [火山翻译](https://translate.volcengine.com/) - 字节跳动翻译引擎
+- [Google 翻译](https://translate.google.com/) - 免费翻译服务
+- [百度翻译](https://fanyi.baidu.com/) - 百度翻译 API
 
-## 📸 预览
+### 🌤️ 天气服务
+- 内置天气 API - 提供实时天气信息
+- 自动定位 - 基于手机号码归属地获取天气
+
+### 📍 地理服务
+- 手机号码归属地识别
+- 时区自动计算
+- 国家/地区信息显示
+
+## 📸 功能预览
 
 <div align="center">
-<div>暂无，自己安装体验</div>
+
+### 🌍 智能号码识别 & 天气信息
+<img src="screenshots/phone-weather-preview.png" width="600" alt="号码识别和天气信息">
+
+### 🤖 AI 翻译 & 对话分析  
+<img src="screenshots/translation-preview.png" width="600" alt="翻译功能">
+
+### ⚙️ 设置面板
+<img src="screenshots/settings-preview.png" width="600" alt="设置面板">
+
 </div>
+
+> 💡 **提示**: 如果图片无法显示，请查看 [screenshots](./screenshots/) 文件夹中的完整截图
 
 ## 🔑 API 配置
 
-在扩展设置中配置以下 API（至少需要配置一个）：
+### 🆓 免费功能（无需配置）
+- 智能号码识别
+- 实时天气信息
+- 当地时间显示
+- Google 翻译
+- 百度翻译
 
-- DeepSeek API Key
-- 通义千问 API Key
-- 火山翻译 API Key
+### 🚀 高级功能（需要 API Key）
+在扩展设置中配置以下 API 以使用高级功能：
 
-## 🤝 贡献
+| 服务商 | API Key | 功能 | 获取地址 |
+|--------|---------|------|----------|
+| DeepSeek | `sk-xxx` | AI 翻译 & 对话分析 | [获取 API Key](https://deepseek.com/) |
+| 通义千问 | `sk-xxx` | AI 翻译 & 智能分析 | [获取 API Key](https://tongyi.aliyun.com/) |
+| 火山翻译 | `xxx` | 专业翻译服务 | [获取 API Key](https://translate.volcengine.com/) |
 
-欢迎提交 PR 和 Issue！
+### ⚙️ 配置步骤
+1. 点击 Chrome 工具栏中的扩展图标
+2. 在弹出的设置面板中输入相应的 API Key
+3. 保存设置后即可使用高级功能
 
+## 📊 项目统计
+
+![GitHub stars](https://img.shields.io/github/stars/Achordchan/WA-AI-chrome?style=social)
+![GitHub forks](https://img.shields.io/github/forks/Achordchan/WA-AI-chrome?style=social)
+![GitHub issues](https://img.shields.io/github/issues/Achordchan/WA-AI-chrome)
+![GitHub last commit](https://img.shields.io/github/last-commit/Achordchan/WA-AI-chrome)
+
+## 🤝 贡献指南
+
+我们欢迎各种形式的贡献！无论是 Bug 报告、功能建议还是代码贡献。
+
+### 🐛 报告 Bug
+- 使用 [Issue 模板](https://github.com/Achordchan/WA-AI-chrome/issues/new?template=bug_report.md)
+- 提供详细的复现步骤
+- 包含浏览器版本和扩展版本信息
+
+### 💡 功能建议
+- 使用 [功能请求模板](https://github.com/Achordchan/WA-AI-chrome/issues/new?template=feature_request.md)
+- 详细描述期望的功能
+- 说明使用场景和价值
+
+### 🔧 代码贡献
 1. Fork 本项目
-2. 创建你的特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交你的修改 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 打开一个 Pull Request
+2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
+3. 遵循代码规范，添加必要的注释
+4. 提交修改 (`git commit -m 'Add some AmazingFeature'`)
+5. 推送到分支 (`git push origin feature/AmazingFeature`)
+6. 创建 Pull Request
+
+### 📋 开发规范
+- 使用 ESLint 进行代码检查
+- 遵循 [JavaScript Standard Style](https://standardjs.com/)
+- 为新功能添加适当的注释
+- 测试新功能的兼容性
 
 ## 📝 许可证
 
@@ -79,15 +168,74 @@
   </tr>
 </table>
 
+## 📈 更新日志
+
+### V2.5.0 (最新版本) - 2024-12-09
+- 🆕 **新增智能号码识别功能**
+- 🌤️ **新增实时天气信息显示**
+- ⏰ **新增当地时间显示功能**
+- 🔧 **优化翻译引擎性能**
+- 🎨 **界面美化和用户体验提升**
+
+[查看完整更新日志](./CHANGELOG.md)
+
+## 🆘 常见问题
+
+<details>
+<summary><strong>Q: 为什么看不到号码归属地信息？</strong></summary>
+
+A: 请确保：
+1. 对方使用的是手机号码（非固定电话）
+2. 号码格式正确（包含国家代码）
+3. 扩展已正确加载
+</details>
+
+<details>
+<summary><strong>Q: 天气信息不准确怎么办？</strong></summary>
+
+A: 天气信息基于号码归属地获取，可能存在以下情况：
+1. 归属地与实际位置不符
+2. 天气数据更新延迟
+3. 可以手动刷新页面更新信息
+</details>
+
+<details>
+<summary><strong>Q: 如何获取 API Key？</strong></summary>
+
+A: 
+1. **DeepSeek**: 访问 [deepseek.com](https://deepseek.com) 注册账号
+2. **通义千问**: 访问 [tongyi.aliyun.com](https://tongyi.aliyun.com) 申请
+3. **火山翻译**: 访问 [translate.volcengine.com](https://translate.volcengine.com) 开通服务
+</details>
+
 ## 📮 联系方式
 
-- Email: achordchan@gmail.com
-- Tel: 13160235855
+- 📧 **Email**: [achordchan@gmail.com](mailto:achordchan@gmail.com)
+- 📱 **Tel**: 13160235855
+- 💬 **微信**: 同手机号
+- 🐙 **GitHub**: [@Achordchan](https://github.com/Achordchan)
 
 ## 🌟 支持项目
 
-如果这个项目对你有帮助，请给它一个星标 ⭐️
+如果这个项目对你有帮助，请考虑：
 
-## 📜 隐私政策
+- ⭐ 给项目点个星标
+- 🔄 分享给朋友
+- 🐛 报告 Bug 或提出建议
+- 💝 [赞助开发](https://github.com/sponsors/Achordchan)
 
-查看我们的 [隐私政策](PrivacyPolicy.html) 了解详情 
+## 📜 法律信息
+
+- **许可证**: [MIT License](./LICENSE)
+- **隐私政策**: [查看详情](./PrivacyPolicy.html)
+- **服务条款**: [查看详情](./TERMS.md)
+
+---
+
+<div align="center">
+
+**🎉 感谢使用 WhatsApp Assistant Pro+！**
+
+Made with ❤️ by [Achord](https://github.com/Achordchan)
+
+</div> 

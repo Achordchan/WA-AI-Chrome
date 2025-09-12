@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>WhatsApp Assistant Pro+</title>
+  <style>
+    body {
+      width: 360px;
+      padding: 10px;
+      font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+      height: auto;
+      overflow: visible;
+    }
+    .header {
+      margin: 0 0 15px 0;
+      padding: 10px 0;
+      position: sticky;
+      top: 0;
+      background: white;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .header h2 {
+      margin: 0;
+      color: #075e54;
+      font-size: 18px;
+    }
+    
+    .version-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .version {
+      font-size: 12px;
+      color: #666;
+      background: #f5f5f5;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .api-key {
+      margin: 10px 0;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 8px;
+      margin: 5px 0;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+    label {
+      font-size: 14px;
+      color: #333;
+    }
+    .reload-btn {
+      background-color: #25D366;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 8px 16px;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 10px;
+      position: sticky; /* 按钮固定在底部 */
+      bottom: 10px;
+    }
+    .reload-btn:disabled {
+      background-color: #ccc;
+    }
+    .status-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 10px 0;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    .status-icon {
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      font-weight: bold;
+    }
+    .status-success .status-icon {
+      background-color: #d4edda;
+      color: #155724;
+    }
+    .status-error .status-icon {
+      background-color: #f8d7da;
+      color: #721c24;
+    }
+    .status-loading .status-icon {
+      background-color: #fff3cd;
+      color: #856404;
+    }
+    .status-text {
+      flex: 1;
+    }
+    .status-detail {
+      font-size: 12px;
+      margin-top: 4px;
+      opacity: 0.8;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .status-area {
+      animation: fadeIn 0.3s ease-out;
+    }
+    .hidden {
+      display: none;
+    }
+    /* Google风格帮助说明样式 */
+    .help-section {
+      margin: 20px 0;
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 1px 2px 0 rgba(60,64,67,0.3), 0 2px 6px 2px rgba(60,64,67,0.15);
+      overflow: hidden;
+    }
+    .help-title {
+      color: #202124;
+      font-size: 16px;
+      font-weight: 500;
+      padding: 16px;
+      background: #f8f9fa;
+      border-bottom: 1px solid #dadce0;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .help-title svg {
+      width: 20px;
+      height: 20px;
+      color: #1a73e8;
+    }
+    .help-content {
+      padding: 16px;
+    }
+    .help-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .help-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 12px;
+      margin-bottom: 8px;
+      border-radius: 4px;
+      transition: background-color 0.2s;
+      cursor: pointer;
+    }
+    .help-item:hover {
+      background-color: #f8f9fa;
+    }
+    .help-item svg {
+      width: 20px;
+      height: 20px;
+      color: #1a73e8;
+      flex-shrink: 0;
+    }
+    .help-item span {
+      color: #3c4043;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .help-item:last-child {
+      margin-bottom: 0;
+    }
+    /* 作者信息样式 */
+    .author-info {
+      margin: 20px 0;
+      padding: 20px;
+      border-top: 1px solid #e0e0e0;
+      text-align: center;
+      background: linear-gradient(to bottom, #ffffff, #f8f9fa);
+      border-radius: 8px;
+    }
+    .author-avatar {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      margin: 0 auto 15px;
+      border: 3px solid #fff;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      transition: transform 0.6s ease;
+    }
+    /* 添加旋转动画 */
+    @keyframes rotate360 {
+      from {
+        transform: rotate(0deg);
+      }
+      to {
+        transform: rotate(360deg);
+      }
+    }
+    .author-avatar:hover {
+      animation: rotate360 3s linear infinite; /* 增加动画时间到3秒使旋转更慢 */
+    }
+    .author-info .info-item {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin: 8px 0;
+      color: #666;
+      font-size: 13px;
+      transition: all 0.2s ease;
+    }
+    .author-info .info-item:hover {
+      color: #075e54;
+    }
+    .author-info svg {
+      width: 16px;
+      height: 16px;
+    }
+    .author-info a {
+      color: #1a73e8;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .author-info a:hover {
+      color: #075e54;
+    }
+    .status-waiting .status-icon {
+      background-color: #e3f2fd;
+      color: #1976d2;
+    }
+    .status-waiting {
+      background-color: #f8f9fa;
+      border: 1px solid #e3f2fd;
+    }
+    .view-log-btn {
+      font-size: 12px;
+      color: #075e54;
+      background: none;
+      border: none;
+      padding: 2px 6px;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+    .view-log-btn:hover {
+      color: #128c7e;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h2>WhatsApp Assistant Pro+</h2>
+    <div class="version-container">
+      <span class="version">V2.5</span>
+      <button class="view-log-btn" id="viewUpdateLog">查看更新日志</button>
+    </div>
+  </div>
+  
+  <!-- 插件状态显示区域 -->
+  <div id="statusArea" class="status-area status-loading">
+    <div class="status-icon">⟳</div>
+    <div class="status-text">
+      <div>正在检查插件状态...</div>
+      <div class="status-detail">请稍候</div>
+    </div>
+  </div>
+
+  <!-- 美化后的作者信息 -->
+  <div class="author-info">
+    <img src="https://avatars.githubusercontent.com/u/179492542?v=4" alt="Achord" class="author-avatar">
+    <div class="info-item">
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+      </svg>
+      <span>作者：Achord</span>
+    </div>
+    <div class="info-item">
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <path d="M6.62 10.79c1.44 2.83 3.76 5.15 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
+      </svg>
+      <span>Tel: 13160235855</span>
+    </div>
+    <div class="info-item">
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+      </svg>
+      <span style="display: flex; align-items: center; gap: 4px;">Email: <a href="mailto:achordchan@gmail.com">achordchan@gmail.com</a></span>
+    </div>
+
+    
+    <div style="display: flex; justify-content: center; gap: 20px;">
+      <div class="info-item">
+        <a href="https://www.github.com/Achordchan/WA-AI-chrome" target="_blank">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+          </svg>
+          <span>项目地址</span>
+        </a>
+      </div>
+      <div class="info-item">
+        <a href="PrivacyPolicy.html" target="_blank">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
+          </svg>
+          <span>隐私条款</span>
+        </a>
+      </div>
+      <div class="info-item">
+        <a href="LICENSE" target="_blank">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+          </svg>
+          <span>开源协议</span>
+        </a>
+      </div>
+    </div>
+
+  <!-- 重新加载按钮 -->
+  <button id="reloadBtn" class="reload-btn hidden">重新加载插件</button>
+  
+  <script src="popup.js"></script>
+</body>
+</html>

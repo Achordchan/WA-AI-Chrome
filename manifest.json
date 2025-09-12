@@ -1,0 +1,56 @@
+{
+  "manifest_version": 3,
+  "name": "WhatsApp Assistant Pro+",
+  "version": "2.5.0",
+  "description": "AI + Translate WhatsApp messages | WhatsApp消息翻译助手 | 作者:Achord | Email:achordchan@gmail.com",
+  "permissions": [
+    "storage",
+    "webRequest",
+    "scripting",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "*://*.whatsapp.com/*",
+    "*://*.googleapis.com/*",
+    "*://*.deepseek.com/*",
+    "*://*.aliyuncs.com/*",
+    "*://*.volcengineapi.com/*",
+    "*://*.baidu.com/*",
+    "*://*.fanyi-api.baidu.com/*"
+  ],
+  "web_accessible_resources": [{
+    "resources": ["add.html"],
+    "matches": ["*://*.whatsapp.com/*"]
+  }],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "128": "images/icon.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.whatsapp.com/*"],
+      "js": [
+        "api-services.js",
+        "input-translate.js",
+        "update-modal.js",
+        "content.js",
+        "quick-chat.js",
+        "md5.js",
+        "fix-translation-service.js",
+        "weather-info.js"
+      ]
+    }
+  ],
+  "icons": {
+    "128": "images/icon.png"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  }
+}

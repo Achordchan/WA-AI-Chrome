@@ -1,286 +1,3 @@
-// CryptoJS MD5 Implementation (simplified)
-var CryptoJS = CryptoJS || {};
-CryptoJS.MD5 = function(string) {
-  function md5cycle(x, k) {
-    var a = x[0], b = x[1], c = x[2], d = x[3];
-    
-    a = ff(a, b, c, d, k[0], 7, -680876936);
-    d = ff(d, a, b, c, k[1], 12, -389564586);
-    c = ff(c, d, a, b, k[2], 17, 606105819);
-    b = ff(b, c, d, a, k[3], 22, -1044525330);
-    // ... (abbreviated for brevity) ...
-    
-    x[0] = add32(a, x[0]);
-    x[1] = add32(b, x[1]);
-    x[2] = add32(c, x[2]);
-    x[3] = add32(d, x[3]);
-  }
-  
-  function cmn(q, a, b, x, s, t) {
-    a = add32(add32(a, q), add32(x, t));
-    return add32((a << s) | (a >>> (32 - s)), b);
-  }
-  
-  function ff(a, b, c, d, x, s, t) { return cmn((b & c) | ((~b) & d), a, b, x, s, t); }
-  function gg(a, b, c, d, x, s, t) { return cmn((b & d) | (c & (~d)), a, b, x, s, t); }
-  function hh(a, b, c, d, x, s, t) { return cmn(b ^ c ^ d, a, b, x, s, t); }
-  function ii(a, b, c, d, x, s, t) { return cmn(c ^ (b | (~d)), a, b, x, s, t); }
-  
-  function md5blk(s) {
-    var md5blks = [], i;
-    for (i = 0; i < 64; i += 4) {
-      md5blks[i >> 2] = s.charCodeAt(i) + (s.charCodeAt(i + 1) << 8) + (s.charCodeAt(i + 2) << 16) + (s.charCodeAt(i + 3) << 24);
-    }
-    return md5blks;
-  }
-  
-  function md5(s) {
-    var n = s.length, state = [1732584193, -271733879, -1732584194, 271733878], i;
-    for (i = 64; i <= s.length; i += 64) {
-      md5cycle(state, md5blk(s.substring(i - 64, i)));
-    }
-    s = s.substring(i - 64);
-    var tail = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    for (i = 0; i < s.length; i++) {
-      tail[i >> 2] |= s.charCodeAt(i) << ((i % 4) << 3);
-    }
-    tail[i >> 2] |= 0x80 << ((i % 4) << 3);
-    if (i > 55) {
-      md5cycle(state, tail);
-      for (i = 0; i < 16; i++) tail[i] = 0;
-    }
-    tail[14] = n * 8;
-    md5cycle(state, tail);
-    return state;
-  }
-  
-  function hex_md5(s) {
-    var result = '';
-    var state = md5(s);
-    for (var i = 0; i < 4; i++) {
-      for (var j = 0; j < 4; j++) {
-        var byte = (state[i] >> (j * 8)) & 0xFF;
-        result += (byte < 16 ? '0' : '') + byte.toString(16);
-      }
-    }
-    return result;
-  }
-  
-  function add32(a, b) {
-    return (a + b) & 0xFFFFFFFF;
-  }
-  
-  return {
-    toString: function() {
-      return hex_md5(string);
-    }
-  };
-};
-
-// 移除外部库加载，仅使用内置实现
-
-// 提供一个全局的CryptoJS对象，使用内置的MD5实现
-(function() {
-  // 直接使用内置实现
-  console.log('使用内置的MD5实现代替CryptoJS');
-  
-  // 创建一个简化版的CryptoJS对象
-  window.CryptoJS = window.CryptoJS || {};
-  
-  // 使用已有的MD5函数
-  window.CryptoJS.MD5 = function(string) {
-    // 返回与CryptoJS兼容的接口
-    return {
-      toString: function() {
-        // 使用之前定义的md5函数
-        if (typeof md5 === 'function') {
-          return md5(string);
-        } else {
-          // 如果md5函数不可用，使用上面定义的hex_md5函数
-          return hex_md5(string);
-        }
-      }
-    };
-  };
-  
-  window.cryptoJSLoaded = true;
-})();
-
-// 替换为完全独立的实现:
-
-// 完全独立的MD5实现
-(function() {
-  console.log('初始化完全独立的MD5实现');
-  
-  // 内置MD5实现
-  function md5(string) {
-    // 检查输入
-    if (typeof string !== 'string') {
-      console.error('MD5输入必须是字符串，当前类型:', typeof string);
-      string = String(string); // 尝试转换为字符串
-    }
-    
-    console.log('MD5输入字符串长度:', string.length);
-    
-    function md5cycle(x, k) {
-      let a = x[0], b = x[1], c = x[2], d = x[3];
-      
-      a = ff(a, b, c, d, k[0], 7, -680876936);
-      d = ff(d, a, b, c, k[1], 12, -389564586);
-      c = ff(c, d, a, b, k[2], 17, 606105819);
-      b = ff(b, c, d, a, k[3], 22, -1044525330);
-      a = ff(a, b, c, d, k[4], 7, -176418897);
-      d = ff(d, a, b, c, k[5], 12, 1200080426);
-      c = ff(c, d, a, b, k[6], 17, -1473231341);
-      b = ff(b, c, d, a, k[7], 22, -45705983);
-      a = ff(a, b, c, d, k[8], 7, 1770035416);
-      d = ff(d, a, b, c, k[9], 12, -1958414417);
-      c = ff(c, d, a, b, k[10], 17, -42063);
-      b = ff(b, c, d, a, k[11], 22, -1990404162);
-      a = ff(a, b, c, d, k[12], 7, 1804603682);
-      d = ff(d, a, b, c, k[13], 12, -40341101);
-      c = ff(c, d, a, b, k[14], 17, -1502002290);
-      b = ff(b, c, d, a, k[15], 22, 1236535329);
-      
-      a = gg(a, b, c, d, k[1], 5, -165796510);
-      d = gg(d, a, b, c, k[6], 9, -1069501632);
-      c = gg(c, d, a, b, k[11], 14, 643717713);
-      b = gg(b, c, d, a, k[0], 20, -373897302);
-      a = gg(a, b, c, d, k[5], 5, -701558691);
-      d = gg(d, a, b, c, k[10], 9, 38016083);
-      c = gg(c, d, a, b, k[15], 14, -660478335);
-      b = gg(b, c, d, a, k[4], 20, -405537848);
-      a = gg(a, b, c, d, k[9], 5, 568446438);
-      d = gg(d, a, b, c, k[14], 9, -1019803690);
-      c = gg(c, d, a, b, k[3], 14, -187363961);
-      b = gg(b, c, d, a, k[8], 20, 1163531501);
-      a = gg(a, b, c, d, k[13], 5, -1444681467);
-      d = gg(d, a, b, c, k[2], 9, -51403784);
-      c = gg(c, d, a, b, k[7], 14, 1735328473);
-      b = gg(b, c, d, a, k[12], 20, -1926607734);
-      
-      a = hh(a, b, c, d, k[5], 4, -378558);
-      d = hh(d, a, b, c, k[8], 11, -2022574463);
-      c = hh(c, d, a, b, k[11], 16, 1839030562);
-      b = hh(b, c, d, a, k[14], 23, -35309556);
-      a = hh(a, b, c, d, k[1], 4, -1530992060);
-      d = hh(d, a, b, c, k[4], 11, 1272893353);
-      c = hh(c, d, a, b, k[7], 16, -155497632);
-      b = hh(b, c, d, a, k[10], 23, -1094730640);
-      a = hh(a, b, c, d, k[13], 4, 681279174);
-      d = hh(d, a, b, c, k[0], 11, -358537222);
-      c = hh(c, d, a, b, k[3], 16, -722521979);
-      b = hh(b, c, d, a, k[6], 23, 76029189);
-      a = hh(a, b, c, d, k[9], 4, -640364487);
-      d = hh(d, a, b, c, k[12], 11, -421815835);
-      c = hh(c, d, a, b, k[15], 16, 530742520);
-      b = hh(b, c, d, a, k[2], 23, -995338651);
-      
-      a = ii(a, b, c, d, k[0], 6, -198630844);
-      d = ii(d, a, b, c, k[7], 10, 1126891415);
-      c = ii(c, d, a, b, k[14], 15, -1416354905);
-      b = ii(b, c, d, a, k[5], 21, -57434055);
-      a = ii(a, b, c, d, k[12], 6, 1700485571);
-      d = ii(d, a, b, c, k[3], 10, -1894986606);
-      c = ii(c, d, a, b, k[10], 15, -1051523);
-      b = ii(b, c, d, a, k[1], 21, -2054922799);
-      a = ii(a, b, c, d, k[8], 6, 1873313359);
-      d = ii(d, a, b, c, k[15], 10, -30611744);
-      c = ii(c, d, a, b, k[6], 15, -1560198380);
-      b = ii(b, c, d, a, k[13], 21, 1309151649);
-      a = ii(a, b, c, d, k[4], 6, -145523070);
-      d = ii(d, a, b, c, k[11], 10, -1120210379);
-      c = ii(c, d, a, b, k[2], 15, 718787259);
-      b = ii(b, c, d, a, k[9], 21, -343485551);
-      
-      x[0] = add32(a, x[0]);
-      x[1] = add32(b, x[1]);
-      x[2] = add32(c, x[2]);
-      x[3] = add32(d, x[3]);
-    }
-    
-    function cmn(q, a, b, x, s, t) {
-      a = add32(add32(a, q), add32(x, t));
-      return add32((a << s) | (a >>> (32 - s)), b);
-    }
-    
-    function ff(a, b, c, d, x, s, t) { return cmn((b & c) | ((~b) & d), a, b, x, s, t); }
-    function gg(a, b, c, d, x, s, t) { return cmn((b & d) | (c & (~d)), a, b, x, s, t); }
-    function hh(a, b, c, d, x, s, t) { return cmn(b ^ c ^ d, a, b, x, s, t); }
-    function ii(a, b, c, d, x, s, t) { return cmn(c ^ (b | (~d)), a, b, x, s, t); }
-    
-    function md5blk(s) {
-      const md5blks = [];
-      for (let i = 0; i < 64; i += 4) {
-        md5blks[i >> 2] = s.charCodeAt(i) + (s.charCodeAt(i + 1) << 8) + (s.charCodeAt(i + 2) << 16) + (s.charCodeAt(i + 3) << 24);
-      }
-      return md5blks;
-    }
-    
-    function add32(a, b) {
-      return (a + b) & 0xFFFFFFFF;
-    }
-    
-    let blks, i;
-    const n = string.length;
-    blks = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    for (i = 0; i < n; i++) {
-      blks[i >> 2] |= string.charCodeAt(i) << ((i % 4) * 8);
-    }
-    blks[i >> 2] |= 0x80 << ((i % 4) * 8);
-    blks[14] = n * 8;
-    
-    let x = [1732584193, -271733879, -1732584194, 271733878];
-    for (i = 0; i < blks.length; i += 16) {
-      const tempX = x.slice(0);
-      md5cycle(tempX, blks.slice(i, i + 16));
-      for (let j = 0; j < 4; j++) {
-        x[j] = tempX[j];
-      }
-    }
-    
-    let result = '';
-    for (i = 0; i < 4; i++) {
-      let s = (x[i] >>> 0).toString(16); // 确保是无符号整数
-      console.log(`第${i+1}块16进制值:`, s, '长度:', s.length);
-      while (s.length < 8) {
-        s = '0' + s; // 补齐到8位
-      }
-      result += s;
-    }
-    
-    // 确保结果是32位小写
-    result = result.toLowerCase();
-    
-    console.log('MD5计算结果:', result, '长度:', result.length);
-    
-    // 最后验证
-    if (result.length !== 32) {
-      console.error('MD5结果长度不正确:', result.length);
-    }
-    
-    return result;
-  }
-  
-  // 替换全局md5函数，避免循环引用
-  window.md5 = md5;
-  
-  // 创建一个纯粹的CryptoJS对象
-  window.CryptoJS = {
-    MD5: function(string) {
-      const hash = md5(string);
-      return {
-        toString: function() {
-          return hash;
-        }
-      };
-    }
-  };
-  
-  window.cryptoJSLoaded = true;
-  console.log('纯内置MD5实现已完成初始化');
-})();
-
 let pluginStatus = {
   translation: false,
   observer: false,
@@ -288,124 +5,370 @@ let pluginStatus = {
   weatherInfo: false
 };
 
-// 修改状态检查函数
-function checkStatus() {
-  const status = {
-    isLoaded: true,  // 默认为 true，除非特定条件为 false
-    translation: pluginStatus.translation,
-    observer: pluginStatus.observer,
-    apiService: pluginStatus.apiService,
-    weatherInfo: pluginStatus.weatherInfo
-  };
+// 供 popup.html / popup.js 检测插件加载状态、以及手动打开更新说明
+try {
+  if (chrome?.runtime?.onMessage?.addListener) {
+    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+      try {
+        if (!request || !request.type) return;
 
-  // 只在开发环境输出状态日志
-  if (process.env.NODE_ENV === 'development') {
-    console.debug('Plugin status:', status);
-  }
+        const isChatWindowExists = () => {
+          try {
+            const main = document.querySelector('#main');
+            if (!main) return false;
+            const header = main.querySelector('header');
+            if (!header) return false;
 
-  return status;
-}
+            // footer 在进入会话后才会出现
+            const footer = document.querySelector('footer._ak1i') || main.querySelector('footer');
+            if (!footer) return false;
 
-// 添加消息监听器
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  if (request.type === 'CHECK_STATUS') {
-    sendResponse(checkStatus());
-    return true;
-  }
+            // 输入框存在则基本可以认为已进入对话
+            const editable = footer.querySelector('.lexical-rich-text-input div[contenteditable="true"]') || footer.querySelector('div[contenteditable="true"]');
+            return !!editable;
+          } catch (e) {
+            return false;
+          }
+        };
 
-  if (request.type === 'CHECK_BUTTONS') {
-    try {
-      // 检查翻译按钮是否存在
-      const translateBtnExists = document.querySelector('.translate-btn') !== null;
-      
-      // 检查分析按钮是否存在
-      const analysisBtnExists = document.querySelector('.analysis-btn-container') !== null;
-      
-      // 检查输入框翻译按钮是否存在
-      const inputTranslateBtnExists = document.querySelector('.input-translate-btn') !== null;
-      
-      // 检查天气信息功能是否存在
-      const weatherInfoExists = typeof window.WeatherInfo !== 'undefined';
+        const isButtonsLoaded = () => {
+          try {
+            // 优先用运行状态判断
+            if (pluginStatus && (pluginStatus.translation || pluginStatus.observer || pluginStatus.apiService)) {
+              // 只要进入聊天窗口，且翻译/观察器已初始化，就认为按钮应已加载
+              if (isChatWindowExists() && pluginStatus.translation && pluginStatus.observer) return true;
+            }
 
-      // 如果任意一个按钮存在，就认为插件已经正常加载
-      const success = translateBtnExists || analysisBtnExists || inputTranslateBtnExists || weatherInfoExists;
-      
-      sendResponse({
-        success,
-        details: {
-          translateBtn: translateBtnExists,
-          analysisBtn: analysisBtnExists,
-            inputTranslateBtn: inputTranslateBtnExists,
-            weatherInfo: weatherInfoExists
+            // DOM 兜底：任意一个核心按钮存在即可
+            const hasAny = !!(
+              document.querySelector('.analysis-btn-container') ||
+              document.querySelector('.translate-all-btn') ||
+              document.querySelector('.translate-btn') ||
+              document.querySelector('.translate-btn-container')
+            );
+            return hasAny;
+          } catch (e) {
+            return false;
+          }
+        };
+
+        if (request.type === 'CHECK_CHAT_WINDOW') {
+          sendResponse({ exists: isChatWindowExists() });
+          return;
         }
-      });
-    } catch (error) {
-      console.error('Button check error:', error);
-      sendResponse({ success: false, error: error.message });
-    }
-    return true;
-  }
 
-  if (request.type === 'CHECK_CHAT_WINDOW') {
-    try {
-      // 检查是否存在聊天窗口
-      const chatWindow = document.querySelector('#main');
-      sendResponse({ exists: chatWindow !== null });
-    } catch (error) {
-      console.error('Chat window check error:', error);
-      sendResponse({ exists: false });
-    }
-    return true;
-  }
+        if (request.type === 'CHECK_BUTTONS') {
+          sendResponse({ success: isButtonsLoaded() });
+          return;
+        }
 
-  if (request.type === 'SHOW_UPDATE_LOG') {
-    window.showUpdateLogManually();
-    sendResponse({ success: true });
-    return true;
+        if (request.type === 'SHOW_UPDATE_LOG') {
+          try {
+            if (typeof window.showUpdateLogManually === 'function') {
+              window.showUpdateLogManually();
+            } else if (typeof window.checkAndShowUpdateLog === 'function') {
+              window.checkAndShowUpdateLog();
+            }
+          } catch (e) {
+            // ignore
+          }
+          sendResponse({ success: true });
+          return;
+        }
+      } catch (e) {
+        try {
+          sendResponse({ success: false, error: e?.message || 'unknown' });
+        } catch (e2) {
+          // ignore
+        }
+      }
+    });
   }
-
-  if (request.action === 'notifyServiceSwitch') {
-    showNotification(`翻译服务已从${request.from}切换至${request.to}: ${request.reason}`);
-  }
-});
-
-function showNotification(message) {
-  const notification = document.createElement('div');
-  notification.className = 'wa-ai-notification';
-  notification.textContent = message;
-  notification.style.cssText = 'position:fixed;z-index:9999;bottom:20px;right:20px;background:#4CAF50;color:white;padding:12px 15px;border-radius:4px;box-shadow:0 2px 10px rgba(0,0,0,0.2);font-size:14px;font-weight:bold;max-width:80%;overflow:hidden;text-overflow:ellipsis;';
-  
-  // 添加图标
-  const icon = document.createElement('span');
-  icon.textContent = '🔄 ';
-  notification.prepend(icon);
-  
-  document.body.appendChild(notification);
-  
-  // 淡入效果
-  notification.style.opacity = '0';
-  notification.style.transform = 'translateY(20px)';
-  notification.style.transition = 'opacity 0.3s, transform 0.3s';
-  
-  setTimeout(() => {
-    notification.style.opacity = '1';
-    notification.style.transform = 'translateY(0)';
-  }, 10);
-  
-  // 淡出效果
-  setTimeout(() => {
-    notification.style.opacity = '0';
-    notification.style.transform = 'translateY(20px)';
-    setTimeout(() => notification.remove(), 300);
-  }, 5000);
-  
-  // 记录日志
-  console.log('显示通知:', message);
+} catch (e) {
+  // ignore
 }
 
-// 天气信息集成函数
-function integrateWeatherInfo() {
-  console.log('🌤️ 开始集成天气信息功能...');
+ let autoTranslateNewMessagesEnabled = false;
+let lastAutoTranslateAt = 0;
+const AUTO_TRANSLATE_THROTTLE_MS = 900;
+const AUTO_TRANSLATE_IGNORE_AFTER_CHAT_SWITCH_MS = 1200;
+let lastAutoTranslateChatKey = '';
+let lastAutoTranslateChatSwitchAt = 0;
+let autoTranslateChatEnterTimer = null;
+
+ const autoTranslatedMessageKeys = new Set();
+ const autoTranslatedMessageKeyRing = [];
+ const AUTO_TRANSLATE_KEY_RING_MAX = 500;
+
+ let autoTranslateQueue = [];
+ let autoTranslateQueueRunning = false;
+
+ function loadAutoTranslateSetting() {
+ try {
+   if (!chrome?.storage?.sync) return;
+   chrome.storage.sync.get(['autoTranslateNewMessages'], (data) => {
+     autoTranslateNewMessagesEnabled = data.autoTranslateNewMessages === true;
+    });
+ } catch (e) {
+   // ignore
+ }
+}
+
+try {
+  loadAutoTranslateSetting();
+  if (chrome?.storage?.onChanged) {
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName !== 'sync') return;
+      if (!changes.autoTranslateNewMessages) return;
+      autoTranslateNewMessagesEnabled = changes.autoTranslateNewMessages.newValue === true;
+    });
+  }
+} catch (e) {
+  // ignore
+}
+
+ function rememberAutoTranslatedKey(key) {
+  if (!key) return;
+  if (autoTranslatedMessageKeys.has(key)) return;
+  autoTranslatedMessageKeys.add(key);
+  autoTranslatedMessageKeyRing.push(key);
+   if (autoTranslatedMessageKeyRing.length > AUTO_TRANSLATE_KEY_RING_MAX) {
+     const old = autoTranslatedMessageKeyRing.shift();
+     if (old) autoTranslatedMessageKeys.delete(old);
+   }
+ }
+
+ function getActiveChatKeyForAutoTranslate() {
+  const main = document.querySelector('#main');
+  if (!main) return '';
+  const header = main.querySelector('header');
+  if (!header) return '';
+  const text = (header.innerText || '').trim();
+  if (!text) return '';
+   return (
+     text
+       .split('\n')
+       .map(s => s.trim())
+       .filter(Boolean)[0] || ''
+   );
+ }
+
+ function isAmongNewestMessagesInActiveChat(messageElement, newestCount = 3) {
+   try {
+     const main = document.querySelector('#main');
+     if (!main) return false;
+     if (!main.contains(messageElement)) return false;
+     const all = Array.from(main.querySelectorAll('div[data-pre-plain-text]'));
+     if (all.length === 0) return false;
+     const start = Math.max(0, all.length - newestCount);
+     const tail = all.slice(start);
+     return tail.includes(messageElement);
+   } catch (e) {
+     return false;
+   }
+ }
+
+ function getAutoTranslateMessageKey(messageElement, extractedText = '') {
+  try {
+    const wrapperId = messageElement?.closest?.('[data-id]')?.getAttribute?.('data-id') || '';
+    const pre = messageElement?.getAttribute?.('data-pre-plain-text') || '';
+    if (wrapperId) return wrapperId;
+    if (pre) return pre;
+    const text = (extractedText || '').replace(/\s+/g, ' ').trim();
+    return text.slice(0, 120);
+  } catch (e) {
+    return '';
+  }
+ }
+
+ function shouldAutoTranslateNewMessage(messageElement) {
+ if (!autoTranslateNewMessagesEnabled) return false;
+ if (!messageElement || !(messageElement instanceof Element)) return false;
+
+  const now = Date.now();
+  if (lastAutoTranslateChatSwitchAt && now - lastAutoTranslateChatSwitchAt < AUTO_TRANSLATE_IGNORE_AFTER_CHAT_SWITCH_MS) {
+    // 切换聊天窗口时 WhatsApp 会批量渲染历史消息；此阶段不做任何自动翻译。
+    return false;
+  }
+
+   if (messageElement.dataset.waaiAutoTranslateQueued === 'true') return false;
+   if (messageElement.dataset.waaiAutoTranslated === 'true') return false;
+
+   const main = document.querySelector('#main');
+   if (!main || !main.contains(messageElement)) return false;
+
+   const container = messageElement.closest('.message-container') || messageElement.parentElement;
+  if (container && container.querySelector('.translation-content')) return false;
+
+   const textRoot = getMessageTextRoot(messageElement);
+   const text = textRoot ? collectTextContent(textRoot) : '';
+   if (!text || !text.trim()) return false;
+
+   const key = getAutoTranslateMessageKey(messageElement, text);
+   if (key && autoTranslatedMessageKeys.has(key)) return false;
+
+   messageElement.dataset.waaiAutoTranslateKey = key;
+  return true;
+}
+
+function getMessagesInActiveChat() {
+  try {
+    const main = document.querySelector('#main');
+    if (!main) return [];
+    return Array.from(main.querySelectorAll('div[data-pre-plain-text]'));
+  } catch (e) {
+    return [];
+  }
+}
+
+function primeAutoTranslateSeenInChat(excludeNewestCount = 3) {
+  try {
+    const all = getMessagesInActiveChat();
+    if (all.length === 0) return;
+    const cutoff = Math.max(0, all.length - excludeNewestCount);
+    for (let i = 0; i < cutoff; i++) {
+      const m = all[i];
+      const wrapperId = m?.closest?.('[data-id]')?.getAttribute?.('data-id') || '';
+      const pre = m?.getAttribute?.('data-pre-plain-text') || '';
+      const key = wrapperId || pre;
+      if (key) rememberAutoTranslatedKey(key);
+    }
+  } catch (e) {
+    // ignore
+  }
+}
+
+function autoTranslateNewestMessagesInChat(count = 1) {
+  try {
+    if (!autoTranslateNewMessagesEnabled) return;
+    const all = getMessagesInActiveChat();
+    if (all.length === 0) return;
+    const start = Math.max(0, all.length - count);
+    const newest = all.slice(start);
+    newest.forEach((m) => {
+      maybeAutoTranslateNewMessage(m);
+    });
+  } catch (e) {
+    // ignore
+  }
+}
+
+function scheduleAutoTranslateOnChatEnter() {
+  try {
+    if (autoTranslateChatEnterTimer) {
+      clearTimeout(autoTranslateChatEnterTimer);
+    }
+    // 等待 WhatsApp 完成渲染（尤其是“点进聊天窗口”时）
+    autoTranslateChatEnterTimer = setTimeout(() => {
+      // 切换聊天窗口时，只做“已见”预登记：防止后续 DOM 变动把历史消息当成新消息自动翻译。
+      primeAutoTranslateSeenInChat(0);
+    }, 700);
+  } catch (e) {
+    // ignore
+  }
+}
+
+window.triggerAutoTranslateScan = function() {
+  scheduleAutoTranslateOnChatEnter();
+};
+
+window.getAutoTranslateState = function() {
+  return {
+    enabled: autoTranslateNewMessagesEnabled,
+    queueLength: Array.isArray(autoTranslateQueue) ? autoTranslateQueue.length : -1,
+    queueRunning: !!autoTranslateQueueRunning,
+    lastAutoTranslateAt,
+    lastChatKey: lastAutoTranslateChatKey,
+    lastChatSwitchAt: lastAutoTranslateChatSwitchAt
+  };
+};
+
+function enqueueAutoTranslate(messageElement) {
+   if (!messageElement) return;
+   const key = messageElement.dataset.waaiAutoTranslateKey || '';
+   if (key) rememberAutoTranslatedKey(key);
+
+   console.log('🌐 自动翻译排队:', key || '(no-key)');
+
+   messageElement.dataset.waaiAutoTranslateQueued = 'true';
+   autoTranslateQueue.push(messageElement);
+   runAutoTranslateQueue();
+ }
+
+ async function runAutoTranslateQueue() {
+   if (autoTranslateQueueRunning) return;
+   autoTranslateQueueRunning = true;
+   try {
+     while (autoTranslateQueue.length > 0) {
+       const messageElement = autoTranslateQueue.shift();
+       if (!messageElement) continue;
+
+       console.log('🌐 自动翻译执行');
+
+       const container = messageElement.closest('.message-container') || messageElement.parentElement;
+       if (container && container.querySelector('.translation-content')) {
+         messageElement.dataset.waaiAutoTranslateQueued = 'false';
+         messageElement.dataset.waaiAutoTranslated = 'true';
+         continue;
+       }
+
+       const now = Date.now();
+       const waitMs = Math.max(0, AUTO_TRANSLATE_THROTTLE_MS - (now - lastAutoTranslateAt));
+       if (waitMs > 0) {
+         await new Promise(r => setTimeout(r, waitMs));
+       }
+       lastAutoTranslateAt = Date.now();
+
+       try {
+         if (document.contains(messageElement)) {
+           await translateMessage(messageElement);
+         }
+       } catch (e) {
+         // ignore
+       }
+
+       messageElement.dataset.waaiAutoTranslateQueued = 'false';
+       messageElement.dataset.waaiAutoTranslated = 'true';
+     }
+   } finally {
+     autoTranslateQueueRunning = false;
+   }
+ }
+
+ function maybeAutoTranslateNewMessage(messageElement) {
+   try {
+     if (!shouldAutoTranslateNewMessage(messageElement)) return;
+     enqueueAutoTranslate(messageElement);
+   } catch (e) {
+     // ignore
+   }
+ }
+
+ // 天气信息集成函数
+ let lastWeatherChatKey = '';
+ let lastWeatherTriggerAt = 0;
+ const WEATHER_CHAT_SWITCH_THROTTLE_MS = 1200;
+
+ function getActiveChatKeyForWeather() {
+  const main = document.querySelector('#main');
+  if (!main) return '';
+  const header = main.querySelector('header');
+  if (!header) return '';
+
+  const text = (header.innerText || '').trim();
+  if (!text) return '';
+
+  // header 往往包含多行（联系人名/状态/按钮），取第一行做稳定 key
+  const firstLine = text
+    .split('\n')
+    .map(s => s.trim())
+    .filter(Boolean)[0] || '';
+
+  return firstLine;
+}
+
+function integrateWeatherInfo(options = {}) {
+  const force = options && options.force === true;
   
   // 检查WeatherInfo是否可用
   if (typeof window.WeatherInfo === 'undefined') {
@@ -416,7 +379,30 @@ function integrateWeatherInfo() {
   try {
     // 检查是否有聊天窗口
     const main = document.querySelector('#main');
-    if (main) {
+    const chatActive = !!(main && (
+      (typeof window.WeatherInfo?.isChatWindowActive === 'function' && window.WeatherInfo.isChatWindowActive()) ||
+      main.querySelector('header')
+    ));
+
+    const chatKey = getActiveChatKeyForWeather();
+    const now = Date.now();
+    if (!force) {
+      if (!chatKey) {
+        console.log('ℹ️ 当前无法识别聊天窗口 key，跳过天气更新');
+        return false;
+      }
+      if (chatKey === lastWeatherChatKey) {
+        return false;
+      }
+      if (now - lastWeatherTriggerAt < WEATHER_CHAT_SWITCH_THROTTLE_MS) {
+        return false;
+      }
+      lastWeatherChatKey = chatKey;
+      lastWeatherTriggerAt = now;
+    }
+
+    if (chatActive) {
+      console.log('🌤️ 开始集成天气信息功能...');
       // 触发天气信息检查
       if (typeof window.WeatherInfo.checkForNewChatWindow === 'function') {
         console.log('🔍 检查新聊天窗口的天气信息...');
@@ -430,7 +416,6 @@ function integrateWeatherInfo() {
           window.WeatherInfo.extractPhoneNumber();
         }, 1000);
       }
-      
       return true;
     } else {
       console.log('ℹ️ 当前没有活跃的聊天窗口');
@@ -445,7 +430,7 @@ function integrateWeatherInfo() {
 // 手动触发天气信息功能的函数（用于调试）
 window.triggerWeatherInfo = function() {
   console.log('🔧 手动触发天气信息功能...');
-  return integrateWeatherInfo();
+  return integrateWeatherInfo({ force: true });
 };
 
 // 测试函数 - 在控制台可调用 window.testTranslationServiceSwitch() 测试通知
@@ -460,7 +445,13 @@ function updatePluginStatus(feature, status) {
 }
 
 // 修改初始化函数
+let contentScriptInitStarted = false;
+let contentScriptInitialized = false;
 async function initialize() {
+  if (contentScriptInitialized || contentScriptInitStarted) {
+    return;
+  }
+  contentScriptInitStarted = true;
   try {
     // 检查并显示更新日志
     await window.checkAndShowUpdateLog();
@@ -497,6 +488,7 @@ async function initialize() {
        console.warn('⚠️ WeatherInfo 模块未找到，天气功能将不可用');
        updatePluginStatus('weatherInfo', false);
     }
+    contentScriptInitialized = true;
   } catch (error) {
     console.error('Initialization error:', error);
     // 更新对应功能的状态为失败
@@ -504,11 +496,73 @@ async function initialize() {
     updatePluginStatus('observer', false);
     updatePluginStatus('apiService', false);
     updatePluginStatus('weatherInfo', false);
+    contentScriptInitStarted = false;
   }
 }
 
 // 将初始化函数暴露到window对象
 window.initialize = initialize;
+
+let initializeAutoStarted = false;
+let lastAutoInitCheckAt = 0;
+let initObserver = null;
+
+function isChatWindowActiveForHeaderButtons() {
+  const main = document.querySelector('#main');
+  if (!main) return false;
+
+  // 右上角按钮挂在 main 内部的 header 上
+  const header = main.querySelector('header');
+  if (!header) return false;
+
+  return true;
+}
+
+function maybeAutoInitialize() {
+  const now = Date.now();
+  if (now - lastAutoInitCheckAt < 500) {
+    return;
+  }
+  lastAutoInitCheckAt = now;
+
+  if (initializeAutoStarted || contentScriptInitialized || contentScriptInitStarted) {
+    return;
+  }
+
+  if (!isChatWindowActiveForHeaderButtons()) {
+    return;
+  }
+
+  initializeAutoStarted = true;
+  initialize();
+
+  if (initObserver) {
+    initObserver.disconnect();
+    initObserver = null;
+  }
+}
+
+// 自动启动：只有进入聊天窗口后才会触发一次 initialize()
+try {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+      setTimeout(() => {
+        maybeAutoInitialize();
+      }, 500);
+    });
+  } else {
+    setTimeout(() => {
+      maybeAutoInitialize();
+    }, 500);
+  }
+
+  initObserver = new MutationObserver(() => {
+    maybeAutoInitialize();
+  });
+  initObserver.observe(document.body, { childList: true, subtree: true });
+} catch (e) {
+  // 忽略自动启动失败，不影响其它功能
+}
 
 // 页面加载完成后，自动尝试集成天气信息
 document.addEventListener('DOMContentLoaded', () => {
@@ -578,21 +632,21 @@ async function translateText(text) {
       console.log('谷歌翻译结果:', { success: !!translation, resultLength: translation?.length });
     } else if (service === 'siliconflow') {
       // Openai翻译需要额外参数
-      console.log('调用OpenAI翻译服务', { 
-        apiKeyLength: apiKey?.length, 
-        hasApiUrl: !!apiUrl,
-        hasModel: !!model,
+      console.log('调用OpenAI翻译:', {
+        service,
+        hasApiKey: !!apiKey,
+        apiUrl,
+        model,
         textLength: text.length,
         textPreview: text.replace(/\n/g, '\\n').substring(0, 30) + (text.length > 30 ? '...' : '')
       });
       try {
-        translation = await window.ApiServices.translation[service](text, apiKey, apiUrl, model);
+        const normalizedTargetLang = targetLang === 'zh-CN' ? 'zh' : targetLang;
+        translation = await window.ApiServices.translation[service](text, apiKey, apiUrl, model, normalizedTargetLang);
         
         // 检查是否是带有思考过程的对象结果
         if (translation && typeof translation === 'object' && translation.hasThinking) {
-          console.log('OpenAI翻译结果 (带思考过程):', { 
-            success: true,
-            hasThinking: true, 
+          console.log('OpenAI翻译返回思考过程:', {
             thinkingLength: translation.thinking?.length || 0,
             translationLength: translation.translation?.length || 0,
             translationPreview: translation.translation ? 
@@ -642,11 +696,11 @@ async function translateText(text) {
 }
 
 // 修改添加翻译按钮的函数
-function addTranslateButton(textElement) {
-  console.log('添加翻译按钮到消息:', textElement);
+function addTranslateButton(messageElement) {
+  console.log('添加翻译按钮到消息:', messageElement);
   
   // 检查是否已经添加过按钮
-  if (textElement.querySelector('.translate-btn-container')) {
+  if (messageElement.querySelector('.translate-btn-container')) {
     console.log('按钮已存在，跳过添加');
     return;
   }
@@ -659,23 +713,26 @@ function addTranslateButton(textElement) {
     e.stopPropagation();
     e.preventDefault();
     console.log('翻译按钮被点击');
-    
-    // 修改查找消息容器的方式
-    const messageWrapper = textElement.closest('div[data-pre-plain-text]');
-    if (messageWrapper) {
-      await translateMessage(messageWrapper);
-    } else {
-      console.error('无法找到消息wrapper元素');
-    }
+
+    await translateMessage(messageElement);
   };
 
   // 创建按钮容器
-  const buttonContainer = document.createElement('div');
+  const buttonContainer = document.createElement('span');
   buttonContainer.className = 'translate-btn-container';
   buttonContainer.appendChild(translateBtn);
   
-  // 将按钮添加到文本元素后面
-  textElement.appendChild(buttonContainer);
+  // 将按钮放到消息文本最开头（inline），而不是悬浮在角落
+  const textRoot = getMessageTextRoot(messageElement);
+  if (textRoot && textRoot.firstChild) {
+    textRoot.insertBefore(buttonContainer, textRoot.firstChild);
+  } else if (textRoot) {
+    textRoot.appendChild(buttonContainer);
+  } else if (messageElement.firstChild) {
+    messageElement.insertBefore(buttonContainer, messageElement.firstChild);
+  } else {
+    messageElement.appendChild(buttonContainer);
+  }
   
   console.log('按钮添加成功');
 }
@@ -684,18 +741,113 @@ function addTranslateButton(textElement) {
 function processMessage(message) {
   if (!message.dataset.processed) {
     console.log('处理消息:', message);
-    
-    // 查找消息中的文本元素
-    const textContainer = message.querySelector('span.selectable-text');
-    if (textContainer) {
-      // 为消息添加包装器类
-      message.classList.add('message-wrapper');
-      // 确保消息容器有相对定位
-      message.style.position = 'relative';
-      // 添加翻译按钮
-      addTranslateButton(textContainer);
-      message.dataset.processed = 'true';
+
+    // 为消息添加包装器类
+    message.classList.add('message-wrapper');
+    message.classList.add('waai-message');
+    // 确保消息容器有相对定位
+    message.style.position = 'relative';
+    // 添加翻译按钮（以 data-pre-plain-text 根节点为锚点，避免 WhatsApp DOM 变动影响）
+    addTranslateButton(message);
+    message.dataset.processed = 'true';
+  }
+}
+
+function getMessageTextRoot(messageElement) {
+  if (!messageElement) return null;
+
+  const isInsideQuotedBlock = (el) => {
+    try {
+      if (!el) return false;
+      const qa = el.closest('[data-testid*="quoted"], [data-testid*="reply"], [aria-label*="引用"], [aria-label*="回复"]');
+      return !!(qa && messageElement.contains(qa));
+    } catch (e) {
+      return false;
     }
+  };
+
+  // 老版本/某些结构中仍然存在 selectable-text
+  const selectable = messageElement.querySelector('.selectable-text');
+  if (selectable && !isInsideQuotedBlock(selectable)) return selectable;
+
+  // WhatsApp 新版结构中，经常是多个 span/div 组合，这里选取“最长且像正文”的一个
+  const candidates = messageElement.querySelectorAll('span[dir], div[dir]');
+  let best = null;
+  let bestLen = 0;
+  let bestQuoted = null;
+  let bestQuotedLen = 0;
+  candidates.forEach((el) => {
+    const inQuoted = isInsideQuotedBlock(el);
+    const t = (el.textContent || '').replace(/\u200e/g, '').trim();
+    if (!t) return;
+    if (/^\d{1,2}:\d{2}$/.test(t)) return;
+    if (t === 'msg-dblcheck') return;
+    if (inQuoted) {
+      if (t.length > bestQuotedLen) {
+        bestQuoted = el;
+        bestQuotedLen = t.length;
+      }
+      return;
+    }
+    if (t.length > bestLen) {
+      best = el;
+      bestLen = t.length;
+    }
+  });
+  if (best) return best;
+  if (bestQuoted) return bestQuoted;
+
+  // 当前日志里稳定存在的节点
+  if (messageElement.classList && messageElement.classList.contains('copyable-text')) {
+    return messageElement;
+  }
+
+  // 兜底：直接用消息根节点
+  return messageElement;
+}
+
+function getChatScrollContainer() {
+  try {
+    const main = document.querySelector('#main');
+    if (!main) return null;
+
+    const preferred = main.querySelector('[data-testid="conversation-panel-messages"]');
+    if (preferred) return preferred;
+
+    const candidates = main.querySelectorAll('div,section');
+    for (const el of candidates) {
+      const style = window.getComputedStyle(el);
+      if (!style) continue;
+      if (!/(auto|scroll)/.test(style.overflowY || '')) continue;
+      if (el.scrollHeight > el.clientHeight + 50) return el;
+    }
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function isNearBottom(el, threshold = 160) {
+  try {
+    return el.scrollHeight - (el.scrollTop + el.clientHeight) < threshold;
+  } catch (e) {
+    return false;
+  }
+}
+
+function maybeScrollChatToBottom(messageContainer) {
+  try {
+    if (!messageContainer || messageContainer.dataset.waaiShouldScrollBottom !== 'true') return;
+    const scroller = getChatScrollContainer();
+    if (!scroller) return;
+    requestAnimationFrame(() => {
+      scroller.scrollTop = scroller.scrollHeight;
+      requestAnimationFrame(() => {
+        scroller.scrollTop = scroller.scrollHeight;
+      });
+    });
+  } catch (e) {
+    // ignore
   }
 }
 
@@ -726,6 +878,14 @@ async function translateMessage(messageElement) {
       messageContainer.classList.add('message-container');
     }
 
+    try {
+      const scroller = getChatScrollContainer();
+      const shouldScroll = scroller ? isNearBottom(scroller) : false;
+      messageContainer.dataset.waaiShouldScrollBottom = shouldScroll ? 'true' : 'false';
+    } catch (e) {
+      // ignore
+    }
+
     // 检查是否已经有翻译
     const existingTranslation = messageContainer.querySelector('.translation-content');
     if (existingTranslation) {
@@ -737,6 +897,7 @@ async function translateMessage(messageElement) {
         if (thinkingContent) {
           thinkingContent.style.display = 'block';
         }
+        maybeScrollChatToBottom(messageContainer);
       } else {
         existingTranslation.style.display = 'none';
         // 同时隐藏思考过程（如果有）
@@ -756,7 +917,7 @@ async function translateMessage(messageElement) {
 
     try {
       // 提取原始文本
-      const textElement = messageElement.querySelector('.selectable-text');
+      const textElement = getMessageTextRoot(messageElement);
       
       if (!textElement) {
         console.error('translateMessage: 无法找到可选择文本元素');
@@ -976,6 +1137,7 @@ function displayTranslationResult(container, translationText, isDarkMode) {
   
   translationElement.textContent = translationText;
   container.appendChild(translationElement);
+  maybeScrollChatToBottom(container);
 }
 
 // 收集文本内容的辅助函数
@@ -984,51 +1146,74 @@ function collectTextContent(element) {
   
   // 克隆节点以避免修改原始DOM
   const elementClone = element.cloneNode(true);
-  
-  // 移除可能存在的翻译按钮
-  const translateBtn = elementClone.querySelector('.translate-btn-container');
-  if (translateBtn) {
-    translateBtn.remove();
-  }
-  
+
+  // 移除可能存在的翻译按钮/翻译结果/思考过程/加载提示
+  elementClone.querySelectorAll('.translate-btn-container,.translation-content,.thinking-content,.translation-loading,.translation-error').forEach((n) => n.remove());
+
+  // 移除常见状态图标/回执文本节点
+  elementClone.querySelectorAll('[data-icon="msg-dblcheck"],[aria-label="msg-dblcheck"],.msg-dblcheck').forEach((n) => n.remove());
+
   let text = '';
-  
-  // 递归遍历节点收集文本
-  function traverse(node) {
-    // 处理文本节点
-    if (node.nodeType === Node.TEXT_NODE) {
-      text += node.textContent;
-      return;
-    }
-    
-    // 处理元素节点
-    if (node.nodeType === Node.ELEMENT_NODE) {
-      // 如果是换行元素，添加换行符
-      if (node.tagName === 'BR' || 
-          window.getComputedStyle(node).display === 'block') {
-        text += '\n';
-      }
-      
-      // 处理图片和表情符号
-      if (node.tagName === 'IMG' && node.alt) {
-        text += node.alt; // 添加图片的alt文本（通常是表情符号）
-      }
-      
-      // 递归处理子节点
-      for (const child of node.childNodes) {
-        traverse(child);
+  let lastPiece = '';
+
+  const walker = document.createTreeWalker(
+    elementClone,
+    NodeFilter.SHOW_TEXT,
+    {
+      acceptNode(node) {
+        const raw = (node.textContent || '').replace(/\u200e/g, '');
+        const value = raw.trim();
+        if (!value) return NodeFilter.FILTER_REJECT;
+        if (value === 'msg-dblcheck') return NodeFilter.FILTER_REJECT;
+        if (/^\d{1,2}:\d{2}$/.test(value)) return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
       }
     }
+  );
+
+  while (walker.nextNode()) {
+    const value = walker.currentNode.textContent.replace(/\u200e/g, '').trim();
+    if (!value) continue;
+
+    // 去掉 DOM 导致的连续重复片段
+    if (value === lastPiece) {
+      continue;
+    }
+
+    const lastChar = text.length ? text[text.length - 1] : '';
+    const firstChar = value[0];
+    const needSpace = lastChar && !/\s/.test(lastChar) && !/\s/.test(firstChar);
+    text += (needSpace ? ' ' : '') + value;
+    lastPiece = value;
   }
-  
-  // 开始遍历
-  traverse(elementClone);
-  
-  // 清理文本（删除多余空格和换行）
-  return text.trim()
-    .replace(/\n{3,}/g, '\n\n') // 替换3个以上连续换行为2个
-    .replace(/\s+$/gm, ''); // 删除每行末尾的空白
+
+  // 清理文本
+  text = text.replace(/\s+\n/g, '\n').replace(/\n\s+/g, '\n');
+  text = text.replace(/\n\s*\n/g, '\n');
+  text = text.trim();
+
+  // 如果整段文本被重复拼接了多次（WhatsApp DOM 更新后常见），做一次压缩
+  const dedupeRepeatedBlock = (s) => {
+    const normalized = s.replace(/\s+/g, ' ').trim();
+    if (!normalized) return s;
+
+    for (let times = 5; times >= 2; times--) {
+      if (normalized.length % times !== 0) continue;
+      const partLen = normalized.length / times;
+      const part = normalized.slice(0, partLen);
+      if (part.repeat(times) === normalized) {
+        return part;
+      }
+    }
+    return s;
+  };
+
+  text = dedupeRepeatedBlock(text);
+
+  return text;
 }
+
+// ...
 
 // 修改 handleRetry 函数
 function handleRetry(reason, retryCount, maxRetries, messageContainer) {
@@ -1112,8 +1297,18 @@ function addButtonEventListeners(buttonContainer, messageContainer) {
   // 设置按钮事件
   buttonContainer.querySelector('.settings-btn').addEventListener('click', (e) => {
     e.stopPropagation();
-    // 打开设置面板的逻辑
-    chrome.runtime.sendMessage({ type: 'OPEN_OPTIONS' });
+    // 优先打开当前页面的设置模态框（包含自动翻译等开关）
+    // 如果用户按住 Cmd/Ctrl/Alt，则仍然打开扩展 Options 页面
+    const openOptions = e.metaKey || e.ctrlKey || e.altKey;
+    if (!openOptions && typeof showSettingsModal === 'function') {
+      showSettingsModal();
+      return;
+    }
+    try {
+      chrome.runtime.sendMessage({ type: 'OPEN_OPTIONS' });
+    } catch (err) {
+      // ignore
+    }
   });
 
   // 批量翻译按钮事件
@@ -1136,6 +1331,21 @@ function observeMessages() {
   const observer = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
       if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+        // 聊天窗口切换时（header变化/主区域重绘），尝试刷新天气信息（由 chatKey 去重）
+        integrateWeatherInfo();
+
+         try {
+           const chatKey = getActiveChatKeyForAutoTranslate();
+           const now = Date.now();
+           if (chatKey && chatKey !== lastAutoTranslateChatKey) {
+             lastAutoTranslateChatKey = chatKey;
+             lastAutoTranslateChatSwitchAt = now;
+             scheduleAutoTranslateOnChatEnter();
+           }
+         } catch (e) {
+           // ignore
+         }
+
         // 检测到新的聊天窗口时的处理
         const main = document.querySelector('#main');
         if (main && !main.querySelector('.analysis-btn-container')) {
@@ -1151,12 +1361,21 @@ function observeMessages() {
         // 处理新增的消息
         mutation.addedNodes.forEach(node => {
           if (node.nodeType === 1) { // 元素节点
-            // 查找消息元素
-            const messages = node.querySelectorAll('div[data-pre-plain-text]');
-            messages.forEach(message => {
+            // 查找消息元素（node 本身也可能就是 message）
+            const collected = [];
+            if (node.matches && node.matches('div[data-pre-plain-text]')) {
+              collected.push(node);
+            }
+            const nested = node.querySelectorAll ? node.querySelectorAll('div[data-pre-plain-text]') : [];
+            nested.forEach(m => collected.push(m));
+
+            collected.forEach(message => {
               if (!message.dataset.processed) {
                 processMessage(message);
               }
+              // 自动翻译：即使消息已被处理过（比如开关是后开、或 WhatsApp 先渲染后标记），
+              // 也允许尝试一次；内部会做开关/去重/已翻译判断。
+              maybeAutoTranslateNewMessage(message);
             });
           }
         });
@@ -1181,6 +1400,11 @@ function observeMessages() {
     }
   });
 
+  // 如果已开启自动翻译，进入聊天后也触发一次“底部消息扫描”（覆盖某些情况下 addedNodes 不稳定的问题）
+  if (autoTranslateNewMessagesEnabled) {
+    scheduleAutoTranslateOnChatEnter();
+  }
+
   // 初始尝试添加按钮
   const main = document.querySelector('#main');
   if (main) {
@@ -1203,11 +1427,11 @@ function observeMessages() {
 function injectStyles() {
   const styles = `
     .translate-btn-container {
-      position: relative;
-      display: inline-block;
-      margin-left: 8px;
-      opacity: 0;
-      transition: opacity 0.2s;
+      position: static;
+      display: inline-flex;
+      align-items: center;
+      margin-right: 6px;
+      opacity: 0.9;
     }
 
     div[data-pre-plain-text]:hover .translate-btn-container {
@@ -1215,20 +1439,43 @@ function injectStyles() {
     }
 
     div[data-pre-plain-text] .translate-btn {
-      background-color: #00a884;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      padding: 4px 8px;
+      height: 22px;
+      padding: 0 8px;
+      background: rgba(255, 255, 255, 0.75);
+      color: #0f766e;
+      border: 1px solid rgba(15, 118, 110, 0.22);
+      border-radius: 999px;
       font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       cursor: pointer;
-      margin-left: 8px;
-      opacity: 0.8;
-      transition: opacity 0.2s;
+      box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
+      -webkit-backdrop-filter: blur(8px);
+      backdrop-filter: blur(8px);
+      transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
     }
 
     div[data-pre-plain-text] .translate-btn:hover {
-      opacity: 1;
+      transform: translateY(-1px);
+      background: rgba(255, 255, 255, 0.92);
+      border-color: rgba(15, 118, 110, 0.35);
+    }
+
+    body.dark div[data-pre-plain-text] .translate-btn,
+    [data-theme="dark"] div[data-pre-plain-text] .translate-btn {
+      background: rgba(20, 20, 20, 0.55);
+      color: #34d399;
+      border: 1px solid rgba(52, 211, 153, 0.22);
+      box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
+    }
+
+    body.dark div[data-pre-plain-text] .translate-btn:hover,
+    [data-theme="dark"] div[data-pre-plain-text] .translate-btn:hover {
+      background: rgba(20, 20, 20, 0.72);
+      border-color: rgba(52, 211, 153, 0.34);
     }
 
     .translation {
@@ -2142,88 +2389,101 @@ async function translateAllMessages(messageContainer) {
     
     // 遍历所有消息进行翻译
     for (const message of messages) {
-      if (!message.querySelector('.translation-content')) {
-        try {
-          // 获取文本元素
-          const textElement = message.querySelector('.selectable-text');
-          if (textElement) {
-            // 收集文本内容
-            const text = collectTextContent(textElement);
-            if (text) {
-              // 获取消息容器
-              let messageContainer = message.closest('.message-container');
-              if (!messageContainer) {
-                messageContainer = message.parentElement;
-                if (!messageContainer) {
-                  messageContainer = message;
-                }
-                messageContainer.classList.add('message-container');
-              }
-              
-              // 直接使用Google翻译服务，不使用当前用户设置的翻译服务
-              const translation = await window.ApiServices.translation.google(text, 'auto', 'zh-CN');
-              
-              // 创建翻译结果元素（不包含思考过程）
-              if (translation) {
-                // 检测是否为暗黑模式
-                const isDarkMode = document.body.classList.contains('dark') || 
-                                  window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ||
-                                  document.documentElement.getAttribute('data-theme') === 'dark';
-                
-                // 创建翻译结果元素
-                const translationElement = document.createElement('div');
-                translationElement.className = 'translation-content';
-                
-                // 应用样式
-                if (isDarkMode) {
-                  translationElement.style.cssText = `
-                    background-color: rgba(10, 110, 200, 0.1);
-                    border-left: 3px solid #1e88e5;
-                    color: #e2e2e2;
-                    padding: 8px 12px;
-                    margin-top: 5px;
-                    font-size: 14px;
-                    border-radius: 0 4px 4px 0;
-                    position: relative;
-                    animation: fadeIn 0.3s ease-in-out;
-                  `;
-                } else {
-                  translationElement.style.cssText = `
-                    background-color: rgba(220, 240, 255, 0.7);
-                    border-left: 3px solid #2196f3;
-                    color: #333;
-                    padding: 8px 12px;
-                    margin-top: 5px;
-                    font-size: 14px;
-                    border-radius: 0 4px 4px 0;
-                    position: relative;
-                    animation: fadeIn 0.3s ease-in-out;
-                  `;
-                }
-                
-                // 设置翻译内容
-                translationElement.textContent = translation;
-                
-                // 添加到消息容器
-                messageContainer.appendChild(translationElement);
-                translatedCount++;
-                
-                // 更新浮动消息框内容显示进度
-                if (translatedCount % 5 === 0 || translatedCount === messages.length) {
-                  const toastElement = document.getElementById(notificationId);
-                  if (toastElement && toastElement.querySelector('.toast-content')) {
-                    toastElement.querySelector('.toast-content').textContent = 
-                      `正在使用Google翻译批量翻译所有消息... (${translatedCount}/${messages.length})`;
-                  }
-                }
-              }
-            }
+      try {
+        // 获取消息容器（批量翻译是否重复，应该以容器为准判断）
+        let msgContainer = message.closest('.message-container');
+        if (!msgContainer) {
+          msgContainer = message.parentElement;
+          if (!msgContainer) {
+            msgContainer = message;
           }
-        } catch (error) {
-          console.error('翻译消息失败:', error);
-          // 失败时继续处理下一条，不中断整体翻译
+          msgContainer.classList.add('message-container');
+        }
+
+        // 如果已经翻译过/正在翻译/上次翻译失败的提示还在，就跳过，避免重复翻译
+        // 但：如果用户手动把翻译隐藏了，批量翻译应把它重新显示出来。
+        const existingTranslation = msgContainer.querySelector('.translation-content');
+        if (existingTranslation) {
+          if (existingTranslation.style.display === 'none') {
+            existingTranslation.style.display = 'block';
+            const thinkingContent = msgContainer.querySelector('.thinking-content');
+            if (thinkingContent) thinkingContent.style.display = 'block';
+          }
           continue;
         }
+        if (msgContainer.querySelector('.translation-loading') || msgContainer.querySelector('.translation-error')) {
+          continue;
+        }
+
+        // 获取文本元素
+        const textElement = getMessageTextRoot(message);
+        if (!textElement) continue;
+
+        // 收集文本内容
+        const text = collectTextContent(textElement);
+        if (!text) continue;
+
+        // 直接使用Google翻译服务，不使用当前用户设置的翻译服务
+        const translation = await window.ApiServices.translation.google(text, 'auto', 'zh-CN');
+        
+        // 创建翻译结果元素（不包含思考过程）
+        if (translation) {
+          // 检测是否为暗黑模式
+          const isDarkMode = document.body.classList.contains('dark') || 
+                            window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ||
+                            document.documentElement.getAttribute('data-theme') === 'dark';
+          
+          // 创建翻译结果元素
+          const translationElement = document.createElement('div');
+          translationElement.className = 'translation-content';
+          
+          // 应用样式
+          if (isDarkMode) {
+            translationElement.style.cssText = `
+              background-color: rgba(10, 110, 200, 0.1);
+              border-left: 3px solid #1e88e5;
+              color: #e2e2e2;
+              padding: 8px 12px;
+              margin-top: 5px;
+              font-size: 14px;
+              border-radius: 0 4px 4px 0;
+              position: relative;
+              animation: fadeIn 0.3s ease-in-out;
+            `;
+          } else {
+            translationElement.style.cssText = `
+              background-color: rgba(220, 240, 255, 0.7);
+              border-left: 3px solid #2196f3;
+              color: #333;
+              padding: 8px 12px;
+              margin-top: 5px;
+              font-size: 14px;
+              border-radius: 0 4px 4px 0;
+              position: relative;
+              animation: fadeIn 0.3s ease-in-out;
+            `;
+          }
+          
+          // 设置翻译内容
+          translationElement.textContent = translation;
+          
+          // 添加到消息容器
+          msgContainer.appendChild(translationElement);
+          translatedCount++;
+          
+          // 更新浮动消息框内容显示进度
+          if (translatedCount % 5 === 0 || translatedCount === messages.length) {
+            const toastElement = document.getElementById(notificationId);
+            if (toastElement && toastElement.querySelector('.toast-content')) {
+              toastElement.querySelector('.toast-content').textContent = 
+                `正在使用Google翻译批量翻译所有消息... (${translatedCount}/${messages.length})`;
+            }
+          }
+        }
+      } catch (error) {
+        console.error('翻译消息失败:', error);
+        // 失败时继续处理下一条，不中断整体翻译
+        continue;
       }
     }
     
@@ -2446,16 +2706,12 @@ async function analyzeConversation(messageContainer) {
         }
       }
       
-      // 获取消息文本
-      const textElement = element.querySelector('span.selectable-text');
-      if (textElement) {
-        // 克隆节点以避免包含翻译按钮
-        const textClone = textElement.cloneNode(true);
-        const translateBtn = textClone.querySelector('.translate-btn-container');
-        if (translateBtn) {
-          translateBtn.remove();
-        }
-        text = textClone.textContent.trim();
+      // 获取消息文本（复用更稳的正文提取逻辑，避免 WhatsApp DOM 变化导致为空）
+      try {
+        const textRoot = getMessageTextRoot(element);
+        text = collectTextContent(textRoot);
+      } catch (e) {
+        text = '';
       }
       
       // 只有当消息有实际内容时才添加到列表
@@ -3027,6 +3283,8 @@ function formatAnalysis(analysis) {
 function showSettingsModal() {
   const modal = document.createElement('div');
   modal.className = 'settings-modal';
+  modal.id = 'settings-modal';
+  let settingsDirty = false;
   
   const content = document.createElement('div');
   content.className = 'settings-content';
@@ -3037,6 +3295,63 @@ function showSettingsModal() {
     </div>
     
     <div class="settings-body">
+      <div class="author-info settings-author-info">
+        <img src="https://avatars.githubusercontent.com/u/179492542?v=4" alt="Achord" class="author-avatar">
+        <div class="info-item">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+          </svg>
+          <span>作者：Achord</span>
+        </div>
+        <div class="info-item">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M6.62 10.79c1.44 2.83 3.76 5.15 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z"/>
+          </svg>
+          <span>Tel: 13160235855</span>
+        </div>
+        <div class="info-item">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+          </svg>
+          <span style="display: flex; align-items: center; gap: 4px;">Email: <a href="mailto:achordchan@gmail.com">achordchan@gmail.com</a></span>
+        </div>
+
+        <div class="author-links">
+          <div class="info-item">
+            <a href="https://www.github.com/Achordchan/WA-AI-chrome" target="_blank" rel="noopener noreferrer">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+              </svg>
+              <span>项目地址</span>
+            </a>
+          </div>
+          <div class="info-item">
+            <a href="${chrome.runtime.getURL('PrivacyPolicy.html')}" target="_blank" rel="noopener noreferrer">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/>
+              </svg>
+              <span>隐私条款</span>
+            </a>
+          </div>
+          <div class="info-item">
+            <a href="${chrome.runtime.getURL('LICENSE')}" target="_blank" rel="noopener noreferrer">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+              </svg>
+              <span>开源协议</span>
+            </a>
+          </div>
+          <div class="info-item">
+            <a href="https://ifdian.net/a/achord" target="_blank" rel="noopener noreferrer">
+              <svg viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 21s-7-4.35-10-9.5C-.37 6.9 3.04 2 7.5 2c1.74 0 3.41.81 4.5 2.09C13.09 2.81 14.76 2 16.5 2 20.96 2 24.37 6.9 22 11.5 19 16.65 12 21 12 21z"/>
+              </svg>
+              <span>赞助我</span>
+            </a>
+          </div>
+        </div>
+      </div>
+
       <!-- 翻译服务设置 -->
       <div class="settings-section">
         <h4>翻译服务</h4>
@@ -3051,6 +3366,10 @@ function showSettingsModal() {
             <option value="siliconflow">OpenAI通用接口</option>
           </select>
         </div>
+
+        <div class="admin-preset" style="margin-top: 10px;">
+          <button type="button" class="admin-preset-btn" id="adminPresetBtn">使用管理员预设API接口</button>
+        </div>
         
         <!-- 目标语言选择 -->
         <div class="target-language" style="margin-top: 12px;">
@@ -3059,6 +3378,27 @@ function showSettingsModal() {
             <option value="zh-CN">中文</option>
             <option value="en">英文</option>
           </select>
+        </div>
+
+        <div class="settings-section" style="margin-top: 16px;">
+          <h4>自动翻译</h4>
+          <div class="toggle-switch-container">
+            <label for="autoTranslateNewMessages" class="toggle-label">自动翻译新消息</label>
+            <label class="toggle-switch">
+              <input type="checkbox" id="autoTranslateNewMessages" class="toggle-input">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <p style="margin-top: 6px; font-size: 12px; color: #666;">开启后，你和对方新发送的消息会自动翻译一次（仅新增消息，不会批量翻译历史记录）。</p>
+
+          <div class="toggle-switch-container" style="margin-top: 12px;">
+            <label for="inputQuickTranslateSend" class="toggle-label">输入框快捷翻译发送</label>
+            <label class="toggle-switch">
+              <input type="checkbox" id="inputQuickTranslateSend" class="toggle-input">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <p style="margin-top: 6px; font-size: 12px; color: #666;">开启后：按回车会先把输入内容快速翻译并自动替换到输入框，翻译完成后你再按一次回车即可发送（Shift+Enter 换行不受影响）。请先在聊天窗口里点击输入框翻译按钮设置目标语言，我们会按联系人（手机号）把你的选择保存到本地。</p>
         </div>
         
         <!-- 翻译服务API设置 - 根据选择的服务动态显示 -->
@@ -3313,17 +3653,60 @@ function showSettingsModal() {
   modal.appendChild(content);
   document.body.appendChild(modal);
 
+  const attemptCloseSettingsModal = () => {
+    try {
+      if (settingsDirty) {
+        const ok = window.confirm('设置尚未保存，确定要关闭吗？');
+        if (!ok) return;
+      }
+      modal.remove();
+    } catch (e) {
+      try { modal.remove(); } catch (e2) {}
+    }
+  };
+
+  content.addEventListener(
+    'input',
+    (e) => {
+      try {
+        const t = e.target;
+        if (!t || !(t instanceof HTMLElement)) return;
+        const tag = (t.tagName || '').toLowerCase();
+        if (tag === 'input' || tag === 'textarea' || tag === 'select') {
+          settingsDirty = true;
+        }
+      } catch (e2) {
+        // ignore
+      }
+    },
+    true
+  );
+  content.addEventListener(
+    'change',
+    (e) => {
+      try {
+        const t = e.target;
+        if (!t || !(t instanceof HTMLElement)) return;
+        const tag = (t.tagName || '').toLowerCase();
+        if (tag === 'input' || tag === 'textarea' || tag === 'select') {
+          settingsDirty = true;
+        }
+      } catch (e2) {
+        // ignore
+      }
+    },
+    true
+  );
+
   // 添加事件监听
   const closeBtn = content.querySelector('.close-btn');
   closeBtn.addEventListener('click', () => {
-    modal.remove();
+    attemptCloseSettingsModal();
   });
-
+  
   // 点击模态框外部关闭
   modal.addEventListener('click', (e) => {
-    if (e.target === modal) {
-      modal.remove();
-    }
+    if (e.target === modal) return;
   });
 
   // 切换密码可见性
@@ -3351,6 +3734,130 @@ function showSettingsModal() {
       settingsEl.style.display = 'block';
     }
   });
+
+  // 管理员预设
+  const adminPresetBtn = content.querySelector('#adminPresetBtn');
+  if (adminPresetBtn) {
+    const openAdminPresetDialog = () => {
+      try {
+        const existing = document.querySelector('.admin-preset-overlay');
+        if (existing) existing.remove();
+
+        const overlay = document.createElement('div');
+        overlay.className = 'admin-preset-overlay';
+        overlay.innerHTML = `
+          <div class="admin-preset-card" role="dialog" aria-modal="true">
+            <div class="admin-preset-header">
+              <div class="admin-preset-title">管理员预设</div>
+              <button type="button" class="admin-preset-close" aria-label="关闭">×</button>
+            </div>
+            <div class="admin-preset-body">
+              <div class="admin-preset-row">
+                <label class="admin-preset-label">管理员口令</label>
+                <input class="admin-preset-input" type="password" id="adminPresetPass" placeholder="请输入口令">
+              </div>
+              <div class="admin-preset-hint">将自动把“翻译服务”和“AI分析服务”切换到 OpenAI 通用接口，并填充 API Key / URL / 模型。</div>
+            </div>
+            <div class="admin-preset-footer">
+              <button type="button" class="admin-preset-secondary" id="adminPresetCancel">取消</button>
+              <button type="button" class="admin-preset-primary" id="adminPresetApply">应用预设</button>
+            </div>
+          </div>
+        `;
+
+        modal.appendChild(overlay);
+
+        const close = () => {
+          try { overlay.remove(); } catch (e) {}
+        };
+
+        const passEl = overlay.querySelector('#adminPresetPass');
+
+        const closeBtn = overlay.querySelector('.admin-preset-close');
+        const cancelBtn = overlay.querySelector('#adminPresetCancel');
+        if (closeBtn) closeBtn.addEventListener('click', close);
+        if (cancelBtn) cancelBtn.addEventListener('click', close);
+        overlay.addEventListener('click', (e) => {
+          if (e.target === overlay) close();
+        });
+
+        const applyBtn = overlay.querySelector('#adminPresetApply');
+        if (applyBtn) {
+          applyBtn.addEventListener('click', () => {
+            try {
+              const pass = (passEl?.value || '').trim();
+              if (pass !== 'Achord666') {
+                showToast('口令错误', 'error');
+                if (passEl) passEl.focus();
+                return;
+              }
+
+              const presetApiKey = '6c9033c7e08b403abd6f66f09f146f60.hvyHTj91HZQOzT7E';
+              const presetApiUrl = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
+              const presetModel = 'glm-4-flash-250414';
+
+              const translationApiSelect = document.getElementById('translationApi');
+              if (translationApiSelect) {
+                translationApiSelect.value = 'siliconflow';
+                translationApiSelect.dispatchEvent(new Event('change'));
+              }
+
+              const apiUrlEl = document.getElementById('siliconflowApiUrl');
+              if (apiUrlEl) apiUrlEl.value = presetApiUrl;
+
+              const modelEl = document.getElementById('siliconflowModel');
+              if (modelEl) modelEl.value = presetModel;
+
+              const keyEl = document.getElementById('siliconflowApiKey');
+              if (keyEl) keyEl.value = presetApiKey;
+
+              const aiEnabledToggle = document.getElementById('aiEnabled');
+              if (aiEnabledToggle) {
+                aiEnabledToggle.checked = true;
+                aiEnabledToggle.dispatchEvent(new Event('change'));
+              }
+
+              const aiApiSelect = document.getElementById('aiApi');
+              if (aiApiSelect) {
+                aiApiSelect.value = 'siliconflow';
+                aiApiSelect.dispatchEvent(new Event('change'));
+              }
+
+              const apiUrlElAi = document.getElementById('siliconflowApiUrl_ai');
+              if (apiUrlElAi) apiUrlElAi.value = presetApiUrl;
+
+              const modelElAi = document.getElementById('siliconflowModel_ai');
+              if (modelElAi) modelElAi.value = presetModel;
+
+              const keyElAi = document.getElementById('siliconflowApiKey_ai');
+              if (keyElAi) keyElAi.value = presetApiKey;
+
+              showToast('已应用管理员预设', 'success');
+              close();
+            } catch (e) {
+              console.error('应用管理员预设失败:', e);
+              showToast('应用管理员预设失败', 'error');
+            }
+          });
+        }
+
+        if (passEl) {
+          passEl.focus();
+          passEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+              const btn = overlay.querySelector('#adminPresetApply');
+              if (btn) btn.click();
+            }
+          });
+        }
+      } catch (e) {
+        console.error('打开管理员预设弹窗失败:', e);
+        showToast('打开管理员预设弹窗失败', 'error');
+      }
+    };
+
+    adminPresetBtn.addEventListener('click', openAdminPresetDialog);
+  }
   
   // AI服务选择变化事件
   const aiApiSelect = content.querySelector('#aiApi');
@@ -3400,6 +3907,7 @@ function showSettingsModal() {
   const saveBtn = content.querySelector('.save-btn');
   saveBtn.addEventListener('click', () => {
     saveSettings();
+    settingsDirty = false;
     modal.remove();
   });
 
@@ -3434,6 +3942,8 @@ function showSettingsModal() {
       const formData = {
         translationApi: document.getElementById('translationApi').value,
         targetLanguage: document.getElementById('targetLanguage').value,
+        autoTranslateNewMessages: document.getElementById('autoTranslateNewMessages').checked,
+        inputQuickTranslateSend: document.getElementById('inputQuickTranslateSend')?.checked === true,
         aiEnabled: document.getElementById('aiEnabled').checked
       };
 
@@ -3489,6 +3999,12 @@ function showSettingsModal() {
           showExtensionInvalidatedError();
           return;
         }
+
+        // 立即同步到当前页面的运行时变量（不依赖 onChanged 事件）
+        autoTranslateNewMessagesEnabled = formData.autoTranslateNewMessages === true;
+        if (autoTranslateNewMessagesEnabled) {
+          scheduleAutoTranslateOnChatEnter();
+        }
         
         // 显示成功提示
         showToast('设置已保存');
@@ -3522,6 +4038,8 @@ function showSettingsModal() {
         // 翻译服务设置
         'translationApi',
         'targetLanguage',
+        'autoTranslateNewMessages',
+        'inputQuickTranslateSend',
         'aiEnabled',
         'aiApi',
         'aiTargetLanguage',
@@ -3577,6 +4095,16 @@ function showSettingsModal() {
         // 设置目标语言
         if (data.targetLanguage) {
           document.getElementById('targetLanguage').value = data.targetLanguage;
+        }
+
+        const autoTranslateToggle = document.getElementById('autoTranslateNewMessages');
+        if (autoTranslateToggle) {
+          autoTranslateToggle.checked = data.autoTranslateNewMessages === true;
+        }
+
+        const quickSendToggle = document.getElementById('inputQuickTranslateSend');
+        if (quickSendToggle) {
+          quickSendToggle.checked = data.inputQuickTranslateSend === true;
         }
         
         // 设置 AI 开关状态
@@ -3809,6 +4337,62 @@ function showSettingsModal() {
 
     .settings-body {
       padding: 24px;
+      padding-bottom: 96px;
+    }
+
+    .settings-author-info {
+      margin: 0 0 20px 0;
+      padding: 16px 16px;
+      border: 1px solid rgba(17, 27, 33, 0.10);
+      border-radius: 12px;
+      text-align: center;
+      background: linear-gradient(to bottom, #ffffff, #f8f9fa);
+    }
+
+    .settings-author-info .author-avatar {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      margin: 0 auto 12px;
+      border: 3px solid #fff;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.10);
+    }
+
+    .settings-author-info .info-item {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin: 8px 0;
+      color: #667781;
+      font-size: 13px;
+    }
+
+    .settings-author-info .info-item svg {
+      width: 16px;
+      height: 16px;
+      color: #00a884;
+      flex-shrink: 0;
+    }
+
+    .settings-author-info a {
+      color: #1a73e8;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .settings-author-info a:hover {
+      color: #075e54;
+    }
+
+    .settings-author-info .author-links {
+      margin-top: 12px;
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      flex-wrap: wrap;
     }
 
     .settings-section {
@@ -3969,6 +4553,148 @@ function showSettingsModal() {
       justify-content: flex-end;
       background: white;
       border-radius: 0 0 12px 12px;
+      position: sticky;
+      bottom: 0;
+      z-index: 2;
+    }
+
+    .admin-preset-btn {
+      width: 100%;
+      padding: 10px 12px;
+      background: rgba(17, 27, 33, 0.06);
+      color: #111b21;
+      border: 1px solid rgba(17, 27, 33, 0.12);
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.2s, border-color 0.2s;
+    }
+
+    .admin-preset-btn:hover {
+      background: rgba(17, 27, 33, 0.09);
+      border-color: rgba(17, 27, 33, 0.18);
+    }
+
+    .admin-preset-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.55);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1001;
+      backdrop-filter: blur(6px);
+      animation: fadeIn 0.18s ease-out;
+    }
+
+    .admin-preset-card {
+      width: calc(100% - 40px);
+      max-width: 520px;
+      background: white;
+      border-radius: 14px;
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.18);
+      overflow: hidden;
+      animation: slideUp 0.22s ease-out;
+    }
+
+    .admin-preset-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 18px;
+      border-bottom: 1px solid #e9edef;
+      background: white;
+    }
+
+    .admin-preset-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #111b21;
+    }
+
+    .admin-preset-close {
+      width: 32px;
+      height: 32px;
+      border: none;
+      border-radius: 8px;
+      background: rgba(17, 27, 33, 0.06);
+      color: #111b21;
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 32px;
+      text-align: center;
+    }
+
+    .admin-preset-body {
+      padding: 16px 18px;
+    }
+
+    .admin-preset-row {
+      margin-bottom: 12px;
+    }
+
+    .admin-preset-label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 13px;
+      color: #333;
+      font-weight: 600;
+    }
+
+    .admin-preset-input {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #bbb;
+      border-radius: 8px;
+      font-size: 14px;
+      background: #fff;
+      color: #000;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .admin-preset-input:focus {
+      outline: none;
+      border-color: #4caf50;
+      box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.18);
+    }
+
+    .admin-preset-hint {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #667781;
+      line-height: 1.4;
+    }
+
+    .admin-preset-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      padding: 14px 18px 16px;
+      border-top: 1px solid #e9edef;
+      background: white;
+    }
+
+    .admin-preset-secondary {
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid rgba(17, 27, 33, 0.14);
+      background: rgba(17, 27, 33, 0.04);
+      color: #111b21;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .admin-preset-primary {
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: none;
+      background: #4caf50;
+      color: white;
+      font-weight: 700;
+      cursor: pointer;
     }
 
     .save-btn {

@@ -4,52 +4,36 @@ function showUpdateModal() {
     <div class="update-modal">
       <div class="update-modal-content">
         <div class="update-modal-header">
-                <h3>🚀 WhatsApp Assistant Pro+ 重大更新!</h3>
-      <span class="version">V2.5</span>
+                <h3>WhatsApp Assistant Pro+ 更新说明</h3>
+      <span class="version">V3.0</span>
           <button class="modal-close">×</button>
         </div>
         <div class="update-modal-body">
           <div class="update-section">
-            <h4>🆕 全新功能</h4>
+            <h4>本次更新</h4>
             <ul>
-              <li>🌍 <strong>智能号码识别</strong> - 自动识别对方手机号码归属地</li>
-              <li>🌤️ <strong>实时天气信息</strong> - 显示对方所在地区的当前天气状况</li>
-              <li>⏰ <strong>当地时间显示</strong> - 实时显示对方时区的本地时间</li>
-              <li>📍 <strong>地理位置信息</strong> - 基于号码前缀智能识别国家和地区</li>
-              <li>🔄 <strong>自动刷新机制</strong> - 天气和时间信息自动更新</li>
+              <li><strong>输入框快捷翻译发送</strong> - 按回车先翻译再发送，减少复制粘贴</li>
+              <li><strong>目标语言按联系人保存</strong> - 不同聊天可使用不同目标语言</li>
+              <li><strong>输入框空内容时快速设置语言</strong> - 只设置目标语言并保存</li>
             </ul>
           </div>
           <div class="update-section">
-            <h4>🛠️ AI翻译 + AI分析 升级</h4>
+            <h4>翻译与分析</h4>
             <ul>
-              <li>🔄 全面重构代码架构，提升整体性能和稳定性</li>
-              <li>🚀 优化翻译引擎，提供更快速、更准确的翻译结果</li>
-              <li>🤖 AI对话分析功能更加智能和精准</li>
-              <li>💻 改进用户界面，提供更流畅的用户体验</li>
+              <li>完善 OpenAI 通用接口的多语言提示词，支持更多目标语言</li>
+              <li>修复 AI 分析无法抓取消息导致显示 0 条的问题</li>
             </ul>
           </div>
           <div class="update-section">
-            <h4>✨ 系统优化</h4>
+            <h4>设置体验</h4>
             <ul>
-              <li>🛡️ 完善错误处理机制，增强系统稳定性</li>
-              <li>📚 更新依赖库和API调用方式，确保与最新Web API兼容</li>
-              <li>⚡ 提升整体运行速度，减少资源占用</li>
-              <li>🌐 优化国际化支持，更好的多语言体验</li>
-            </ul>
-          </div>
-          <div class="update-section">
-            <h4>🔨 功能改进</h4>
-            <ul>
-              <li>🌐 翻译服务响应速度显著提升</li>
-              <li>🔍 优化语言检测准确度</li>
-              <li>📱 提升在各种设备上的兼容性</li>
-              <li>🎨 界面美化，更符合现代设计规范</li>
-              <li>📊 增强数据处理能力和准确性</li>
+              <li>管理员预设配置一键填入接口地址、模型与密钥</li>
+            
             </ul>
           </div>
         </div>
         <div class="update-modal-footer">
-          <button class="confirm-btn" disabled>开始使用 (6)</button>
+          <button class="confirm-btn" disabled>开始使用 6</button>
         </div>
       </div>
     </div>
@@ -191,7 +175,7 @@ function showUpdateModal() {
   
   const timer = setInterval(() => {
     countdown--;
-    confirmBtn.textContent = `开始使用 (${countdown})`;
+    confirmBtn.textContent = `开始使用 ${countdown}`;
     
     if (countdown <= 0) {
       clearInterval(timer);
@@ -214,7 +198,7 @@ function showUpdateModal() {
 // 检查是否需要显示更新日志
 async function checkAndShowUpdateLog() {
   try {
-    const currentVersion = '2.5.0'; // 当前版本号
+    const currentVersion = '3.0.0'; // 当前版本号
     const data = await chrome.storage.local.get(['lastShownVersion']);
     
     // 如果没有显示过，或者版本号不一致，就显示更新日志

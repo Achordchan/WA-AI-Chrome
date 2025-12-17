@@ -95,22 +95,10 @@
       // 使用官方MD5函数生成签名
       let sign;
       try {
-        // 首先尝试使用全局的MD5函数 (官方提供的md5.js中的函数)
         if (typeof MD5 === 'function') {
           sign = MD5(signStr);
-          console.log('使用官方MD5函数生成签名');
-        } 
-        // 然后尝试其他备选方法
-        else if (typeof CryptoJS !== 'undefined' && CryptoJS.MD5) {
-          sign = CryptoJS.MD5(signStr).toString();
-          console.log('使用CryptoJS生成签名');
-        }
-        else if (typeof window.md5 === 'function') {
-          sign = window.md5(signStr);
-          console.log('使用全局md5函数生成签名');
-        } 
-        else {
-          // 如果没有可用的MD5函数，抛出错误
+          console.log('使用MD5函数生成签名');
+        } else {
           throw new Error('没有可用的MD5函数');
         }
         
@@ -275,7 +263,7 @@
         sendResponse({
           status: 'fixed',
           message: '百度翻译服务已修复',
-          version: 'V2.5'
+          version: 'V3.0'
         });
         return true;
       }

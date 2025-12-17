@@ -11,6 +11,8 @@ function throttle(func, limit) {
   }
 }
 
+const QUICK_CHAT_ENABLED = false;
+
 // 修改addQuickChatButton函数
 function addQuickChatButton() {
   try {
@@ -339,24 +341,27 @@ function retryAddButton() {
   addQuickChatButton();
 }
 
-// 修改观察器配置
-const observer = new MutationObserver((mutations) => {
-  for (const mutation of mutations) {
-    if (mutation.addedNodes.length && !document.querySelector('.quick-chat-btn')) {
-      retryAddButton();
+// 增加 quick-chat 功能总开关，默认关闭
+if (QUICK_CHAT_ENABLED) {
+  // 修改观察器配置
+  const observer = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      if (mutation.addedNodes.length && !document.querySelector('.quick-chat-btn')) {
+        retryAddButton();
+      }
     }
-  }
-});
+  });
 
-// 开始观察，使用更宽松的配置
-observer.observe(document.body, {
-  childList: true,
-  subtree: true,
-  attributes: true
-});
+  // 开始观察，使用更宽松的配置
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true
+  });
 
-// 初始检查
-retryAddButton();
+  // 初始检查
+  retryAddButton();
 
-// 启动初始化
-initialize();
+  // 启动初始化
+  initialize();
+}

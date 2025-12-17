@@ -98,29 +98,73 @@ window.ApiServices = {
           console.warn('获取OpenAI高级设置失败，使用默认值:', settingsError);
         }
         
-        // 根据目标语言确定系统提示词中的语言描述
-        let targetLanguageName = '中文';
-        if (targetLang === 'en') targetLanguageName = '英文';
-        else if (targetLang === 'ja') targetLanguageName = '日文';
-        else if (targetLang === 'ko') targetLanguageName = '韩文';
-        else if (targetLang === 'ru') targetLanguageName = '俄文';
-        else if (targetLang === 'fr') targetLanguageName = '法文';
-        else if (targetLang === 'de') targetLanguageName = '德文';
-        else if (targetLang === 'es') targetLanguageName = '西班牙文';
-        else if (targetLang === 'it') targetLanguageName = '意大利文';
-        else if (targetLang === 'pt') targetLanguageName = '葡萄牙文';
+        const normalizeTargetLang = (lang) => {
+          const raw = String(lang || '').trim();
+          if (!raw) return 'zh';
+          const lower = raw.toLowerCase();
+          if (lower === 'zh-cn' || lower === 'zh-hans') return 'zh';
+          if (lower === 'zh-tw' || lower === 'zh-hant') return 'zh';
+          const base = lower.split('-')[0];
+          return base || 'zh';
+        };
+
+        const langNameMap = {
+          zh: '中文',
+          en: '英文',
+          ja: '日文',
+          ko: '韩文',
+          fr: '法文',
+          de: '德文',
+          es: '西班牙文',
+          it: '意大利文',
+          pt: '葡萄牙文',
+          ru: '俄文',
+          ar: '阿拉伯文',
+          hi: '印地文',
+          th: '泰文',
+          vi: '越南文',
+          id: '印尼文',
+          ms: '马来文',
+          tr: '土耳其文',
+          nl: '荷兰文',
+          sv: '瑞典文',
+          da: '丹麦文',
+          fi: '芬兰文',
+          no: '挪威文',
+          pl: '波兰文',
+          cs: '捷克文',
+          hu: '匈牙利文',
+          ro: '罗马尼亚文',
+          uk: '乌克兰文',
+          he: '希伯来文',
+          fa: '波斯文',
+          ur: '乌尔都文',
+          bn: '孟加拉文',
+          ta: '泰米尔文',
+          te: '泰卢固文'
+        };
+
+        const normalizedTargetLang = normalizeTargetLang(targetLang);
+        const targetLanguageName = langNameMap[normalizedTargetLang] || '目标语言';
         
         console.log('翻译目标语言:', { targetLang, targetLanguageName });
         
         // 构建系统提示，根据是否开启推理模式提供不同指令
         let systemPrompt = '';
-        
+
         if (useReasoning) {
-          systemPrompt = `将以下文本翻译成${targetLanguageName}。
-请首先思考翻译策略和可能的难点，思考时要对原文中的专业术语、习惯用语、文化背景等进行分析，确保译文准确表达原意。
-然后给出准确、流畅的翻译结果，不要在最终翻译中包含任何分析内容,只输出最终翻译结果。`;
+          systemPrompt = `你是一位专业翻译。
+将用户提供的文本翻译成${targetLanguageName}。
+请先思考翻译策略与难点（术语、习惯用语、语气、文化背景、格式等），但最终只输出译文正文。
+要求：
+1) 只输出译文，不要解释，不要加标签，不要加引号；
+2) 保留原文的换行与段落结构；
+3) 不要翻译人名/品牌名/产品型号/URL（除非原文本身就是翻译后的形式）；
+4) 保持原语气、敬语与情绪。`;
         } else {
-          systemPrompt = `将以下文本翻译成${targetLanguageName}。只输出翻译结果，严谨！准确！不要包含任何解释、分析或多余标签。`;
+          systemPrompt = `你是一位专业翻译。
+将用户提供的文本翻译成${targetLanguageName}。
+要求：只输出译文正文，不要解释，不要加标签，不要加引号；保留原文换行与段落；保持语气与信息完整。`;
         }
         
         // 发送API请求
@@ -271,7 +315,7 @@ window.ApiServices = {
         });
         
         // 使用MD5算法生成签名 (确保是32位小写)
-        const sign = md5(signStr).toLowerCase();
+        const sign = MD5(signStr).toLowerCase();
         
         console.log('百度翻译请求准备完成:', { 
           salt, 
@@ -795,155 +839,3 @@ window.handleTranslationError = (error) => {
     code: error.code || 'TRANSLATION_ERROR'
   };
 };
-
-// MD5加密函数 - 直接使用内置实现避免循环引用
-function md5(string) {
-  // 检查输入
-  if (typeof string !== 'string') {
-    console.error('MD5输入必须是字符串，当前类型:', typeof string);
-    string = String(string); // 尝试转换为字符串
-  }
-
-  // 直接使用内置实现，避免引用CryptoJS造成循环调用
-  console.log('API服务使用内置MD5实现, 输入长度:', string.length);
-  
-  // 本地实现 MD5 函数
-  function md5Implementation(string) {
-    function md5cycle(x, k) {
-      let a = x[0], b = x[1], c = x[2], d = x[3];
-      a = ff(a, b, c, d, k[0], 7, -680876936);
-      d = ff(d, a, b, c, k[1], 12, -389564586);
-      c = ff(c, d, a, b, k[2], 17, 606105819);
-      b = ff(b, c, d, a, k[3], 22, -1044525330);
-      a = ff(a, b, c, d, k[4], 7, -176418897);
-      d = ff(d, a, b, c, k[5], 12, 1200080426);
-      c = ff(c, d, a, b, k[6], 17, -1473231341);
-      b = ff(b, c, d, a, k[7], 22, -45705983);
-      a = ff(a, b, c, d, k[8], 7, 1770035416);
-      d = ff(d, a, b, c, k[9], 12, -1958414417);
-      c = ff(c, d, a, b, k[10], 17, -42063);
-      b = ff(b, c, d, a, k[11], 22, -1990404162);
-      a = ff(a, b, c, d, k[12], 7, 1804603682);
-      d = ff(d, a, b, c, k[13], 12, -40341101);
-      c = ff(c, d, a, b, k[14], 17, -1502002290);
-      b = ff(b, c, d, a, k[15], 22, 1236535329);
-      a = gg(a, b, c, d, k[1], 5, -165796510);
-      d = gg(d, a, b, c, k[6], 9, -1069501632);
-      c = gg(c, d, a, b, k[11], 14, 643717713);
-      b = gg(b, c, d, a, k[0], 20, -373897302);
-      a = gg(a, b, c, d, k[5], 5, -701558691);
-      d = gg(d, a, b, c, k[10], 9, 38016083);
-      c = gg(c, d, a, b, k[15], 14, -660478335);
-      b = gg(b, c, d, a, k[4], 20, -405537848);
-      a = gg(a, b, c, d, k[9], 5, 568446438);
-      d = gg(d, a, b, c, k[14], 9, -1019803690);
-      c = gg(c, d, a, b, k[3], 14, -187363961);
-      b = gg(b, c, d, a, k[8], 20, 1163531501);
-      a = gg(a, b, c, d, k[13], 5, -1444681467);
-      d = gg(d, a, b, c, k[2], 9, -51403784);
-      c = gg(c, d, a, b, k[7], 14, 1735328473);
-      b = gg(b, c, d, a, k[12], 20, -1926607734);
-      a = hh(a, b, c, d, k[5], 4, -378558);
-      d = hh(d, a, b, c, k[8], 11, -2022574463);
-      c = hh(c, d, a, b, k[11], 16, 1839030562);
-      b = hh(b, c, d, a, k[14], 23, -35309556);
-      a = hh(a, b, c, d, k[1], 4, -1530992060);
-      d = hh(d, a, b, c, k[4], 11, 1272893353);
-      c = hh(c, d, a, b, k[7], 16, -155497632);
-      b = hh(b, c, d, a, k[10], 23, -1094730640);
-      a = hh(a, b, c, d, k[13], 4, 681279174);
-      d = hh(d, a, b, c, k[0], 11, -358537222);
-      c = hh(c, d, a, b, k[3], 16, -722521979);
-      b = hh(b, c, d, a, k[6], 23, 76029189);
-      a = hh(a, b, c, d, k[9], 4, -640364487);
-      d = hh(d, a, b, c, k[12], 11, -421815835);
-      c = hh(c, d, a, b, k[15], 16, 530742520);
-      b = hh(b, c, d, a, k[2], 23, -995338651);
-      a = ii(a, b, c, d, k[0], 6, -198630844);
-      d = ii(d, a, b, c, k[7], 10, 1126891415);
-      c = ii(c, d, a, b, k[14], 15, -1416354905);
-      b = ii(b, c, d, a, k[5], 21, -57434055);
-      a = ii(a, b, c, d, k[12], 6, 1700485571);
-      d = ii(d, a, b, c, k[3], 10, -1894986606);
-      c = ii(c, d, a, b, k[10], 15, -1051523);
-      b = ii(b, c, d, a, k[1], 21, -2054922799);
-      a = ii(a, b, c, d, k[8], 6, 1873313359);
-      d = ii(d, a, b, c, k[15], 10, -30611744);
-      c = ii(c, d, a, b, k[6], 15, -1560198380);
-      b = ii(b, c, d, a, k[13], 21, 1309151649);
-      a = ii(a, b, c, d, k[4], 6, -145523070);
-      d = ii(d, a, b, c, k[11], 10, -1120210379);
-      c = ii(c, d, a, b, k[2], 15, 718787259);
-      b = ii(b, c, d, a, k[9], 21, -343485551);
-      x[0] = add32(a, x[0]);
-      x[1] = add32(b, x[1]);
-      x[2] = add32(c, x[2]);
-      x[3] = add32(d, x[3]);
-    }
-    
-    function cmn(q, a, b, x, s, t) {
-      a = add32(add32(a, q), add32(x, t));
-      return add32((a << s) | (a >>> (32 - s)), b);
-    }
-    
-    function ff(a, b, c, d, x, s, t) { return cmn((b & c) | ((~b) & d), a, b, x, s, t); }
-    function gg(a, b, c, d, x, s, t) { return cmn((b & d) | (c & (~d)), a, b, x, s, t); }
-    function hh(a, b, c, d, x, s, t) { return cmn(b ^ c ^ d, a, b, x, s, t); }
-    function ii(a, b, c, d, x, s, t) { return cmn(c ^ (b | (~d)), a, b, x, s, t); }
-    
-    function add32(a, b) {
-      return (a + b) & 0xFFFFFFFF;
-    }
-    
-    function md5blk(s) {
-      const md5blks = [];
-      for (let i = 0; i < 64; i += 4) {
-        md5blks[i >> 2] = s.charCodeAt(i) + (s.charCodeAt(i + 1) << 8) + (s.charCodeAt(i + 2) << 16) + (s.charCodeAt(i + 3) << 24);
-      }
-      return md5blks;
-    }
-    
-    let blks, i;
-    const n = string.length;
-    blks = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    for (i = 0; i < n; i++) {
-      blks[i >> 2] |= string.charCodeAt(i) << ((i % 4) * 8);
-    }
-    blks[i >> 2] |= 0x80 << ((i % 4) * 8);
-    blks[14] = n * 8;
-    
-    let x = [1732584193, -271733879, -1732584194, 271733878];
-    for (i = 0; i < blks.length; i += 16) {
-      const tempX = x.slice(0);
-      md5cycle(tempX, blks.slice(i, i + 16));
-      for (let j = 0; j < 4; j++) {
-        x[j] = tempX[j];
-      }
-    }
-    
-    let result = '';
-    for (i = 0; i < 4; i++) {
-      let s = (x[i] >>> 0).toString(16); // 使用无符号右移确保正确的16进制值
-      while (s.length < 8) {
-        s = '0' + s; // 补齐到8位
-      }
-      result += s;
-    }
-    
-    // 确保结果是32位小写
-    result = result.toLowerCase();
-    
-    // 验证结果格式
-    if (result.length !== 32 || !/^[0-9a-f]{32}$/.test(result)) {
-      console.error('生成的MD5不符合要求:', result.length, result.substring(0, 10) + '...');
-    } else {
-      console.log('MD5生成成功:', result.substring(0, 8) + '...');
-    }
-    
-    return result;
-  }
-  
-  // 调用实现并返回结果
-  const result = md5Implementation(string);
-  return result;
-}

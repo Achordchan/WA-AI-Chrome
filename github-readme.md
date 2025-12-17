@@ -5,7 +5,7 @@
 <img src="images/icon.svg" width="128" height="128" alt="WhatsApp Assistant Pro+ Logo">
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-V2.5-green.svg)](https://github.com/Achordchan/WA-AI-chrome/releases)
+[![Version](https://img.shields.io/badge/version-V3.0-green.svg)](https://github.com/Achordchan/WA-AI-chrome/releases)
 ![Chrome Web Store](https://img.shields.io/chrome-web-store/rating/pending)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/Achordchan/WA-AI-chrome/pulls)
 
@@ -17,7 +17,7 @@
 
 ## ✨ 核心特性
 
-### 🌟 全新功能 (V2.5)
+### 🌟 全新功能 (V3.0)
 - 🌍 **智能号码识别** - 自动识别对方手机号码归属地
 - 🌤️ **实时天气信息** - 显示对方所在地区的当前天气状况  
 - ⏰ **当地时间显示** - 实时显示对方时区的本地时间
@@ -170,12 +170,13 @@
 
 ## 📈 更新日志
 
-### V2.5.0 (最新版本) - 2024-12-09
-- 🆕 **新增智能号码识别功能**
-- 🌤️ **新增实时天气信息显示**
-- ⏰ **新增当地时间显示功能**
-- 🔧 **优化翻译引擎性能**
-- 🎨 **界面美化和用户体验提升**
+### V3.0.0 (最新版本)
+- 输入框快捷翻译发送：回车先翻译，再回车发送
+- 目标语言按联系人保存：不同聊天可使用不同目标语言
+- 输入框为空时可快速设置目标语言并保存
+- OpenAI 通用接口翻译提示词增强，支持更多目标语言
+- 修复 AI 分析抓取消息为 0 条的问题
+- 设置面板体验优化（防误触关闭、管理员预设一键填充）
 
 [查看完整更新日志](./CHANGELOG.md)
 

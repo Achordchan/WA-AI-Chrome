@@ -1,162 +1,25 @@
 // AI全能助手 - WhatsApp增强功能模块
 // 作者: Achord (Tel: 13160235855, Email: achordchan@gmail.com)
 // 功能: 根据对方号码显示国家天气和当地时间
-// 版本: V2.5
+// 版本: V3.0
 // 
 // 请尊重开源项目，二开保留作者信息
 
-// 完整性检测控制器 - 请勿删除或修改
-const _0x4a8b = ['QWNob3Jk', 'MTMxNjAyMzU4NTU=', 'YWNob3JkY2hhbkBnbWFpbC5jb20=', '5bC65pWa5byA5rqQ6aG555uu77yM5LqM5byA5L+d55WZ5L2c6ICF5L+h5oGv', 'dGV4dENvbnRlbnQ=', 'aW5uZXJIVE1M', 'cXVlcnlTZWxlY3Rvcg=='];
-const _0x2d3f = (function() {
-  const _0x5e8a = function(_0x1b2c, _0x3d4e) {
-    _0x1b2c = _0x1b2c - 0x0;
-    let _0x5f6g = _0x4a8b[_0x1b2c];
-    return _0x5f6g;
-  };
-  return _0x5e8a;
-})();
-const _0x1a2b = _0x2d3f;
-
-// 作者信息完整性验证
-const _0xauth = {
-  _0x7h8i: atob(_0x1a2b(0x0)), 
-  _0x9j0k: atob(_0x1a2b(0x1)), 
-  _0x1l2m: atob(_0x1a2b(0x2)), 
-  _0x3n4o: atob(_0x1a2b(0x3)), 
-  _0x5p6q: false,
-  _0xdebug: false, 
-  
-  _0x7r8s() {
-    // 检查注入提示元素（如果存在）
-    const _0x9t0u = document[atob(_0x1a2b(0x6))]('.wa-ai-injection-indicator');
-    let _0x3x4y = true; // 默认通过
-    
-    if (_0x9t0u) {
-      const _0x1v2w = _0x9t0u[atob(_0x1a2b(0x4))] || '';
-      _0x3x4y = _0x1v2w.includes(this._0x7h8i) && _0x1v2w.includes(this._0x9j0k);
-    }
-    
-    // 检查页面头部的作者信息（更宽松的检查）
-    const _0x7c8d = document.head && document.head[atob(_0x1a2b(0x5))].includes(this._0x7h8i);
-    
-    // 检查脚本本身的完整性（最重要的检查）
-    const _0x5z6a = document.documentElement[atob(_0x1a2b(0x5))].includes(this._0x7h8i) && 
-                    document.documentElement[atob(_0x1a2b(0x5))].includes(this._0x9j0k);
-    
-    // 只要脚本头部信息完整就认为是安全的
-    const result = _0x7c8d || _0x5z6a;
-    
-    if (this._0xdebug) {
-      console.log('🔍 版权检测结果:', {
-        '注入提示检查': _0x3x4y,
-        '头部信息检查': _0x7c8d,
-        '脚本完整性检查': _0x5z6a,
-        '最终结果': result,
-        '页面状态': document.readyState
-      });
-    }
-    
-    return result;
-  },
-  
-  _0x7b8c() {
-    if (this._0x5p6q) return;
-    this._0x5p6q = true;
-    
-    const _0x9d0e = document.createElement('div');
-    _0x9d0e.style.cssText = `
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-      background: rgba(0,0,0,0.9); z-index: 999999; display: flex; 
-      align-items: center; justify-content: center; color: white; 
-      font-family: Arial; font-size: 18px; text-align: center;
-    `;
-    _0x9d0e.innerHTML = `
-      <div style="background: #ff4757; padding: 30px; border-radius: 10px; max-width: 500px;">
-        <h2 style="margin: 0 0 20px 0; color: white;">⚠️ 版权保护提醒</h2>
-        <p style="margin: 0 0 15px 0; line-height: 1.5;">检测到作者信息被删除或修改！</p>
-        <p style="margin: 0 0 15px 0; line-height: 1.5;">请尊重开源项目，保留作者信息：</p>
-        <p style="margin: 0 0 20px 0; color: #ffd700; font-weight: bold;">Achord (Tel: 13160235855)</p>
-        <p style="margin: 0; font-size: 14px; opacity: 0.9;">系统已停止工作，请恢复作者信息后刷新页面</p>
-      </div>
-    `;
-    document.body.appendChild(_0x9d0e);
-    
-    // 停止所有功能
-    if (window.WeatherInfo) {
-      window.WeatherInfo.isProtected = true;
-      window.WeatherInfo.stop && window.WeatherInfo.stop();
-    }
-  },
-  
-  // 重置保护状态（仅用于调试）
-  _0xreset() {
-    this._0x5p6q = false;
-    window._0xprotected = false;
-    if (window.WeatherInfo) {
-      window.WeatherInfo.isProtected = false;
-    }
-    const modal = document.querySelector('[style*="position: fixed"][style*="z-index: 999999"]');
-    if (modal) {
-      modal.remove();
-    }
-    console.log('🔄 保护状态已重置');
-  },
-  
-  // 启用调试模式
-  _0xenableDebug() {
-    this._0xdebug = true;
-    console.log('🐛 调试模式已启用');
-  },
-  
-  _0x1f2g() {
-    // 延迟启动，等待页面完全加载
-    setTimeout(() => {
-      // 多重检测机制 - 更宽松的检测
-      const _0x1g2h = [3000, 8000, 15000]; // 减少检测次数，增加间隔
-      let _0xfailCount = 0;
-      
-      _0x1g2h.forEach((_0x3i4j, _0x5k6l) => {
-        setTimeout(() => {
-          if (!this._0x7r8s() && !this._0x5p6q && document.readyState === 'complete') {
-            _0xfailCount++;
-            console.warn(`🔍 检测 ${_0xfailCount}: 作者信息异常`);
-            if (_0xfailCount >= 2) { // 第2次检测失败才触发保护
-              this._0x7b8c();
-            }
-          }
-        }, _0x3i4j);
-      });
-      
-      // DOM变化监听 - 更保守的触发条件
-      const _0x7m8n = new MutationObserver(() => {
-        if (!this._0x7r8s() && !this._0x5p6q && document.readyState === 'complete') {
-          setTimeout(() => {
-            if (!this._0x7r8s()) {
-              this._0x7b8c();
-            }
-          }, 5000); // 增加延迟，减少误报
-        }
-      });
-      
-      _0x7m8n.observe(document.body, {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: ['style', 'class', 'hidden']
-      });
-    }, 8000); // 8秒后开始主保护机制
-  }
-};
-
 const WeatherInfo = {
   // 版本信息
-  version: 'V2.5',
+  version: 'V3.0',
   
   // 状态管理
   currentStatus: 'idle', // idle, loading, success, error, no-number
   currentInfoElement: null,
   injectionIndicator: null, // WhatsApp 标志注入提示元素
   isProtected: false, // 版权保护状态
+  lastNoContactShownAt: 0,
+  initialized: false,
+  observerInitialized: false,
+  lastChatCheckAt: 0,
+  lastExtractAt: 0,
+  consecutiveNoNumber: 0,
   statusMessages: {
     loading: '🌤️ 正在获取天气信息...',
     error: '❌ 天气信息加载失败',
@@ -479,8 +342,11 @@ const WeatherInfo = {
   // 创建或更新状态显示
   showStatus: function(status, message = null) {
     const statusText = message || this.statusMessages[status] || '📊 状态未知';
+    if (this.currentStatus === status && this.currentInfoElement && this.currentInfoElement.textContent === statusText) {
+      return this.currentInfoElement;
+    }
+
     this.currentStatus = status;
-    
     console.log(`📊 天气信息状态: ${status} - ${statusText}`);
     
     // 如果已有元素，更新内容
@@ -622,6 +488,12 @@ const WeatherInfo = {
       console.warn('WeatherInfo: 系统已被保护，停止初始化');
       return;
     }
+
+    if (this.initialized) {
+      return;
+    }
+
+    this.initialized = true;
     
     console.log('WeatherInfo: 初始化天气信息功能');
     this.loadUserCorrections();
@@ -631,11 +503,6 @@ const WeatherInfo = {
     setTimeout(() => {
       this.initInjectionIndicator();
     }, 2000); // 延迟2秒确保页面完全加载
-    
-    // 启动版权保护检测
-    setTimeout(() => {
-      _0xauth._0x1f2g();
-    }, 5000);
   },
   
   // 停止所有功能
@@ -646,6 +513,7 @@ const WeatherInfo = {
     // 清除所有观察器
     if (this.chatWindowObserver) {
       this.chatWindowObserver.disconnect();
+      this.chatWindowObserver = null;
     }
     if (this.currentInfoElement) {
       this.currentInfoElement.remove();
@@ -683,8 +551,30 @@ const WeatherInfo = {
     }
   },
 
+  isChatWindowActive() {
+    const main = document.getElementById('main');
+    if (!main) return false;
+
+    // 有输入框通常表示已经进入某个会话
+    if (document.querySelector('footer._ak1i')) return true;
+
+    // 有消息/会话相关 data-id（减少误判）
+    if (main.querySelector('[data-id*="@c.us"], [data-id*="@g.us"]')) return true;
+
+    // 有会话 header（不同版本 WhatsApp 可能不同）
+    if (main.querySelector('header[data-testid="conversation-info-header"], header [data-testid="conversation-info-header"]')) return true;
+
+    return false;
+  },
+
   // 设置聊天窗口观察器
   setupChatWindowObserver() {
+    if (this.observerInitialized && this.chatWindowObserver) {
+      return;
+    }
+
+    this.observerInitialized = true;
+
     // 监听聊天窗口切换 - 使用防抖机制减少频繁触发
     let debounceTimeout = null;
     const observer = new MutationObserver((mutations) => {
@@ -710,6 +600,8 @@ const WeatherInfo = {
       }
     });
 
+    this.chatWindowObserver = observer;
+
     // 开始观察 - 只观察主要区域
     const mainElement = document.getElementById('main');
     if (mainElement) {
@@ -731,6 +623,21 @@ const WeatherInfo = {
 
   // 检查新的聊天窗口
   checkForNewChatWindow() {
+    const nowMs = Date.now();
+    if (nowMs - (this.lastChatCheckAt || 0) < 800) {
+      return;
+    }
+    this.lastChatCheckAt = nowMs;
+
+    if (!this.isChatWindowActive()) {
+      const now = Date.now();
+      if (now - (this.lastNoContactShownAt || 0) > 5000) {
+        this.showStatus('no-contact');
+        this.lastNoContactShownAt = now;
+      }
+      return;
+    }
+
     console.log('🔍 检查新聊天窗口...');
     
     // 立即显示加载状态
@@ -749,9 +656,24 @@ const WeatherInfo = {
 
   // 从当前聊天窗口提取电话号码
   extractPhoneNumber() {
+    const nowMs = Date.now();
+    if (nowMs - (this.lastExtractAt || 0) < 800) {
+      return;
+    }
+    this.lastExtractAt = nowMs;
+
     // 版权保护检查
     if (this.isProtected) {
       console.warn('WeatherInfo: 系统已被保护，停止号码提取');
+      return;
+    }
+
+    if (!this.isChatWindowActive()) {
+      const now = Date.now();
+      if (now - (this.lastNoContactShownAt || 0) > 5000) {
+        this.showStatus('no-contact');
+        this.lastNoContactShownAt = now;
+      }
       return;
     }
     
@@ -761,15 +683,21 @@ const WeatherInfo = {
     const phoneNumber = this.tryGetWhatsAppNumber();
     
     if (phoneNumber) {
+      this.consecutiveNoNumber = 0;
       // 只在号码变化时输出成功信息
       if (this.lastDebugNumber !== phoneNumber) {
         console.log('✅ 成功提取到号码:', phoneNumber);
         this.lastDebugNumber = phoneNumber;
-        this.showStatus('loading', '🌤️ 正在获取天气信息...');
       }
       // processPhoneNumber 已经在 tryGetWhatsAppNumber 中调用了
     } else {
-      // 显示无号码状态
+      this.consecutiveNoNumber = (this.consecutiveNoNumber || 0) + 1;
+
+      // WhatsApp DOM 可能短暂抖动：连续多次都拿不到号码才切到 no-number
+      if (this.consecutiveNoNumber < 3 && this.currentPhoneNumber) {
+        return;
+      }
+
       this.showStatus('no-number');
       
       // 只在之前有号码现在没有号码时输出
@@ -1816,6 +1744,9 @@ const WeatherInfo = {
   
   // 尝试从WhatsApp页面获取当前聊天对象号码
   tryGetWhatsAppNumber() {
+    if (!this.isChatWindowActive()) {
+      return null;
+    }
     // 当前聊天对象号码的精确XPath（用户测试成功的路径）
     const currentChatXPath = '//*[@id="main"]/header/div[2]/div/div/div/div/span';
     
@@ -1861,24 +1792,19 @@ const WeatherInfo = {
           return backupResult;
         }
       } else {
-        // 只在之前有元素现在没有时输出
-        if (this.lastDebugNumber !== 'no-element') {
-          console.log('❌ 未找到当前聊天对象号码元素');
-          console.log('💡 可能的原因: 不在聊天界面或页面结构变化');
-          this.lastDebugNumber = 'no-element';
-        }
-        
-        // 尝试备用方法
-        return this.tryBackupMethods();
+        return null;
       }
     } catch (error) {
       console.error('❌ 获取当前聊天号码时发生错误:', error);
-      return this.tryBackupMethods();
+      return null;
     }
   },
   
   // 备用获取方法
   tryBackupMethods() {
+    if (!this.isChatWindowActive()) {
+      return null;
+    }
     console.log('🔄 尝试备用方法获取号码...');
     
     // 首先尝试从聊天记录的data-id属性中提取号码
@@ -1924,6 +1850,9 @@ const WeatherInfo = {
 
   // 从聊天记录的data-id属性中提取手机号码
   extractPhoneFromChatMessages() {
+    if (!this.isChatWindowActive()) {
+      return null;
+    }
     console.log('🔍 尝试从聊天记录的data-id属性中提取号码...');
     
     try {
@@ -2486,92 +2415,3 @@ console.log('  • testWhatsApp() - 完整测试流程');
 console.log('  • getWhatsAppNumber() - 直接获取号码');
 console.log('  • triggerWeatherInfo() - 手动触发天气信息功能');
 console.log('  • window.WeatherInfo.testWhatsAppExtraction() - 原始方法');
-
-
-// 🐱 猫咪保护机制 - 强制确保函数可用
-setTimeout(() => {
-  // 双重保险：如果前面的挂载失败，这里再试一次
-  if (typeof window.testWhatsApp === 'undefined') {
-    console.warn('⚠️ 检测到testWhatsApp未定义，正在紧急修复...');
-    
-    window.testWhatsApp = function() {
-      console.log('=== 🚨 紧急修复版本的WhatsApp测试 ===');
-      try {
-        if (window.WeatherInfo && window.WeatherInfo.testWhatsAppExtraction) {
-          return window.WeatherInfo.testWhatsAppExtraction();
-        } else {
-          console.error('❌ WeatherInfo对象不可用，启用备用方案');
-          return WeatherInfo.testWhatsAppExtraction();
-        }
-      } catch (error) {
-        console.error('❌ 测试执行失败:', error);
-        console.log('💡 尝试直接调用核心功能...');
-        return WeatherInfo.tryGetWhatsAppNumber();
-      }
-    };
-    
-    window.getWhatsAppNumber = function() {
-      try {
-        if (window.WeatherInfo && window.WeatherInfo.tryGetWhatsAppNumber) {
-          return window.WeatherInfo.tryGetWhatsAppNumber();
-        } else {
-          return WeatherInfo.tryGetWhatsAppNumber();
-        }
-      } catch (error) {
-        console.error('❌ 获取号码失败:', error);
-        return null;
-      }
-    };
-    
-    console.log('🐱 猫咪保护机制已激活！函数现在应该可用了。');
-  } else {
-    console.log('✅ 所有函数正常，猫咪是安全的！');
-  }
-}, 2000);
-
-// 备用保护机制 - 看起来像普通的工具函数
-const _0xutils = {
-  _0xa1b2: function() {
-    return Math.random().toString(36).substr(2, 9);
-  },
-  _0xc3d4: function(_0xe5f6) {
-    return btoa(_0xe5f6).split('').reverse().join('');
-  },
-  _0xg7h8: function() {
-    // 隐蔽的完整性检查 - 只检查核心作者信息
-    const _0xi9j0 = document.documentElement.innerHTML;
-    const _0xk1l2 = ['Achord', '13160235855']; // 移除邮箱检查，减少误报
-    const _0xm3n4 = _0xk1l2.every(_0xo5p6 => _0xi9j0.includes(_0xo5p6));
-    
-    // 额外检查：确保是真的被删除而不是页面还未完全加载
-    const _0xscriptCheck = _0xi9j0.includes('AI全能助手') && _0xi9j0.includes('作者: Achord');
-    
-    if (!_0xm3n4 && !_0xscriptCheck && !window._0xprotected && document.readyState === 'complete') {
-      window._0xprotected = true;
-      const _0xq7r8 = document.createElement('div');
-      _0xq7r8.innerHTML = '<!-- 系统检测到异常，请联系技术支持 -->';
-      _0xq7r8.style.display = 'none';
-      document.body.appendChild(_0xq7r8);
-      
-      setTimeout(() => {
-        if (window.WeatherInfo && !window.WeatherInfo.isProtected) {
-          window.WeatherInfo.stop && window.WeatherInfo.stop();
-          _0xauth._0x7b8c();
-        }
-      }, 100);
-    }
-  }
-};
-
-// 延迟启动保护机制，确保页面完全加载
-setTimeout(() => {
-  // 定期检查
-  setInterval(() => {
-    _0xutils._0xg7h8();
-  }, 5000 + Math.random() * 3000); // 增加检查间隔，减少误报
-  
-  // 页面卸载前检查
-  window.addEventListener('beforeunload', () => {
-    _0xutils._0xg7h8();
-  });
-}, 10000); // 10秒后开始检查，给页面充足的加载时间 

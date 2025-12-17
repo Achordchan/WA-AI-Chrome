@@ -12,15 +12,17 @@ async function translateText(text, targetLang = 'zh') {
 
     // 调用翻译服务
     let translation;
+    const resolvedTargetLang = service === 'baidu' ? mapLangForBaidu(targetLang) : targetLang;
+
     if (service === 'baidu') {
       // 百度翻译需要额外的secretKey参数
-      translation = await window.ApiServices.translation[service](text, apiKey, secretKey, 'auto', targetLang);
+      translation = await window.ApiServices.translation[service](text, apiKey, secretKey, 'auto', resolvedTargetLang);
     } else if (service === 'google') {
       // 谷歌翻译不需要 apiKey
-      translation = await window.ApiServices.translation[service](text, 'auto', targetLang);
+      translation = await window.ApiServices.translation[service](text, 'auto', resolvedTargetLang);
     } else if (service === 'siliconflow') {
       // OpenAI翻译需要额外的apiUrl和model参数
-      translation = await window.ApiServices.translation[service](text, apiKey, apiUrl, model, targetLang);
+      translation = await window.ApiServices.translation[service](text, apiKey, apiUrl, model, resolvedTargetLang);
     } else {
       // 其他翻译服务
       translation = await window.ApiServices.translation[service](text, apiKey);
@@ -39,25 +41,446 @@ async function translateText(text, targetLang = 'zh') {
   }
 }
 
+let inputQuickTranslateSendEnabled = false;
+
+function loadInputQuickTranslateSendSetting() {
+  try {
+    if (!chrome?.storage?.sync) return;
+    chrome.storage.sync.get(['inputQuickTranslateSend'], (data) => {
+      inputQuickTranslateSendEnabled = data.inputQuickTranslateSend === true;
+    });
+  } catch (e) {
+    // ignore
+  }
+}
+
+try {
+  loadInputQuickTranslateSendSetting();
+  if (chrome?.storage?.onChanged) {
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName !== 'sync') return;
+      if (!changes.inputQuickTranslateSend) return;
+      inputQuickTranslateSendEnabled = changes.inputQuickTranslateSend.newValue === true;
+    });
+  }
+} catch (e) {
+  // ignore
+}
+
+let inputQuickSendListenerInstalled = false;
+let inputQuickSendLastAt = 0;
+const INPUT_QUICK_SEND_THROTTLE_MS = 900;
+
+const inputQuickSendStateByInput = new WeakMap();
+
+function getQuickSendState(el) {
+  const s = inputQuickSendStateByInput.get(el);
+  if (s) return s;
+  const init = { stage: 'idle', sourceTextAtTranslate: '', appliedText: '', requestId: 0 };
+  inputQuickSendStateByInput.set(el, init);
+  return init;
+}
+
+function normalizeTextForCompare(s) {
+  return String(s || '')
+    .replace(/\u00A0/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function sleepMs(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+function showQuickSendToast(text, isError = false, duration = 1100) {
+  if (!isError) return;
+  try {
+    const toast = document.createElement('div');
+    toast.className = isError ? 'translate-toast translate-toast-error' : 'translate-toast';
+    toast.textContent = text;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), duration);
+  } catch (e) {
+    // ignore
+  }
+}
+
+async function applyTextToInputBox(richTextInput, text, options = {}) {
+  if (!richTextInput) return false;
+  const desired = normalizeTextForCompare(text);
+  const allowClipboard = options.allowClipboard === true;
+  try {
+    richTextInput.focus();
+  } catch (e) {
+    // ignore
+  }
+
+  try {
+    const isMac = /Mac|iPod|iPhone|iPad/.test(navigator.platform);
+
+    // 与模态框“应用”一致：全选 -> 删除 -> (写剪贴板) -> 模拟粘贴 -> input(insertFromPaste)
+    const clearByKeys = () => {
+      try {
+        richTextInput.dispatchEvent(
+          new KeyboardEvent('keydown', {
+            key: 'a',
+            code: 'KeyA',
+            ctrlKey: !isMac,
+            metaKey: isMac,
+            bubbles: true
+          })
+        );
+        richTextInput.dispatchEvent(
+          new KeyboardEvent('keydown', {
+            key: 'Backspace',
+            code: 'Backspace',
+            bubbles: true
+          })
+        );
+      } catch (e) {
+        // ignore
+      }
+    };
+
+    const isEmptyNow = () => {
+      return normalizeTextForCompare(richTextInput.textContent) === '';
+    };
+
+    const forceClear = async () => {
+      clearByKeys();
+      await sleepMs(0);
+      if (isEmptyNow()) return true;
+
+      try {
+        const selection = window.getSelection && window.getSelection();
+        if (selection && document.createRange) {
+          const range = document.createRange();
+          range.selectNodeContents(richTextInput);
+          selection.removeAllRanges();
+          selection.addRange(range);
+        }
+        if (document.queryCommandSupported && document.queryCommandSupported('delete')) {
+          document.execCommand('delete', false, null);
+        }
+      } catch (e) {
+        // ignore
+      }
+
+      await sleepMs(0);
+      if (isEmptyNow()) return true;
+
+      try {
+        richTextInput.textContent = '';
+        richTextInput.dispatchEvent(new Event('input', { bubbles: true }));
+      } catch (e) {
+        // ignore
+      }
+
+      await sleepMs(0);
+      return isEmptyNow();
+    };
+
+    const verifyNow = () => {
+      const after = normalizeTextForCompare(richTextInput.textContent);
+      return after && after === desired;
+    };
+
+    // Phase 1: event injection (paste + beforeinput/input) —— 不污染系统剪贴板
+    await forceClear();
+
+    try {
+      const dt = new DataTransfer();
+      dt.setData('text/plain', text);
+
+      try {
+        const beforeInputEv = new InputEvent('beforeinput', {
+          bubbles: true,
+          cancelable: true,
+          inputType: 'insertFromPaste',
+          data: text
+        });
+        richTextInput.dispatchEvent(beforeInputEv);
+      } catch (e) {
+        // ignore
+      }
+
+      let pasteEvent;
+      try {
+        pasteEvent = new ClipboardEvent('paste', { bubbles: true, cancelable: true });
+      } catch (e) {
+        pasteEvent = document.createEvent('Event');
+        pasteEvent.initEvent('paste', true, true);
+      }
+
+      try {
+        Object.defineProperty(pasteEvent, 'clipboardData', { value: dt });
+      } catch (e) {
+        // ignore
+      }
+
+      richTextInput.dispatchEvent(pasteEvent);
+
+      try {
+        richTextInput.dispatchEvent(
+          new InputEvent('input', {
+            bubbles: true,
+            cancelable: true,
+            inputType: 'insertFromPaste',
+            data: text
+          })
+        );
+      } catch (e) {
+        // ignore
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    await sleepMs(0);
+    await sleepMs(0);
+    if (verifyNow()) return true;
+
+    // Phase 2: execCommand(insertText) 兜底（每次前强制清空，避免拼接/重复）
+    await forceClear();
+    try {
+      const selection = window.getSelection && window.getSelection();
+      if (selection && document.createRange) {
+        const range = document.createRange();
+        range.selectNodeContents(richTextInput);
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+
+      if (document.queryCommandSupported && document.queryCommandSupported('insertText')) {
+        document.execCommand('insertText', false, text);
+        try {
+          richTextInput.dispatchEvent(
+            new InputEvent('input', {
+              bubbles: true,
+              cancelable: true,
+              inputType: 'insertText',
+              data: text
+            })
+          );
+        } catch (e) {
+          // ignore
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    await sleepMs(0);
+    await sleepMs(0);
+    if (verifyNow()) return true;
+
+    // Phase 3: 仅在允许的情况下才使用系统剪贴板（避免覆盖用户剪贴板）
+    if (!allowClipboard) {
+      return false;
+    }
+
+    await forceClear();
+    let clipboardOk = false;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        clipboardOk = true;
+      }
+    } catch (e) {
+      clipboardOk = false;
+    }
+
+    if (!clipboardOk) {
+      return false;
+    }
+
+    try {
+      richTextInput.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'v',
+          code: 'KeyV',
+          ctrlKey: !isMac,
+          metaKey: isMac,
+          bubbles: true
+        })
+      );
+    } catch (e) {
+      // ignore
+    }
+
+    try {
+      richTextInput.dispatchEvent(
+        new InputEvent('input', {
+          bubbles: true,
+          cancelable: true,
+          inputType: 'insertFromPaste',
+          data: text
+        })
+      );
+    } catch (e) {
+      // ignore
+    }
+
+    await sleepMs(0);
+    await sleepMs(0);
+    return verifyNow();
+  } catch (e) {
+    return false;
+  }
+}
+
+function installInputQuickTranslateSend() {
+  if (inputQuickSendListenerInstalled) return;
+  inputQuickSendListenerInstalled = true;
+
+  document.addEventListener(
+    'keydown',
+    async (e) => {
+      let myRequestId = 0;
+      try {
+        if (!inputQuickTranslateSendEnabled) return;
+        if (e.key !== 'Enter') return;
+        if (e.shiftKey) return;
+        if (e.repeat) return;
+        if (e.isComposing) return;
+
+        const target = e.target;
+        if (!target || !(target instanceof HTMLElement)) return;
+        const inputEl = target.closest('div[contenteditable="true"]');
+        if (!inputEl) return;
+        if (!inputEl.closest('footer._ak1i')) return;
+        if (!inputEl.closest('.lexical-rich-text-input')) return;
+
+        const state = getQuickSendState(inputEl);
+
+        if (state.stage === 'translated_ready') {
+          const nowTextNorm = normalizeTextForCompare(inputEl.textContent);
+          const appliedNorm = normalizeTextForCompare(state.appliedText);
+          if (nowTextNorm && appliedNorm && nowTextNorm === appliedNorm) {
+            state.stage = 'idle';
+            state.sourceTextAtTranslate = '';
+            state.appliedText = '';
+            return;
+          }
+          state.stage = 'idle';
+          state.sourceTextAtTranslate = '';
+          state.appliedText = '';
+        }
+
+        const now = Date.now();
+        if (now - inputQuickSendLastAt < INPUT_QUICK_SEND_THROTTLE_MS) {
+          e.preventDefault();
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+          return;
+        }
+
+        const sourceText = (inputEl.textContent || '').trim();
+        if (!sourceText) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+
+        if (state.stage === 'translating') {
+          showQuickSendToast('翻译中…');
+          return;
+        }
+
+        state.requestId = (state.requestId || 0) + 1;
+        myRequestId = state.requestId;
+
+        state.stage = 'translating';
+        state.sourceTextAtTranslate = sourceText;
+        state.appliedText = '';
+        inputQuickSendLastAt = now;
+        showQuickSendToast('正在翻译…', false, 900);
+
+        const chatWindow = document.getElementById('main') || inputEl.closest('.app-wrapper-web') || document;
+        const targetLang = getRememberedLanguage(chatWindow);
+        const translation = await modalTranslation(sourceText, targetLang, 'normal');
+        const finalText = translation && typeof translation === 'object' && translation.hasThinking ? translation.translation : translation;
+
+        // 如果翻译过程中发生了新的翻译请求（例如误触多次回车），放弃本次写入
+        if (state.requestId !== myRequestId) {
+          return;
+        }
+
+        const currentTextBeforeApplyNorm = normalizeTextForCompare(inputEl.textContent);
+        const sourceAtTranslateNorm = normalizeTextForCompare(state.sourceTextAtTranslate);
+        if (currentTextBeforeApplyNorm !== sourceAtTranslateNorm) {
+          state.stage = 'idle';
+          state.sourceTextAtTranslate = '';
+          state.appliedText = '';
+          showQuickSendToast('你刚刚修改了内容，已取消自动替换；请再按回车翻译', true, 1600);
+          return;
+        }
+
+        const applied = String(finalText || '').trim();
+        const ok = await applyTextToInputBox(inputEl, applied, { allowClipboard: false });
+        if (ok) {
+          try {
+            const glowTarget = inputEl.closest('.lexical-rich-text-input') || inputEl;
+            glowTarget.classList.add('waai-quick-send-glow');
+            setTimeout(() => glowTarget.classList.remove('waai-quick-send-glow'), 980);
+          } catch (e2) {
+            // ignore
+          }
+
+          state.stage = 'translated_ready';
+          // 存储“实际写入后的内容”，避免 WhatsApp 内部规范化导致对比失败
+          state.appliedText = (inputEl.textContent || '').trim() || applied;
+        } else {
+          state.stage = 'idle';
+          state.sourceTextAtTranslate = '';
+          state.appliedText = '';
+          showQuickSendToast('翻译已完成，但写入输入框失败', true, 2000);
+        }
+      } catch (err) {
+        showQuickSendToast('翻译失败: ' + (err?.message || '未知错误'), true, 1800);
+      } finally {
+        try {
+          const target = e.target;
+          if (target && target instanceof HTMLElement) {
+            const inputEl = target.closest && target.closest('div[contenteditable="true"]');
+            if (inputEl) {
+              const state = inputQuickSendStateByInput.get(inputEl);
+              // 只允许“发起翻译的那次回车”清理 translating 状态，避免误触第二次回车把状态清空
+              if (state && state.stage === 'translating' && myRequestId && state.requestId === myRequestId) {
+                state.stage = 'idle';
+                state.sourceTextAtTranslate = '';
+                state.appliedText = '';
+              }
+            }
+          }
+        } catch (e2) {
+          // ignore
+        }
+      }
+    },
+    true
+  );
+}
+
 // 添加统一的翻译方法
 async function performTranslation(text, targetLang, type = 'normal') {
   console.log(`执行${type === 'ai' ? 'AI' : '普通'}翻译:`, { text, targetLang });
   
   try {
     if (type === 'ai') {
-      const { service, apiKey } = await window.getAiService();
-      console.log('使用 AI 服务:', service);
-      return await window.ApiServices.analysis[service]([{ sender: '我方', text }], apiKey);
+      return await aiTranslate(text, targetLang);
     } else {
       const { service, apiKey, secretKey, apiUrl, model } = await window.getTranslationService();
       console.log('使用翻译服务:', service);
+
+      const resolvedTargetLang = service === 'baidu' ? mapLangForBaidu(targetLang) : targetLang;
       
       if (service === 'baidu') {
-        return await window.ApiServices.translation[service](text, apiKey, secretKey, 'auto', targetLang);
+        return await window.ApiServices.translation[service](text, apiKey, secretKey, 'auto', resolvedTargetLang);
       } else if (service === 'google') {
-        return await window.ApiServices.translation[service](text, 'auto', targetLang);
+        return await window.ApiServices.translation[service](text, 'auto', resolvedTargetLang);
       } else if (service === 'siliconflow') {
-        return await window.ApiServices.translation[service](text, apiKey, apiUrl, model, targetLang);
+        return await window.ApiServices.translation[service](text, apiKey, apiUrl, model, resolvedTargetLang);
       } else {
         return await window.ApiServices.translation[service](text, apiKey);
       }
@@ -126,14 +549,9 @@ function createTranslateButton() {
 
     const text = inputBox.textContent.trim();
     console.log('获取到输入文本:', text);
-    
-    if (!text) {
-      alert('你不写内容打算让我猜啊？？');
-      return;
-    }
 
     // 显示翻译模态框
-    const modal = createTranslateModal(text, inputBox);
+    const modal = createTranslateModal(text, inputBox, { hideSource: !text });
     button.parentElement.appendChild(modal);
   };
 
@@ -141,7 +559,33 @@ function createTranslateButton() {
 }
 
 // 修改添加输入框翻译按钮的函数
+const INPUT_TRANSLATE_THROTTLE_MS = 800;
+let lastInputTranslateAttemptAt = 0;
+
+function isChatWindowActiveForInputTranslate() {
+  const main = document.getElementById('main');
+  if (!main) return false;
+
+  // 进入会话后通常会出现输入区域
+  if (document.querySelector('footer._ak1i')) return true;
+
+  // 有时候 footer 还没出现，但 main 已经有输入框结构
+  if (main.querySelector('.lexical-rich-text-input div[contenteditable="true"]')) return true;
+
+  return false;
+}
+
 function addInputTranslateButton(retryCount = 0, maxRetries = 5) {
+  if (!isChatWindowActiveForInputTranslate()) {
+    return false;
+  }
+
+  const nowMs = Date.now();
+  if (nowMs - lastInputTranslateAttemptAt < INPUT_TRANSLATE_THROTTLE_MS && retryCount === 0) {
+    return false;
+  }
+  lastInputTranslateAttemptAt = nowMs;
+
   console.log('尝试添加输入框翻译按钮...');
   
   // 防止重复添加
@@ -153,7 +597,6 @@ function addInputTranslateButton(retryCount = 0, maxRetries = 5) {
   // 查找必要的DOM元素
   const footer = document.querySelector('footer._ak1i');
   if (!footer) {
-    console.log('未找到footer元素');
     return handleRetry('footer', retryCount, maxRetries);
   }
 
@@ -188,6 +631,9 @@ function addInputTranslateButton(retryCount = 0, maxRetries = 5) {
 
 // 添加重试处理函数
 function handleRetry(reason, retryCount, maxRetries) {
+  if (!isChatWindowActiveForInputTranslate()) {
+    return false;
+  }
   if (retryCount < maxRetries) {
     console.log(`${reason} 未就绪，${retryCount + 1}/${maxRetries} 次重试...`);
     setTimeout(() => {
@@ -202,6 +648,13 @@ function handleRetry(reason, retryCount, maxRetries) {
 // 修改初始化函数
 function initializeInputTranslate() {
   console.log('初始化输入框翻译功能...');
+ 
+  // 安装“回车快捷翻译发送”监听（是否生效取决于开关 inputQuickTranslateSendEnabled）
+  try {
+    installInputQuickTranslateSend();
+  } catch (e) {
+    // ignore
+  }
   
   // 创建 MutationObserver 实例
   const observer = new MutationObserver((mutations) => {
@@ -210,6 +663,9 @@ function initializeInputTranslate() {
       if (mutation.type === 'childList' && 
           mutation.addedNodes.length > 0 &&
           !document.querySelector('.input-translate-btn')) {
+        if (!isChatWindowActiveForInputTranslate()) {
+          continue;
+        }
         console.log('检测到DOM变更，尝试添加翻译按钮...');
         if (addInputTranslateButton()) {
           console.log('翻译按钮添加成功');
@@ -268,6 +724,41 @@ toastStyles.textContent = `
       opacity: 1;
       transform: translate(-50%, 0);
     }
+  }
+
+  @keyframes waaiQuickSendFlash {
+    0% { background: rgba(0, 168, 132, 0.06); }
+    100% { background: transparent; }
+  }
+
+  .waai-quick-send-flash {
+    animation: waaiQuickSendFlash 0.6s ease;
+  }
+
+  @keyframes waaiQuickSendGlow {
+    0% {
+      box-shadow: 0 0 0 0 rgba(0, 168, 132, 0);
+    }
+    18% {
+      box-shadow: 0 0 0 2px rgba(0, 168, 132, 0.55), 0 0 18px rgba(0, 168, 132, 0.35);
+    }
+    32% {
+      box-shadow: 0 0 0 0 rgba(0, 168, 132, 0);
+    }
+    58% {
+      box-shadow: 0 0 0 2px rgba(0, 168, 132, 0.55), 0 0 18px rgba(0, 168, 132, 0.35);
+    }
+    72% {
+      box-shadow: 0 0 0 0 rgba(0, 168, 132, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(0, 168, 132, 0);
+    }
+  }
+
+  .waai-quick-send-glow {
+    border-radius: 10px;
+    animation: waaiQuickSendGlow 0.95s ease-in-out;
   }
 `;
 document.head.appendChild(toastStyles);
@@ -525,15 +1016,37 @@ async function aiTranslate(text, targetLang) {
   });
 
   try {
-    const { service, apiKey } = await window.getAiService();
+    const { service, apiKey, apiUrl, model } = await window.getAiService();
     console.log('AI 翻译服务配置:', {
       service,
       hasApiKey: !!apiKey,
       timestamp: new Date().toISOString()
     });
 
+    const normalizeTargetLang = (lang) => {
+      const raw = String(lang || '').trim();
+      if (!raw) return 'zh';
+      const lower = raw.toLowerCase();
+      if (lower === 'zh-cn' || lower === 'zh-hans') return 'zh';
+      if (lower === 'zh-tw' || lower === 'zh-hant') return 'zh';
+      return lower.split('-')[0] || 'zh';
+    };
+
+    const normalizedTargetLang = normalizeTargetLang(targetLang);
+
+    // 使用 OpenAI 通用接口时，复用 ApiServices.translation.siliconflow 的多语言提示词体系
+    if (service === 'siliconflow') {
+      return await window.ApiServices.translation.siliconflow(
+        text,
+        apiKey,
+        apiUrl,
+        model,
+        normalizedTargetLang
+      );
+    }
+
     // 使用统一的语言映射
-    const langName = LANGUAGES[targetLang] || '中文';
+    const langName = LANGUAGES[normalizedTargetLang] || '中文';
     
     // 直接调用 DeepSeek API
     const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
@@ -603,18 +1116,19 @@ async function modalTranslation(text, targetLang, type = 'normal') {
   try {
     let translation;
     if (type === 'ai') {
-      const { service, apiKey } = await window.getAiService();
-      translation = await window.ApiServices.analysis[service](text, apiKey);
+      translation = await aiTranslate(text, targetLang);
     } else {
       const { service, apiKey, secretKey, apiUrl, model } = await window.getTranslationService();
       console.log('使用翻译服务:', service);
+
+      const resolvedTargetLang = service === 'baidu' ? mapLangForBaidu(targetLang) : targetLang;
       
       if (service === 'baidu') {
-        translation = await window.ApiServices.translation[service](text, apiKey, secretKey, 'auto', targetLang);
+        translation = await window.ApiServices.translation[service](text, apiKey, secretKey, 'auto', resolvedTargetLang);
       } else if (service === 'google') {
-        translation = await window.ApiServices.translation[service](text, 'auto', targetLang);
+        translation = await window.ApiServices.translation[service](text, 'auto', resolvedTargetLang);
       } else if (service === 'siliconflow') {
-        translation = await window.ApiServices.translation[service](text, apiKey, apiUrl, model, targetLang);
+        translation = await window.ApiServices.translation[service](text, apiKey, apiUrl, model, resolvedTargetLang);
       } else {
         translation = await window.ApiServices.translation[service](text, apiKey);
       }
@@ -662,39 +1176,127 @@ async function verifyTranslation(translatedText, originalLang, targetLang) {
   }
 }
 
-// 更新语言映射
-const LANGUAGES = {
-  'zh': '中文',
-  'en': '英语',
-  'ja': '日语',
-  'ko': '韩语',
-  'ru': '俄语',
-  'es': '西班牙语',
-  'fr': '法语',
-  'de': '德语',
-  'it': '意大利语',
-  'pt': '葡萄牙语',
-  'vi': '越南语',
-  'th': '泰语',
-  'ar': '阿拉伯语',
-  'hi': '印地语'
-};
+function mapLangForBaidu(lang) {
+  const map = {
+    ja: 'jp',
+    ko: 'kor',
+    fr: 'fra',
+    es: 'spa',
+    vi: 'vie',
+    ar: 'ara',
+    he: 'heb',
+    uk: 'ukr',
+    ro: 'rom',
+    ms: 'may',
+    sv: 'swe',
+    no: 'nor',
+    da: 'dan',
+    fi: 'fin'
+  };
+  return map[lang] || lang;
+}
+
+const LANGUAGE_OPTIONS = [
+  { code: 'zh', zh: '中文', en: 'Chinese', py: 'zw' },
+  { code: 'en', zh: '英语', en: 'English', py: 'yy' },
+  { code: 'ja', zh: '日语', en: 'Japanese', py: 'ry' },
+  { code: 'ko', zh: '韩语', en: 'Korean', py: 'hy' },
+  { code: 'fr', zh: '法语', en: 'French', py: 'fy' },
+  { code: 'de', zh: '德语', en: 'German', py: 'dy' },
+  { code: 'es', zh: '西班牙语', en: 'Spanish', py: 'xbyy' },
+  { code: 'it', zh: '意大利语', en: 'Italian', py: 'ydly' },
+  { code: 'pt', zh: '葡萄牙语', en: 'Portuguese', py: 'ptyy' },
+  { code: 'ru', zh: '俄语', en: 'Russian', py: 'ey' },
+  { code: 'ar', zh: '阿拉伯语', en: 'Arabic', py: 'alby' },
+  { code: 'hi', zh: '印地语', en: 'Hindi', py: 'ydy' },
+  { code: 'th', zh: '泰语', en: 'Thai', py: 'ty' },
+  { code: 'vi', zh: '越南语', en: 'Vietnamese', py: 'vny' },
+  { code: 'id', zh: '印尼语', en: 'Indonesian', py: 'yny' },
+  { code: 'ms', zh: '马来语', en: 'Malay', py: 'mly' },
+  { code: 'tr', zh: '土耳其语', en: 'Turkish', py: 'teqy' },
+  { code: 'nl', zh: '荷兰语', en: 'Dutch', py: 'hly' },
+  { code: 'sv', zh: '瑞典语', en: 'Swedish', py: 'rdy' },
+  { code: 'no', zh: '挪威语', en: 'Norwegian', py: 'nwy' },
+  { code: 'da', zh: '丹麦语', en: 'Danish', py: 'dmy' },
+  { code: 'fi', zh: '芬兰语', en: 'Finnish', py: 'fly' },
+  { code: 'pl', zh: '波兰语', en: 'Polish', py: 'bly' },
+  { code: 'cs', zh: '捷克语', en: 'Czech', py: 'jky' },
+  { code: 'el', zh: '希腊语', en: 'Greek', py: 'xly' },
+  { code: 'he', zh: '希伯来语', en: 'Hebrew', py: 'xbly' },
+  { code: 'fa', zh: '波斯语', en: 'Persian', py: 'bsy' },
+  { code: 'ur', zh: '乌尔都语', en: 'Urdu', py: 'wedy' },
+  { code: 'uk', zh: '乌克兰语', en: 'Ukrainian', py: 'wkly' },
+  { code: 'ro', zh: '罗马尼亚语', en: 'Romanian', py: 'lmnyy' },
+  { code: 'hu', zh: '匈牙利语', en: 'Hungarian', py: 'xgly' },
+  { code: 'bn', zh: '孟加拉语', en: 'Bengali', py: 'mjly' },
+  { code: 'ta', zh: '泰米尔语', en: 'Tamil', py: 'tmy' },
+  { code: 'te', zh: '泰卢固语', en: 'Telugu', py: 'tlgy' }
+];
+
+const LANGUAGES = Object.fromEntries(LANGUAGE_OPTIONS.map((l) => [l.code, l.zh]));
+
+function normalizeLangQuery(q) {
+  return (q || '').toString().trim().toLowerCase().replace(/\s+/g, '');
+}
+
+function langMatchesQuery(lang, query) {
+  const q = normalizeLangQuery(query);
+  if (!q) return true;
+  const hay = [
+    lang.code,
+    lang.zh,
+    (lang.en || '').toLowerCase(),
+    (lang.py || '').toLowerCase()
+  ]
+    .filter(Boolean)
+    .join('|')
+    .toLowerCase();
+  return hay.includes(q);
+}
+
+function getChatLanguagePreferenceKey(chatWindow) {
+  try {
+    const w = window.WeatherInfo;
+    const existing = w && w.currentPhoneNumber ? String(w.currentPhoneNumber) : '';
+    if (existing && /^\d{6,}$/.test(existing)) {
+      return `phone:${existing}`;
+    }
+    if (w && typeof w.tryGetWhatsAppNumber === 'function') {
+      const n = w.tryGetWhatsAppNumber();
+      const numbersOnly = n ? String(n).replace(/[^\d]/g, '') : '';
+      if (numbersOnly && /^\d{6,}$/.test(numbersOnly)) {
+        return `phone:${numbersOnly}`;
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  try {
+    const root = chatWindow || document.getElementById('main') || document;
+    const nameElement = root.querySelector('header._amid span[class*="_ao3e"]');
+    const chatName = nameElement?.textContent?.trim();
+    if (chatName) return `name:${chatName}`;
+  } catch (e) {
+    // ignore
+  }
+
+  return 'name:default';
+}
 
 // 使用聊天对象名字存储语言选择
 function rememberLanguageChoice(chatWindow, lang) {
   if (chatWindow) {
-    // 获取聊天对象名字 - 更新选择器
-    const nameElement = chatWindow.querySelector('header._amid span[class*="_ao3e"]');
-    const chatName = nameElement?.textContent?.trim() || 'default';
+    const key = getChatLanguagePreferenceKey(chatWindow);
     
     // 使用 localStorage 存储语言选择
     try {
       const languagePreferences = JSON.parse(localStorage.getItem('chatLanguagePreferences') || '{}');
-      languagePreferences[chatName] = lang;
+      languagePreferences[key] = lang;
       localStorage.setItem('chatLanguagePreferences', JSON.stringify(languagePreferences));
       
       console.log('保存语言选择:', {
-        chatName,
+        key,
         lang,
         timestamp: new Date().toISOString()
       });
@@ -709,16 +1311,29 @@ function getRememberedLanguage(chatWindow) {
   if (!chatWindow) return 'en';
   
   try {
-    // 获取聊天对象名字 - 更新选择器
-    const nameElement = chatWindow.querySelector('header._amid span[class*="_ao3e"]');
-    const chatName = nameElement?.textContent?.trim() || 'default';
-    
-    // 从 localStorage 获取语言选择
+    const key = getChatLanguagePreferenceKey(chatWindow);
     const languagePreferences = JSON.parse(localStorage.getItem('chatLanguagePreferences') || '{}');
-    const rememberedLang = languagePreferences[chatName];
+    let rememberedLang = languagePreferences[key];
+
+    // 兼容迁移：旧版本可能用 chatName 直接作为 key（或 default）
+    if (!rememberedLang && key.startsWith('phone:')) {
+      try {
+        const root = chatWindow || document.getElementById('main') || document;
+        const nameElement = root.querySelector('header._amid span[class*="_ao3e"]');
+        const chatName = nameElement?.textContent?.trim() || 'default';
+        const legacy = languagePreferences[chatName] || languagePreferences['default'];
+        if (legacy) {
+          languagePreferences[key] = legacy;
+          localStorage.setItem('chatLanguagePreferences', JSON.stringify(languagePreferences));
+          rememberedLang = legacy;
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
     
     console.log('获取记忆的语言选择:', {
-      chatName,
+      key,
       rememberedLang,
       timestamp: new Date().toISOString()
     });
@@ -731,11 +1346,50 @@ function getRememberedLanguage(chatWindow) {
 }
 
 // 修改创建模态框的函数
-function createTranslateModal(text, inputBox) {
+function createTranslateModal(text, inputBox, options = {}) {
   // 获取当前聊天窗口
-  const chatWindow = inputBox.closest('.app-wrapper-web');
+  const chatWindow = document.getElementById('main') || inputBox.closest('.app-wrapper-web');
   // 获取记忆的语言选择
   const rememberedLang = getRememberedLanguage(chatWindow);
+
+  const hasSourceText = (text || '').trim().length > 0;
+  const hideSource = options && options.hideSource === true;
+  const showSource = hasSourceText && !hideSource;
+  const showVerify = showSource;
+  const languageOnlyMode = !hasSourceText;
+
+  const sourceSectionHtml = showSource
+    ? `
+        <div class="source-text">
+          <div class="text-label">原文</div>
+          <div class="text-content">${text}</div>
+        </div>
+      `
+    : '';
+
+  const verifySectionHtml = showVerify
+    ? `
+        <div class="verify-result" style="display: none">
+          <div class="text-label">验证结果（反向翻译 默认Google）</div>
+          <div class="verify-content"></div>
+        </div>
+      `
+    : '';
+
+  const verifyButtonHtml = showVerify ? `<button class="verify-btn" style="display: none">验证</button>` : '';
+
+  const contactKey = getChatLanguagePreferenceKey(chatWindow);
+  const contactNumber = contactKey && contactKey.startsWith('phone:') ? contactKey.replace(/^phone:/, '') : '';
+  const contactDisplay = contactNumber || contactKey || '未知';
+
+  const identitySectionHtml = languageOnlyMode
+    ? `
+        <div class="source-text">
+          <div class="text-label">当前对方号码</div>
+          <div class="text-content">${contactDisplay}</div>
+        </div>
+      `
+    : '';
 
   const modal = document.createElement('div');
   modal.className = 'translate-modal';
@@ -746,31 +1400,31 @@ function createTranslateModal(text, inputBox) {
         <button class="modal-close">×</button>
       </div>
       <div class="translate-modal-body">
-        <div class="source-text">
-          <div class="text-label">原文</div>
-          <div class="text-content">${text}</div>
-        </div>
+        ${identitySectionHtml}
+        ${sourceSectionHtml}
         <div class="target-lang">
           <div class="text-label">目标语言</div>
-          <select class="lang-select">
-            ${Object.entries(LANGUAGES).map(([code, name]) => `
-              <option value="${code}"${code === rememberedLang ? ' selected' : ''}>${name}</option>
-            `).join('')}
-          </select>
+          <div class="lang-combobox" role="combobox" aria-expanded="false">
+            <input class="lang-combobox-input" type="text" autocomplete="off" spellcheck="false" placeholder="选择目标语言（支持中文 / English / 代码 / 拼音缩写）" />
+            <div class="lang-combobox-dropdown" style="display:none"></div>
+          </div>
         </div>
+        ${
+          languageOnlyMode
+            ? ''
+            : `
         <div class="translation-result">
           <div class="text-label">翻译结果</div>
           <div class="result-content"></div>
         </div>
-        <div class="verify-result" style="display: none">
-          <div class="text-label">验证结果（反向翻译 默认Google）</div>
-          <div class="verify-content"></div>
-        </div>
+        ${verifySectionHtml}
+        `
+        }
       </div>
       <div class="translate-modal-footer">
-        <button class="translate-btn">翻译</button>
-        <button class="verify-btn" style="display: none">验证</button>
-        <button class="apply-btn" disabled>应用</button>
+        ${languageOnlyMode ? `<button class="save-lang-btn">保存</button>` : `<button class="translate-btn">翻译</button>`}
+        ${languageOnlyMode ? '' : verifyButtonHtml}
+        ${languageOnlyMode ? '' : `<button class="apply-btn" disabled>应用</button>`}
       </div>
     </div>
   `;
@@ -868,29 +1522,87 @@ function createTranslateModal(text, inputBox) {
       margin-bottom: 12px;
     }
 
-    .lang-select {
+    .lang-combobox {
+      position: relative;
+    }
+
+    .lang-combobox-input {
       width: 100%;
-      padding: 8px;
+      padding: 8px 34px 8px 10px;
       border: 1px solid #e9edef;
-      border-radius: 6px;
+      border-radius: 8px;
       color: #41525d;
       font-size: 13px;
       background: white;
-      cursor: pointer;
+      box-sizing: border-box;
+      transition: box-shadow 0.2s, border-color 0.2s;
     }
 
-    .lang-select:hover {
-      border-color: #00a884;
+    .lang-combobox-input:hover {
+      border-color: rgba(0, 168, 132, 0.65);
     }
 
-    .lang-select:focus {
+    .lang-combobox-input:focus {
       outline: none;
       border-color: #00a884;
-      box-shadow: 0 0 0 2px rgba(0, 168, 132, 0.1);
+      box-shadow: 0 0 0 2px rgba(0, 168, 132, 0.12);
     }
 
-    .lang-select option {
-      padding: 8px;
+    .lang-combobox::after {
+      content: '';
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      width: 12px;
+      height: 12px;
+      transform: translateY(-50%);
+      opacity: 0.7;
+      background: no-repeat center / contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 20 20'%3E%3Cpath fill='%23667781' d='M5.3 7.3a1 1 0 0 1 1.4 0L10 10.6l3.3-3.3a1 1 0 1 1 1.4 1.4l-4 4a1 1 0 0 1-1.4 0l-4-4a1 1 0 0 1 0-1.4'/%3E%3C/svg%3E");
+      pointer-events: none;
+    }
+
+    .lang-combobox-dropdown {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: calc(100% + 6px);
+      background: white;
+      border: 1px solid #e9edef;
+      border-radius: 10px;
+      box-shadow: 0 12px 28px rgba(11, 20, 26, 0.18);
+      overflow: hidden;
+      z-index: 1000000;
+      max-height: 240px;
+      overflow-y: auto;
+    }
+
+    .lang-combobox-item {
+      padding: 10px 10px;
+      font-size: 13px;
+      color: #41525d;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .lang-combobox-item .muted {
+      color: #8696a0;
+      font-size: 12px;
+    }
+
+    .lang-combobox-item:hover {
+      background: rgba(0, 168, 132, 0.08);
+    }
+
+    .lang-combobox-item.active {
+      background: rgba(0, 168, 132, 0.14);
+    }
+
+    .lang-combobox-empty {
+      padding: 10px 10px;
+      font-size: 12px;
+      color: #8696a0;
     }
 
     .translate-modal-footer {
@@ -1010,37 +1722,259 @@ function createTranslateModal(text, inputBox) {
   const translateBtn = modal.querySelector('.translate-btn');
   const verifyBtn = modal.querySelector('.verify-btn');
   const applyBtn = modal.querySelector('.apply-btn');
+  const saveLangBtn = modal.querySelector('.save-lang-btn');
   const resultContent = modal.querySelector('.result-content');
-  const langSelect = modal.querySelector('.lang-select');
+  const langCombo = modal.querySelector('.lang-combobox');
+  const langInput = modal.querySelector('.lang-combobox-input');
+  const langDropdown = modal.querySelector('.lang-combobox-dropdown');
   const verifyResult = modal.querySelector('.verify-result');
   const verifyContent = modal.querySelector('.verify-content');
 
-  closeBtn.onclick = () => modal.remove();
+  let selectedLang = rememberedLang || 'en';
+  let filteredList = [];
+  let activeIndex = -1;
 
-  // 添加语言选择变化事件监听
-  langSelect.addEventListener('change', (e) => {
-    rememberLanguageChoice(chatWindow, e.target.value);
+  const getLangLabel = (code) => {
+    const item = LANGUAGE_OPTIONS.find((l) => l.code === code);
+    if (!item) return code;
+    return `${item.zh}${item.en ? ` (${item.en})` : ''}`;
+  };
+
+  const setSelectedLang = (code) => {
+    selectedLang = code;
+    if (langInput) langInput.value = getLangLabel(code);
+    if (!languageOnlyMode) {
+      rememberLanguageChoice(chatWindow, code);
+    }
     console.log('语言选择已更改:', {
-      newLang: e.target.value,
+      newLang: code,
       timestamp: new Date().toISOString()
     });
-  });
+  };
+
+  const openDropdown = () => {
+    if (!langDropdown || !langCombo) return;
+    langDropdown.style.display = 'block';
+    langCombo.setAttribute('aria-expanded', 'true');
+  };
+
+  const closeDropdown = () => {
+    if (!langDropdown || !langCombo) return;
+    langDropdown.style.display = 'none';
+    langCombo.setAttribute('aria-expanded', 'false');
+  };
+
+  const renderDropdown = (filterText = '') => {
+    if (!langDropdown) return;
+    const list = LANGUAGE_OPTIONS.filter((l) => langMatchesQuery(l, filterText));
+    filteredList = list;
+
+    if (!list.length) {
+      activeIndex = -1;
+      langDropdown.innerHTML = '<div class="lang-combobox-empty">无匹配语言</div>';
+      return;
+    }
+
+    const selectedIdx = list.findIndex((l) => l.code === selectedLang);
+    activeIndex = selectedIdx >= 0 ? selectedIdx : 0;
+
+    langDropdown.innerHTML = list
+      .map((l, idx) => {
+        const active = idx === activeIndex ? ' active' : '';
+        return `<div class="lang-combobox-item${active}" data-code="${l.code}"><span>${l.zh}${l.en ? ` (${l.en})` : ''}</span><span class="muted">${l.code}</span></div>`;
+      })
+      .join('');
+  };
+
+  const ensureActiveVisible = () => {
+    if (!langDropdown) return;
+    const activeEl = langDropdown.querySelector('.lang-combobox-item.active');
+    if (!activeEl) return;
+    const top = activeEl.offsetTop;
+    const bottom = top + activeEl.offsetHeight;
+    if (top < langDropdown.scrollTop) {
+      langDropdown.scrollTop = top;
+    } else if (bottom > langDropdown.scrollTop + langDropdown.clientHeight) {
+      langDropdown.scrollTop = bottom - langDropdown.clientHeight;
+    }
+  };
+
+  const highlightActive = () => {
+    if (!langDropdown) return;
+    const items = Array.from(langDropdown.querySelectorAll('.lang-combobox-item'));
+    items.forEach((el, idx) => {
+      if (idx === activeIndex) el.classList.add('active');
+      else el.classList.remove('active');
+    });
+    ensureActiveVisible();
+  };
+
+  const pickActive = () => {
+    if (activeIndex < 0 || activeIndex >= filteredList.length) return;
+    setSelectedLang(filteredList[activeIndex].code);
+    closeDropdown();
+  };
+
+  let blurCloseTimer = null;
+  let dropdownPointerDown = false;
+
+  const onDocMouseDown = (e) => {
+    if (!modal.contains(e.target)) {
+      closeDropdown();
+      if (langInput) langInput.value = getLangLabel(selectedLang);
+    }
+  };
+
+  document.addEventListener('mousedown', onDocMouseDown, true);
+
+  closeBtn.onclick = () => {
+    document.removeEventListener('mousedown', onDocMouseDown, true);
+    modal.remove();
+  };
+
+  setSelectedLang(selectedLang);
+  renderDropdown('');
+
+  if (langInput) {
+    // 避免部分自动填充/输入增强类扩展对该输入框做“表单补全”解析（可能导致第三方脚本报错）
+    try {
+      langInput.setAttribute('name', 'waai_target_language');
+      langInput.setAttribute('autocomplete', 'off');
+      langInput.setAttribute('autocapitalize', 'off');
+      langInput.setAttribute('autocorrect', 'off');
+      langInput.setAttribute('spellcheck', 'false');
+      langInput.setAttribute('data-lpignore', 'true');
+      langInput.setAttribute('data-1p-ignore', 'true');
+      langInput.setAttribute('data-bwignore', 'true');
+      langInput.setAttribute('data-form-type', 'other');
+    } catch (e) {
+      // ignore
+    }
+
+    langInput.addEventListener('focus', () => {
+      if (blurCloseTimer) {
+        clearTimeout(blurCloseTimer);
+        blurCloseTimer = null;
+      }
+      openDropdown();
+      const q = langInput.value === getLangLabel(selectedLang) ? '' : langInput.value;
+      renderDropdown(q);
+      langInput.select();
+    });
+
+    langInput.addEventListener('input', (e) => {
+      openDropdown();
+      renderDropdown(e.target.value);
+    });
+
+    // 失去焦点时关闭下拉（稍微延迟，避免点击下拉项时被提前收起）
+    langInput.addEventListener('blur', () => {
+      if (blurCloseTimer) clearTimeout(blurCloseTimer);
+      blurCloseTimer = setTimeout(() => {
+        if (dropdownPointerDown) return;
+        closeDropdown();
+        langInput.value = getLangLabel(selectedLang);
+      }, 140);
+    });
+
+    langInput.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        openDropdown();
+        if (!filteredList.length) return;
+        if (e.key === 'ArrowDown') activeIndex = Math.min(filteredList.length - 1, activeIndex + 1);
+        if (e.key === 'ArrowUp') activeIndex = Math.max(0, activeIndex - 1);
+        highlightActive();
+        return;
+      }
+      if (e.key === 'Enter') {
+        if (langDropdown && langDropdown.style.display !== 'none') {
+          e.preventDefault();
+          pickActive();
+        }
+        return;
+      }
+      if (e.key === 'Escape') {
+        closeDropdown();
+        langInput.value = getLangLabel(selectedLang);
+        return;
+      }
+      if (e.key === 'Tab') {
+        closeDropdown();
+        langInput.value = getLangLabel(selectedLang);
+        return;
+      }
+    });
+  }
+
+  if (langDropdown) {
+    langDropdown.addEventListener(
+      'mousedown',
+      () => {
+        dropdownPointerDown = true;
+        setTimeout(() => {
+          dropdownPointerDown = false;
+        }, 0);
+      },
+      true
+    );
+    langDropdown.addEventListener('mousedown', (e) => {
+      const item = e.target.closest('.lang-combobox-item');
+      if (!item) return;
+      e.preventDefault();
+      setSelectedLang(item.getAttribute('data-code'));
+      closeDropdown();
+    });
+  }
+
+  if (saveLangBtn) {
+    saveLangBtn.onclick = () => {
+      try {
+        rememberLanguageChoice(chatWindow, selectedLang);
+        const toast = document.createElement('div');
+        toast.className = 'translate-toast';
+        toast.textContent = '已保存';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 900);
+        document.removeEventListener('mousedown', onDocMouseDown, true);
+        modal.remove();
+      } catch (e) {
+        const toast = document.createElement('div');
+        toast.className = 'translate-toast translate-toast-error';
+        toast.textContent = '保存失败';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 1200);
+      }
+    };
+  }
 
   // 翻译按钮事件处理
-  translateBtn.onclick = async () => {
+  if (translateBtn) translateBtn.onclick = async () => {
     console.log('点击翻译按钮');
     try {
       translateBtn.classList.add('btn-loading');
-      const targetLang = langSelect.value;
+      const targetLang = selectedLang;
+
+      const liveText = (inputBox?.textContent || '').trim();
+      const sourceText = liveText || (text || '').trim();
+      if (!sourceText) {
+        const toast = document.createElement('div');
+        toast.className = 'translate-toast';
+        toast.textContent = '请输入要翻译的内容';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 1200);
+        return;
+      }
+
       console.log('开始翻译:', {
-        text,
+        text: sourceText,
         targetLang,
         timestamp: new Date().toISOString()
       });
 
-      const translation = await modalTranslation(text, targetLang, 'normal');
+      const translation = await modalTranslation(sourceText, targetLang, 'normal');
       console.log('翻译完成:', {
-        originalText: text,
+        originalText: sourceText,
         translation,
         timestamp: new Date().toISOString()
       });
@@ -1060,9 +1994,9 @@ function createTranslateModal(text, inputBox) {
         resultContent.textContent = translation;
       }
 
-      verifyBtn.style.display = 'inline-block';
+      if (verifyBtn) verifyBtn.style.display = 'inline-block';
       applyBtn.disabled = false;
-      verifyResult.style.display = 'none';
+      if (verifyResult) verifyResult.style.display = 'none';
       
       // 保存语言选择
       rememberLanguageChoice(chatWindow, targetLang);
@@ -1092,12 +2026,12 @@ function createTranslateModal(text, inputBox) {
   };
 
   // 验证翻译
-  verifyBtn.onclick = async () => {
+  if (verifyBtn) verifyBtn.onclick = async () => {
     console.log('点击验证按钮');
     try {
       verifyBtn.classList.add('btn-loading');
       const translatedText = resultContent.textContent;
-      const currentLang = langSelect.value; // 当前选择的目标语言
+      const currentLang = selectedLang; // 当前选择的目标语言
       
       // 确定原语言和目标语言
       const originalLang = currentLang === 'en' ? 'zh' : 'en';
@@ -1119,23 +2053,23 @@ function createTranslateModal(text, inputBox) {
         timestamp: new Date().toISOString()
       });
 
-      verifyContent.textContent = verification;
-      verifyResult.style.display = 'block';
+      if (verifyContent) verifyContent.textContent = verification;
+      if (verifyResult) verifyResult.style.display = 'block';
     } catch (error) {
       console.error('验证翻译出错:', {
         error,
         translatedText: resultContent.textContent,
         timestamp: new Date().toISOString()
       });
-      verifyContent.textContent = '验证失败: ' + error.message;
-      verifyResult.style.display = 'block';
+      if (verifyContent) verifyContent.textContent = '验证失败: ' + error.message;
+      if (verifyResult) verifyResult.style.display = 'block';
     } finally {
       verifyBtn.classList.remove('btn-loading');
     }
   };
 
   // 应用翻译结果
-  applyBtn.onclick = async () => {
+  if (applyBtn) applyBtn.onclick = async () => {
     // 获取翻译结果文本
     const translation = resultContent.textContent;
     
@@ -1322,4 +2256,9 @@ async function handleModalTranslation(error) {
 }
 
 // 启动输入框翻译功能
-initializeInputTranslate(); 
+try {
+  installInputQuickTranslateSend();
+} catch (e) {
+  // ignore
+}
+initializeInputTranslate();

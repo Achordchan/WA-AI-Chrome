@@ -1,0 +1,4 @@
+# Purpose: Ignore OS-generated clutter files
+# Author: Achord
+
+.DS_Store

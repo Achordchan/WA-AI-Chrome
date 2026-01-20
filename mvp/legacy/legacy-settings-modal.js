@@ -691,7 +691,7 @@ function legacyShowSettingsModal() {
       const langPrefs = safeJsonParse(langPrefsRaw, {});
 
       const payload = {
-        version: '3.1.0',
+        version: '3.2.0',
         exportedAt: new Date().toISOString(),
         weatherCountryCorrections: weatherCorrections || {},
         weatherCountryResolved: weatherResolved || {},

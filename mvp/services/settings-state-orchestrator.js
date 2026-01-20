@@ -69,11 +69,20 @@
         }
       };
 
+      const onSttEnabledChanged = (enabled) => {
+        try {
+          deps.onSttEnabledChanged?.(enabled === true);
+        } catch (e) {
+          // ignore
+        }
+      };
+
       try {
         if (settingsSyncService?.install) {
           const ok = settingsSyncService.install({
             onAutoTranslateChanged,
-            onWeatherEnabledChanged
+            onWeatherEnabledChanged,
+            onSttEnabledChanged
           });
           if (ok) return true;
         }
@@ -105,11 +114,23 @@
       }
 
       try {
+        if (settingsSyncFallback?.loadSttSetting) {
+          settingsSyncFallback.loadSttSetting({
+            chrome: deps.chrome || window.chrome,
+            onSttEnabledChanged
+          });
+        }
+      } catch (e) {
+        // ignore
+      }
+
+      try {
         if (settingsSyncFallback?.installSettingsStorageListeners) {
           settingsSyncFallback.installSettingsStorageListeners({
             chrome: deps.chrome || window.chrome,
             onAutoTranslateChanged,
-            onWeatherEnabledChanged
+            onWeatherEnabledChanged,
+            onSttEnabledChanged
           });
         }
       } catch (e) {

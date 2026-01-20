@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "WhatsApp Assistant Pro+",
-  "version": "3.1.0",
-  "description": "AI + Translate WhatsApp messages | WhatsApp消息翻译助手 | 作者:Achord | Email:achordchan@gmail.com",
+  "version": "3.2.0",
+  "description": "AI + Translate WhatsApp messages | WhatsApp消息翻译助手 | Achord | Email:achordchan@gmail.com",
   "permissions": [
     "storage",
     "activeTab"
@@ -11,6 +11,7 @@
     "*://*.whatsapp.com/*",
     "*://wttr.in/*",
     "*://*.googleapis.com/*",
+    "https://open.bigmodel.cn/*",
     "https://*/*"
   ],
   "web_accessible_resources": [{
@@ -24,6 +25,17 @@
     }
   },
   "content_scripts": [
+    {
+      "matches": ["*://*.whatsapp.com/*"],
+      "js": ["mvp/boot/voice-blob-page-hook-main.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
+    {
+      "matches": ["*://*.whatsapp.com/*"],
+      "js": ["mvp/boot/voice-blob-capture-bootstrap.js"],
+      "run_at": "document_start"
+    },
     {
       "matches": ["*://*.whatsapp.com/*"],
       "js": [
@@ -46,6 +58,8 @@
         "mvp/services/content-extension-invalidated-bridge-service.js",
         "mvp/services/translation-render-service.js",
         "mvp/services/translation-orchestrator-service.js",
+        "mvp/services/voice-transcribe-service.js",
+        "mvp/services/voice-translate-service.js",
         "mvp/services/input-translate-translation-service.js",
         "mvp/services/input-translate-language-service.js",
         "mvp/services/input-quick-send-service.js",
@@ -64,6 +78,7 @@
         "mvp/services/weather-injection-indicator-service.js",
         "mvp/views/analysis-view.js",
         "mvp/views/translation-view.js",
+        "mvp/views/voice-transcribe-view.js",
         "mvp/views/quick-chat-view.js",
         "mvp/views/toolbar-view.js",
         "mvp/views/input-translate-modal-view.js",
@@ -72,6 +87,7 @@
         "mvp/views/settings-view.js",
         "mvp/presenters/analysis-presenter.js",
         "mvp/presenters/translation-presenter.js",
+        "mvp/presenters/voice-transcribe-presenter.js",
         "mvp/presenters/quick-chat-presenter.js",
         "mvp/presenters/toolbar-presenter.js",
         "mvp/presenters/settings-presenter.js",

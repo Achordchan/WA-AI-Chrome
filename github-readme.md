@@ -5,24 +5,25 @@
 <img src="images/icon.svg" width="128" height="128" alt="WhatsApp Assistant Pro+ Logo">
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-V3.1-green.svg)](https://github.com/Achordchan/WA-AI-chrome/releases)
+[![Version](https://img.shields.io/badge/version-V3.2.0-green.svg)](https://github.com/Achordchan/WA-AI-chrome/releases)
+
 ![Chrome Web Store](https://img.shields.io/chrome-web-store/rating/pending)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/Achordchan/WA-AI-chrome/pulls)
 
-🌍 一个功能强大的 WhatsApp 网页版 AI 助手，集成实时翻译、对话分析、智能号码识别、天气信息等多项功能
+ 一个功能强大的 WhatsApp 网页版 AI 助手，集成实时翻译、对话分析、智能号码识别、天气信息等多项功能
 
 [English](./README_EN.md) | 简体中文
 
 </div>
 
-## ✨ 核心特性
+## 核心特性
 
-### 🌟 全新功能 (V3.1)
-- 🌍 **智能号码识别** - 自动识别对方手机号码归属地
-- 🌤️ **实时天气信息** - 显示对方所在地区的当前天气状况  
-- ⏰ **当地时间显示** - 实时显示对方时区的本地时间
-- 📍 **地理位置信息** - 基于号码前缀智能识别国家和地区
+### 全新功能 (V3.2.0)
 
+- 语音消息转写 - 语音气泡新增“听”按钮，一键转写语音内容
+- 转写结果内一键翻译 - 转写结果区域新增“译”按钮，复用现有文本翻译能力
+- 界面一致性 - 转写卡片样式与单条消息翻译结果对齐
+- 稳定性修复 - 修复部分场景下信息提示不消失导致布局异常的问题
 ### 🤖 AI 功能
 - 🎯 **实时消息翻译** - 支持多种语言互译
 - 🤖 **AI 对话分析** - 智能分析对话内容和情感
@@ -170,13 +171,11 @@
 
 ## 📈 更新日志
 
-### V3.1.0 (最新版本)
-- 输入框快捷翻译发送：回车先翻译，再回车发送
-- 目标语言按联系人保存：不同聊天可使用不同目标语言
-- 输入框为空时可快速设置目标语言并保存
-- OpenAI 通用接口翻译提示词增强，支持更多目标语言
-- 修复 AI 分析抓取消息为 0 条的问题
-- 设置面板体验优化（防误触关闭、管理员预设一键填充）
+### V3.2.0 (最新版本)
+- 语音消息转写：语音气泡新增“听”按钮，一键转写
+- 转写结果内一键翻译：转写结果区域新增“译”按钮
+- 界面一致性：转写卡片样式与单条消息翻译结果对齐
+- 修复部分场景下信息提示不消失导致布局异常的问题
 
 [查看完整更新日志](./CHANGELOG.md)
 

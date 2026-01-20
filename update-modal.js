@@ -5,23 +5,30 @@ function showUpdateModal() {
       <div class="update-modal-content">
         <div class="update-modal-header">
                 <h3>WhatsApp Assistant Pro+ 更新说明</h3>
-      <span class="version">V3.1</span>
+      <span class="version">V3.2.0</span>
           <button class="modal-close">×</button>
         </div>
         <div class="update-modal-body">
+          
           <div class="update-section">
+           
             <h4>本次更新</h4>
             <ul>
-              <li><strong>输入框快捷翻译发送</strong> - 按回车先翻译再发送，减少复制粘贴</li>
-              <li><strong>目标语言按联系人保存</strong> - 不同聊天可使用不同目标语言</li>
-              <li><strong>空内容快速设置语言</strong> - 输入框为空时可仅设置目标语言并保存</li>
+              <li><strong>语音消息转写</strong> - 设置中开启并填写API信息后在语音气泡上新增“听”按钮，一键转写语音内容</li>
+              
+              
+              
+              
+              <li><strong>STT 获取方式</strong> - 需自行获取语音转写服务，建议使用智谱 AI</li>
             </ul>
           </div>
           <div class="update-section">
             <h4>翻译与分析</h4>
             <ul>
-              <li>完善 OpenAI 通用接口的多语言提示词，支持更多目标语言</li>
-              <li>修复 AI 分析抓取异常导致显示 0 条的问题</li>
+            
+              <li>修复部分场景下信息提示不消失导致布局异常的问题</li>
+              <li>修复语音翻译 Token 数显示为 N/A 的问题</li>
+            
             </ul>
           </div>
           <div class="update-section">
@@ -33,18 +40,7 @@ function showUpdateModal() {
             </ul>
           </div>
           <div class="update-section">
-            <h4>隐私与导出</h4>
-            <ul>
-              <li><strong>隐私页展示/导出增强</strong> - 号码兜底缓存也会同步到隐私页，并随配置一起导出/导入</li>
-              <li><strong>同一清理策略</strong> - 与现有天气缓存清理策略保持一致（避免长期堆积）</li>
-            </ul>
-          </div>
-          <div class="update-section">
-            <h4>设置体验</h4>
-            <ul>
-              <li>管理员预设配置一键填入接口地址、模型与密钥</li>
-            
-            </ul>
+            <h4>开源不易，请动动小手给项目一个Star，Google商店再给个五星好评就更好了。有任何问题联系开发者<a href="mailto:achordchan@gmail.com">achordchan@gmail.com</a>。</h4>
           </div>
         </div>
         <div class="update-modal-footer">
@@ -213,7 +209,13 @@ function showUpdateModal() {
 // 检查是否需要显示更新日志
 async function checkAndShowUpdateLog() {
   try {
-    const currentVersion = '3.1.0'; // 当前版本号
+    const currentVersion = (() => {
+      try {
+        return chrome && chrome.runtime && chrome.runtime.getManifest ? (chrome.runtime.getManifest().version || '3.2.0') : '3.2.0';
+      } catch (e) {
+        return '3.2.0';
+      }
+    })(); // 当前版本号
     const data = await chrome.storage.local.get(['lastShownVersion']);
     
     // 如果没有显示过，或者版本号不一致，就显示更新日志

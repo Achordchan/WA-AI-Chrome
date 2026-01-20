@@ -914,9 +914,9 @@
 
       <!-- 翻译服务设置 -->
       <div class="settings-section">
-        <h4>翻译服务</h4>
+        <h4>文本翻译服务</h4>
         <div class="service-selection">
-          <label for="translationApi">选择翻译服务</label>
+          <label for="translationApi">选择文本翻译服务</label>
           <select id="translationApi">
             <option value="google">Google 翻译</option>
             <option value="siliconflow">OpenAI通用接口</option>
@@ -969,7 +969,7 @@
             <div class="api-key-input">
               <label>OpenAI API Key</label>
               <div class="api-key-wrapper">
-                <input type="password" id="siliconflowApiKey">
+                <input type="password" id="siliconflowApiKey" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true">
                 <button class="toggle-visibility" data-for="siliconflowApiKey">
                   <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
                     <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34-3-3-1.34-3-3-3z"/>
@@ -1030,6 +1030,48 @@
             <p class="api-notice" style="margin-top: 8px; font-size: 12px; color: #666;">提示：任何兼容OpenAI接口的服务都可以使用，如硅基流动、智谱、Azure OpenAI、Claude API等</p>
           </div>
           
+        </div>
+      </div>
+
+      <div class="settings-section" style="margin-top: 16px;">
+        <h4>语音转文字（STT）</h4>
+        <div class="toggle-switch-container">
+          <label for="sttEnabled" class="toggle-label">启用语音转文字</label>
+          <label class="toggle-switch">
+            <input type="checkbox" id="sttEnabled" class="toggle-input">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="api-settings" id="stt-settings" style="margin-top: 16px; display: none;">
+          <div class="api-key-input">
+            <label>STT API Key（必填）</label>
+            <div class="api-key-wrapper">
+              <input type="password" id="sttApiKey" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true">
+              <button class="toggle-visibility" data-for="sttApiKey">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                  <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34-3-3-1.34-3-3-3z"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="api-key-input">
+            <label>STT API URL</label>
+            <div class="api-key-wrapper">
+              <input type="text" id="sttApiUrl" placeholder="示例：https://api.openai.com/v1/audio/transcriptions">
+            </div>
+          </div>
+
+          <div class="api-key-input">
+            <label>STT 模型</label>
+            <div class="api-key-wrapper">
+              <input type="text" id="sttModel" placeholder="示例：whisper-1">
+            </div>
+          </div>
+
+          <p class="api-notice" style="margin-top: 6px; font-size: 12px; color: #666;">提示：URL 与模型需与你的服务商匹配。</p>
+          <p class="api-notice" style="margin-top: 8px; font-size: 12px; color: #666;">限制：文件 ≤ 25MB，音频时长 ≤ 30 秒。</p>
         </div>
       </div>
 
@@ -1168,7 +1210,7 @@
               <div class="api-key-input">
                 <label>OpenAI API Key</label>
                 <div class="api-key-wrapper">
-                  <input type="password" id="siliconflowApiKey_ai">
+                  <input type="password" id="siliconflowApiKey_ai" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true">
                   <button class="toggle-visibility" data-for="siliconflowApiKey_ai">
                     <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
                       <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34-3-3-1.34-3-3-3z"/>

@@ -41,6 +41,7 @@
 
       if (typeof s.autoTranslateNewMessagesEnabled !== 'boolean') s.autoTranslateNewMessagesEnabled = false;
       if (typeof s.weatherInfoEnabled !== 'boolean') s.weatherInfoEnabled = true;
+      if (typeof s.sttEnabled !== 'boolean') s.sttEnabled = false;
       if (typeof s.contentScriptInitStarted !== 'boolean') s.contentScriptInitStarted = false;
       if (typeof s.contentScriptInitialized !== 'boolean') s.contentScriptInitialized = false;
 
@@ -55,6 +56,7 @@
         },
         autoTranslateNewMessagesEnabled: false,
         weatherInfoEnabled: true,
+        sttEnabled: false,
         contentScriptInitStarted: false,
         contentScriptInitialized: false
       };

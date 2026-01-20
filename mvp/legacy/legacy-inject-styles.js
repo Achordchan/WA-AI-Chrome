@@ -26,6 +26,47 @@
       opacity: 1;
     }
 
+    /* 语音消息等场景可能没有 data-pre-plain-text，这里提供通用样式兜底 */
+    .translate-btn {
+      height: 22px;
+      padding: 0 8px;
+      background: rgba(255, 255, 255, 0.75);
+      color: #0f766e;
+      border: 1px solid rgba(15, 118, 110, 0.22);
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
+      -webkit-backdrop-filter: blur(8px);
+      backdrop-filter: blur(8px);
+      transition: transform 0.15s ease, background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    }
+
+    .translate-btn:hover {
+      transform: translateY(-1px);
+      background: rgba(255, 255, 255, 0.92);
+      border-color: rgba(15, 118, 110, 0.35);
+    }
+
+    body.dark .translate-btn,
+    [data-theme="dark"] .translate-btn {
+      background: rgba(20, 20, 20, 0.55);
+      color: #34d399;
+      border: 1px solid rgba(52, 211, 153, 0.22);
+      box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
+    }
+
+    body.dark .translate-btn:hover,
+    [data-theme="dark"] .translate-btn:hover {
+      background: rgba(20, 20, 20, 0.72);
+      border-color: rgba(52, 211, 153, 0.34);
+    }
+
     div[data-pre-plain-text] .translate-btn {
       height: 22px;
       padding: 0 8px;
@@ -103,6 +144,84 @@
     .dark .translation-loading {
       color: #aebac1;
       background-color: rgba(0, 168, 132, 0.1);
+    }
+
+    .transcription-loading {
+      color: #667781;
+      font-size: 13px;
+      margin-top: 4px;
+      padding: 4px 8px;
+      border-left: 2px solid #00a884;
+      background-color: rgba(0, 168, 132, 0.05);
+      border-radius: 0 4px 4px 0;
+      display: flex;
+      align-items: center;
+      white-space: pre-wrap;
+    }
+
+    html[data-theme='dark'] .transcription-loading,
+    .dark .transcription-loading {
+      color: #aebac1;
+      background-color: rgba(0, 168, 132, 0.1);
+    }
+
+    .transcription-error {
+      color: #b42318;
+      font-size: 13px;
+      margin-top: 4px;
+      padding: 4px 8px;
+      border-left: 2px solid #b42318;
+      background-color: rgba(180, 35, 24, 0.06);
+      border-radius: 0 4px 4px 0;
+      white-space: pre-wrap;
+    }
+
+    html[data-theme='dark'] .transcription-error,
+    .dark .transcription-error {
+      color: #ffb4a6;
+      background-color: rgba(180, 35, 24, 0.12);
+    }
+
+    .transcription-content {
+      position: relative;
+      color: #333;
+      margin-top: 12px;
+      padding: 10px 18px 20px 10px;
+      font-size: 0.95em;
+      white-space: pre-wrap;
+      border-left: 3px solid #4ade80;
+      background-color: rgba(232, 245, 233, 0.8);
+      border-radius: 0 5px 5px 0;
+    }
+
+    .transcription-content .transcription-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .transcription-content .transcription-text {
+      flex: 1;
+      min-width: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .transcription-content .transcription-translation {
+      margin-top: 6px;
+    }
+
+    @media (max-width: 420px) {
+      .transcription-content {
+        margin-top: 14px;
+        padding-right: 18px;
+      }
+    }
+
+    html[data-theme='dark'] .transcription-content,
+    .dark .transcription-content {
+      background-color: rgba(60, 150, 80, 0.2);
+      color: #e0e0e0;
     }
 
     .loading-dots {

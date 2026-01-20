@@ -14,6 +14,7 @@
     try {
       const autoTranslateEnabled = formData?.autoTranslateNewMessages === true;
       const weatherEnabled = formData?.weatherEnabled !== false;
+      const sttEnabled = formData?.sttEnabled === true;
 
       try {
         deps.onAutoTranslateChanged?.(autoTranslateEnabled);
@@ -23,6 +24,12 @@
 
       try {
         deps.onWeatherEnabledChanged?.(weatherEnabled);
+      } catch (e) {
+        // ignore
+      }
+
+      try {
+        deps.onSttEnabledChanged?.(sttEnabled);
       } catch (e) {
         // ignore
       }

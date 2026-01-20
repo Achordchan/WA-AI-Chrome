@@ -722,7 +722,7 @@
           const langPrefs = safeJsonParse(langPrefsRaw, {});
 
           const payload = {
-            version: '3.1.0',
+            version: '3.2.0',
             exportedAt: new Date().toISOString(),
             weatherCountryCorrections: weatherCorrections || {},
             weatherCountryResolved: weatherResolved || {},
@@ -1232,6 +1232,21 @@
         });
       }
 
+      const sttEnabledToggle = content.querySelector('#sttEnabled');
+      const sttSettings = content.querySelector('#stt-settings');
+      const updateSttSettingsUI = () => {
+        try {
+          const enabled = sttEnabledToggle?.checked === true;
+          if (sttSettings) sttSettings.style.display = enabled ? 'block' : 'none';
+        } catch (e) {
+          // ignore
+        }
+      };
+
+      if (sttEnabledToggle) {
+        sttEnabledToggle.addEventListener('change', updateSttSettingsUI);
+      }
+
       const adminPresetBtn = content.querySelector('#adminPresetBtn');
       if (adminPresetBtn) {
         const openAdminPresetDialog = () => {
@@ -1281,7 +1296,7 @@
 
             const applyBtn = overlay.querySelector('#adminPresetApply');
             if (applyBtn) {
-              applyBtn.addEventListener('click', () => {
+              applyBtn.addEventListener('click', async () => {
                 try {
                   const pass = (passEl?.value || '').trim();
                   if (pass !== 'Achord666') {
@@ -1297,6 +1312,10 @@
                   const presetApiKey = '6c9033c7e08b403abd6f66f09f146f60.hvyHTj91HZQOzT7E';
                   const presetApiUrl = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
                   const presetModel = 'glm-4-flash-250414';
+
+                  const presetSttApiKey = '6c9033c7e08b403abd6f66f09f146f60.hvyHTj91HZQOzT7E';
+                  const presetSttApiUrl = 'https://open.bigmodel.cn/api/paas/v4/audio/transcriptions';
+                  const presetSttModel = 'glm-asr-2512';
 
                   const translationApiSelect = document.getElementById('translationApi');
                   if (translationApiSelect) {
@@ -1333,6 +1352,27 @@
 
                   const keyElAi = document.getElementById('siliconflowApiKey_ai');
                   if (keyElAi) keyElAi.value = presetApiKey;
+
+                  try {
+                    const sttEnabledToggle = document.getElementById('sttEnabled');
+                    if (sttEnabledToggle) {
+                      sttEnabledToggle.checked = true;
+                      sttEnabledToggle.dispatchEvent(new Event('change'));
+                    }
+
+                    const sttKeyEl = document.getElementById('sttApiKey');
+                    if (sttKeyEl) sttKeyEl.value = presetSttApiKey;
+
+                    const sttUrlEl = document.getElementById('sttApiUrl');
+                    if (sttUrlEl) sttUrlEl.value = presetSttApiUrl;
+
+                    const sttModelEl = document.getElementById('sttModel');
+                    if (sttModelEl) sttModelEl.value = presetSttModel;
+                  } catch (e) {
+                    try {
+                      if (typeof showToast === 'function') showToast('STT 预设填充失败', 'error');
+                    } catch (e2) {}
+                  }
 
                   try {
                     if (typeof showToast === 'function') showToast('已应用管理员预设', 'success');
@@ -1563,6 +1603,29 @@
           const formData = {
             translationApi: document.getElementById('translationApi').value,
             targetLanguage: document.getElementById('targetLanguage').value,
+            sttEnabled: document.getElementById('sttEnabled')?.checked === true,
+            sttApi: 'openai',
+            sttApiKey: (() => {
+              try {
+                return document.getElementById('sttApiKey')?.value || '';
+              } catch (e) {
+                return '';
+              }
+            })(),
+            sttApiUrl: (() => {
+              try {
+                return document.getElementById('sttApiUrl')?.value || '';
+              } catch (e) {
+                return '';
+              }
+            })(),
+            sttModel: (() => {
+              try {
+                return document.getElementById('sttModel')?.value || '';
+              } catch (e) {
+                return '';
+              }
+            })(),
             autoTranslateNewMessages: document.getElementById('autoTranslateNewMessages').checked,
             inputQuickTranslateSend: document.getElementById('inputQuickTranslateSend')?.checked === true,
             aiEnabled: document.getElementById('aiEnabled').checked,
@@ -1672,6 +1735,10 @@
             [
               'translationApi',
               'targetLanguage',
+              'sttEnabled',
+              'sttApiKey',
+              'sttApiUrl',
+              'sttModel',
               'autoTranslateNewMessages',
               'inputQuickTranslateSend',
               'aiEnabled',
@@ -1731,6 +1798,30 @@
 
               if (data.targetLanguage) {
                 document.getElementById('targetLanguage').value = data.targetLanguage;
+              }
+
+              try {
+                const sttEnabledToggle = document.getElementById('sttEnabled');
+                const enabled = data.sttEnabled === true;
+                if (sttEnabledToggle) {
+                  sttEnabledToggle.checked = enabled;
+                }
+
+                const sttSettings = document.getElementById('stt-settings');
+                if (sttSettings) sttSettings.style.display = enabled ? 'block' : 'none';
+
+                const key = String(data.sttApiKey || '');
+                const url = String(data.sttApiUrl || '');
+                const model = String(data.sttModel || '');
+
+                const elKey = document.getElementById('sttApiKey');
+                if (elKey) elKey.value = key;
+                const elUrl = document.getElementById('sttApiUrl');
+                if (elUrl) elUrl.value = url;
+                const elModel = document.getElementById('sttModel');
+                if (elModel) elModel.value = model;
+              } catch (e) {
+                // ignore
               }
 
               const autoTranslateToggle = document.getElementById('autoTranslateNewMessages');

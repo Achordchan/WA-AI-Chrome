@@ -46,6 +46,19 @@
     } catch (e) {
       // ignore
     }
+
+    try {
+      safeGetSync(['sttEnabled'], (data) => {
+        try {
+          const enabled = data?.sttEnabled === true;
+          deps.onSttEnabledChanged?.(enabled);
+        } catch (e) {
+          // ignore
+        }
+      });
+    } catch (e) {
+      // ignore
+    }
   }
 
   function install(deps = {}) {
@@ -80,6 +93,15 @@
             try {
               const enabled = changes.autoTranslateNewMessages.newValue === true;
               deps.onAutoTranslateChanged?.(enabled);
+            } catch (e) {
+              // ignore
+            }
+          }
+
+          if (changes.sttEnabled) {
+            try {
+              const enabled = changes.sttEnabled.newValue === true;
+              deps.onSttEnabledChanged?.(enabled);
             } catch (e) {
               // ignore
             }

@@ -26,6 +26,20 @@
         return owner.currentInfoElement;
       }
 
+      try {
+        const clearTimer = deps.clearTimeout || window.clearTimeout;
+        if (owner._waapWeatherStatusAutoHideTimer) {
+          try {
+            if (typeof clearTimer === 'function') clearTimer(owner._waapWeatherStatusAutoHideTimer);
+          } catch (e0) {
+            // ignore
+          }
+          owner._waapWeatherStatusAutoHideTimer = null;
+        }
+      } catch (e0) {
+        // ignore
+      }
+
       owner.currentStatus = status;
       try {
         console.log(`📊 天气信息状态: ${status} - ${statusText}`);
@@ -38,6 +52,38 @@
         owner.currentInfoElement.textContent = statusText;
         owner.currentInfoElement.className = `weather-info-status status-${status}`;
         updateStatusStyle(owner, owner.currentInfoElement, status, { document: documentRef });
+
+        try {
+          if (status === 'success') {
+            const setTimer = deps.setTimeout || window.setTimeout;
+            const clearTimer = deps.clearTimeout || window.clearTimeout;
+            const el = owner.currentInfoElement;
+            if (typeof setTimer === 'function') {
+              owner._waapWeatherStatusAutoHideTimer = setTimer(() => {
+                try {
+                  if (owner.currentInfoElement !== el) return;
+                  if (owner.currentStatus !== 'success') return;
+                  el.remove();
+                  owner.currentInfoElement = null;
+                  owner.currentStatus = 'idle';
+                } catch (e1) {
+                  // ignore
+                } finally {
+                  try {
+                    if (owner._waapWeatherStatusAutoHideTimer) {
+                      if (typeof clearTimer === 'function') clearTimer(owner._waapWeatherStatusAutoHideTimer);
+                    }
+                  } catch (e2) {
+                    // ignore
+                  }
+                  owner._waapWeatherStatusAutoHideTimer = null;
+                }
+              }, 2500);
+            }
+          }
+        } catch (e0) {
+          // ignore
+        }
         return owner.currentInfoElement;
       }
 
@@ -48,6 +94,38 @@
       updateStatusStyle(owner, statusElement, status, { document: documentRef });
 
       owner.currentInfoElement = statusElement;
+
+      try {
+        if (status === 'success') {
+          const setTimer = deps.setTimeout || window.setTimeout;
+          const clearTimer = deps.clearTimeout || window.clearTimeout;
+          const el = statusElement;
+          if (typeof setTimer === 'function') {
+            owner._waapWeatherStatusAutoHideTimer = setTimer(() => {
+              try {
+                if (owner.currentInfoElement !== el) return;
+                if (owner.currentStatus !== 'success') return;
+                el.remove();
+                owner.currentInfoElement = null;
+                owner.currentStatus = 'idle';
+              } catch (e1) {
+                // ignore
+              } finally {
+                try {
+                  if (owner._waapWeatherStatusAutoHideTimer) {
+                    if (typeof clearTimer === 'function') clearTimer(owner._waapWeatherStatusAutoHideTimer);
+                  }
+                } catch (e2) {
+                  // ignore
+                }
+                owner._waapWeatherStatusAutoHideTimer = null;
+              }
+            }, 2500);
+          }
+        }
+      } catch (e0) {
+        // ignore
+      }
       return statusElement;
     } catch (e) {
       return null;
@@ -459,6 +537,20 @@
   function hideWeatherInfo(owner, deps = {}) {
     try {
       if (!owner) return false;
+
+      try {
+        const clearTimer = deps.clearTimeout || window.clearTimeout;
+        if (owner._waapWeatherStatusAutoHideTimer) {
+          try {
+            if (typeof clearTimer === 'function') clearTimer(owner._waapWeatherStatusAutoHideTimer);
+          } catch (e0) {
+            // ignore
+          }
+          owner._waapWeatherStatusAutoHideTimer = null;
+        }
+      } catch (e0) {
+        // ignore
+      }
 
       if (owner.currentWeatherElement) {
         try {

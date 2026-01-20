@@ -12,6 +12,17 @@
 
   if (window.WAAP.presenters.weatherChatFlowPresenter) return;
 
+  const DEBUG = false;
+
+  function debugLog(...args) {
+    if (!DEBUG) return;
+    try {
+      console.log(...args);
+    } catch (e) {
+      // ignore
+    }
+  }
+
   function getNow() {
     try {
       return Date.now();
@@ -42,11 +53,7 @@
         }
       }
 
-      try {
-        console.log('📞 开始提取电话号码...');
-      } catch (e) {
-        // ignore
-      }
+      debugLog('📞 开始提取电话号码...');
 
       // 使用我们成功测试的方法
       const phoneNumber = typeof owner.tryGetWhatsAppNumber === 'function' ? owner.tryGetWhatsAppNumber() : null;
@@ -56,11 +63,7 @@
 
         // 只在号码变化时输出成功信息
         if (owner.lastDebugNumber !== phoneNumber) {
-          try {
-            console.log('✅ 成功提取到号码:', phoneNumber);
-          } catch (e) {
-            // ignore
-          }
+          debugLog('✅ 成功提取到号码:', phoneNumber);
           owner.lastDebugNumber = phoneNumber;
         }
 
@@ -88,11 +91,7 @@
 
       // 只在之前有号码现在没有号码时输出
       if (owner.lastDebugNumber !== null) {
-        try {
-          console.log('❌ 未能提取到号码');
-        } catch (e) {
-          // ignore
-        }
+        debugLog('❌ 未能提取到号码');
         owner.lastDebugNumber = null;
       }
 
@@ -119,6 +118,13 @@
       const chatKey = typeof owner.getActiveChatKey === 'function' ? owner.getActiveChatKey() : '';
       const hasWeatherShown = !!(owner.currentWeatherElement && documentRef?.contains?.(owner.currentWeatherElement));
       const hasStableNumber = !!owner.currentPhoneNumber;
+
+      const gateKey = chatKey || '__no_chat__';
+      if (gateKey === owner._waapWeatherLastGateKey && nowMs - (owner._waapWeatherLastGateAt || 0) < 1200) {
+        return true;
+      }
+      owner._waapWeatherLastGateKey = gateKey;
+      owner._waapWeatherLastGateAt = nowMs;
 
       if (chatKey) {
         if (chatKey === owner.lastChatKey) {
@@ -153,11 +159,7 @@
         }
       }
 
-      try {
-        console.log('🔍 检查新聊天窗口...');
-      } catch (e) {
-        // ignore
-      }
+      debugLog('🔍 检查新聊天窗口...');
 
       // 立即显示加载状态
       try {

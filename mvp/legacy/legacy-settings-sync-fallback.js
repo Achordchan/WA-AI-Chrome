@@ -33,6 +33,30 @@
     }
   }
 
+  function loadSttSetting(options = {}) {
+    try {
+      const chromeApi = options.chrome || window.chrome;
+      if (!chromeApi?.storage?.sync) return false;
+
+      chromeApi.storage.sync.get(['sttEnabled'], (data) => {
+        try {
+          const enabled = data?.sttEnabled === true;
+          try {
+            options.onSttEnabledChanged?.(enabled);
+          } catch (e) {
+            // ignore
+          }
+        } catch (e) {
+          // ignore
+        }
+      });
+
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   function loadWeatherInfoSetting(options = {}) {
     try {
       const chromeApi = options.chrome || window.chrome;
@@ -83,6 +107,15 @@
               // ignore
             }
           }
+
+          if (changes?.sttEnabled) {
+            const enabled = changes.sttEnabled.newValue === true;
+            try {
+              options.onSttEnabledChanged?.(enabled);
+            } catch (e) {
+              // ignore
+            }
+          }
         } catch (e) {
           // ignore
         }
@@ -97,6 +130,7 @@
   window.WAAP.legacy.settingsSyncFallback = {
     loadAutoTranslateSetting,
     loadWeatherInfoSetting,
+    loadSttSetting,
     installSettingsStorageListeners
   };
 })();

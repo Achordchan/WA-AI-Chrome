@@ -16,7 +16,15 @@
     try {
       const main = mainEl || getMain();
       if (!main) return null;
-      return main.querySelector('header');
+      const header =
+        main.querySelector('header') ||
+        main.querySelector('[data-testid="conversation-header"]') ||
+        main.querySelector('[role="banner"]');
+      if (header) return header;
+      return (
+        document.querySelector('header[data-testid="conversation-header"]') ||
+        document.querySelector('header[aria-label*="Chat"], header[aria-label*="聊天"]')
+      );
     } catch (e) {
       return null;
     }
@@ -26,7 +34,13 @@
     try {
       const main = mainEl || getMain();
       if (!main) return null;
-      return document.querySelector('footer._ak1i') || main.querySelector('footer');
+      const footer = (
+        main.querySelector('footer._ak1i') ||
+        main.querySelector('footer') ||
+        main.querySelector('[data-testid="compose-box"]')
+      );
+      if (footer) return footer;
+      return document.querySelector('[data-testid="compose-box"]') || document.querySelector('#main footer');
     } catch (e) {
       return null;
     }
@@ -34,9 +48,21 @@
 
   function getChatEditable(footerEl) {
     try {
-      const footer = footerEl || getMainFooter();
-      if (!footer) return null;
-      return footer.querySelector('.lexical-rich-text-input div[contenteditable="true"]') || footer.querySelector('div[contenteditable="true"]');
+      const main = getMain();
+      const footer = footerEl || getMainFooter(main);
+      if (footer) {
+        return (
+          footer.querySelector('.lexical-rich-text-input div[contenteditable="true"]') ||
+          footer.querySelector('div[contenteditable="true"][role="textbox"]') ||
+          footer.querySelector('div[contenteditable="true"]')
+        );
+      }
+      if (!main) return null;
+      return (
+        main.querySelector('.lexical-rich-text-input div[contenteditable="true"]') ||
+        main.querySelector('div[contenteditable="true"][role="textbox"]') ||
+        main.querySelector('div[contenteditable="true"]')
+      );
     } catch (e) {
       return null;
     }
@@ -47,9 +73,10 @@
       const main = getMain();
       if (!main) return false;
       const header = getMainHeader(main);
-      if (!header) return false;
       const editable = getChatEditable(getMainFooter(main));
-      return !!editable;
+      if (editable) return true;
+      const footer = getMainFooter(main);
+      return !!(header || footer);
     } catch (e) {
       return false;
     }

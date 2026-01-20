@@ -55,6 +55,7 @@ function getContentState() {
 
     if (typeof s.autoTranslateNewMessagesEnabled !== 'boolean') s.autoTranslateNewMessagesEnabled = false;
     if (typeof s.weatherInfoEnabled !== 'boolean') s.weatherInfoEnabled = true;
+    if (typeof s.sttEnabled !== 'boolean') s.sttEnabled = false;
     if (typeof s.contentScriptInitStarted !== 'boolean') s.contentScriptInitStarted = false;
     if (typeof s.contentScriptInitialized !== 'boolean') s.contentScriptInitialized = false;
 
@@ -64,6 +65,7 @@ function getContentState() {
       pluginStatus,
       autoTranslateNewMessagesEnabled: false,
       weatherInfoEnabled: true,
+      sttEnabled: false,
       contentScriptInitStarted: false,
       contentScriptInitialized: false
     };
@@ -125,6 +127,10 @@ function isAutoTranslateEnabled() {
   return getContentState().autoTranslateNewMessagesEnabled === true;
 }
 
+function isSttEnabled() {
+  return getContentState().sttEnabled === true;
+}
+
 function applyAutoTranslateEnabled(enabled) {
   const state = getContentState();
   state.autoTranslateNewMessagesEnabled = enabled === true;
@@ -151,6 +157,39 @@ function applyAutoTranslateEnabled(enabled) {
     if (window.WAAP?.legacy?.autoTranslateQueue?.setEnabled) {
       window.WAAP.legacy.autoTranslateQueue.setEnabled(state.autoTranslateNewMessagesEnabled);
     }
+  } catch (e) {
+    // ignore
+  }
+}
+
+function applySttEnabled(enabled) {
+  const state = getContentState();
+  state.sttEnabled = enabled === true;
+
+  try {
+    const presenter = window.WAAP?.presenters?.messageProcessingPresenter;
+    if (!state.sttEnabled) {
+      presenter?.removeVoiceTranscribeButtons?.(document);
+      return;
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  try {
+    const presenter = window.WAAP?.presenters?.messageProcessingPresenter;
+    if (!presenter?.processMessage) return;
+    const voiceMarkers = document.querySelectorAll(
+      'span[aria-label="语音消息"], span[aria-label="Voice message"], button[aria-label*="播放语音"], button[aria-label*="Play voice"], span[data-icon="audio-play"], span[data-icon="ptt-status"]'
+    );
+    voiceMarkers.forEach((m) => {
+      try {
+        const root = m.closest?.('div[tabindex="-1"], div[data-pre-plain-text]');
+        if (root) presenter.processMessage(root, { isSttEnabled });
+      } catch (e2) {
+        // ignore
+      }
+    });
   } catch (e) {
     // ignore
   }
@@ -190,9 +229,27 @@ function applyAutoTranslateEnabled(enabled) {
     // ignore
   }
   return false;
- }
+}
 
- function legacyInstallSettingsStorageListeners() {
+function legacyLoadSttSetting() {
+  try {
+    const fallback = window.WAAP?.legacy?.settingsSyncFallback;
+    if (fallback?.loadSttSetting) {
+      const ok = fallback.loadSttSetting({
+        chrome: window.chrome,
+        onSttEnabledChanged: (enabled) => {
+          applySttEnabled(enabled);
+        }
+      });
+      if (ok) return true;
+    }
+  } catch (e) {
+    // ignore
+  }
+  return false;
+}
+
+function legacyInstallSettingsStorageListeners() {
   try {
     const fallback = window.WAAP?.legacy?.settingsSyncFallback;
     if (fallback?.installSettingsStorageListeners) {
@@ -203,17 +260,20 @@ function applyAutoTranslateEnabled(enabled) {
         },
         onWeatherEnabledChanged: (enabled) => {
           getContentState().weatherInfoEnabled = enabled !== false;
+        },
+        onSttEnabledChanged: (enabled) => {
+          applySttEnabled(enabled);
         }
       });
       if (ok) return true;
     }
-  } catch (e) {
+  } catch (e2) {
     // ignore
   }
   return false;
- }
+}
 
- function installSettingsSyncService() {
+function installSettingsSyncService() {
   try {
     const orch = window.WAAP?.services?.settingsStateOrchestrator;
     if (orch?.install) {
@@ -228,6 +288,9 @@ function applyAutoTranslateEnabled(enabled) {
         },
         onWeatherEnabledChanged: (enabled) => {
           getContentState().weatherInfoEnabled = enabled !== false;
+        },
+        onSttEnabledChanged: (enabled) => {
+          applySttEnabled(enabled);
         }
       });
       if (ok) return true;
@@ -245,6 +308,9 @@ function applyAutoTranslateEnabled(enabled) {
         },
         onWeatherEnabledChanged: (enabled) => {
           getContentState().weatherInfoEnabled = enabled !== false;
+        },
+        onSttEnabledChanged: (enabled) => {
+          applySttEnabled(enabled);
         }
       });
       if (ok) return true;
@@ -253,17 +319,18 @@ function applyAutoTranslateEnabled(enabled) {
     // ignore
   }
   return false;
- }
+}
 
- try {
+try {
   if (!installSettingsSyncService()) {
     legacyLoadAutoTranslateSetting();
     legacyLoadWeatherInfoSetting();
+    legacyLoadSttSetting();
     legacyInstallSettingsStorageListeners();
   }
- } catch (e) {
+} catch (e) {
   // ignore
- }
+}
 
 function scheduleAutoTranslateOnChatEnter() {
   try {
@@ -508,18 +575,23 @@ try {
 }
 
 function isChatWindowActiveForHeaderButtons() {
-  const main = window.WAAP?.services?.whatsappDomService?.getMain
-    ? window.WAAP.services.whatsappDomService.getMain()
-    : document.querySelector('#main');
+  const dom = window.WAAP?.services?.whatsappDomService;
+  const main = dom?.getMain ? dom.getMain() : document.querySelector('#main');
   if (!main) return false;
 
-  // 右上角按钮挂在 main 内部的 header 上
-  const header = window.WAAP?.services?.whatsappDomService?.getMainHeader
-    ? window.WAAP.services.whatsappDomService.getMainHeader(main)
-    : main.querySelector('header');
-  if (!header) return false;
+  if (typeof dom?.isChatWindowExists === 'function') {
+    if (dom.isChatWindowExists()) return true;
+  }
 
-  return true;
+  const header = dom?.getMainHeader ? dom.getMainHeader(main) : main.querySelector('header');
+  if (header) return true;
+
+  const footer = dom?.getMainFooter ? dom.getMainFooter(main) : main.querySelector('footer');
+  if (footer) return true;
+
+  if (main.querySelector('[data-testid="conversation-panel-messages"], div[data-pre-plain-text]')) return true;
+
+  return false;
 }
 
 // 自动启动：只有进入聊天窗口后才会触发一次 initialize()
@@ -686,12 +758,15 @@ function processMessage(message) {
     if (window.WAAP?.presenters?.messageProcessingPresenter?.processMessage) {
       const ok = window.WAAP.presenters.messageProcessingPresenter.processMessage(message, {
         addTranslateButton,
+        chrome: window.chrome,
+        showToast: window.showToast,
         translateText,
         getMessageTextRoot,
         collectTextContent,
         typeWriter,
         maybeScrollChatToBottom,
-        translateMessage
+        translateMessage,
+        isSttEnabled
       });
       if (ok) return;
     }
@@ -1349,6 +1424,9 @@ function showSettingsModal() {
         },
         onWeatherEnabledChanged: (enabled) => {
           st.weatherInfoEnabled = enabled === true;
+        },
+        onSttEnabledChanged: (enabled) => {
+          applySttEnabled(enabled);
         }
       });
     }

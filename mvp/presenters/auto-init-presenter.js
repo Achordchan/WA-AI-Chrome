@@ -15,6 +15,10 @@
       let lastCheckAt = 0;
       let observer = null;
       let domHandler = null;
+      let pollTimer = null;
+      let pollCount = 0;
+      const maxPollCount = 60;
+      const pollIntervalMs = 800;
 
       const cleanup = () => {
         try {
@@ -30,6 +34,13 @@
           // ignore
         }
         domHandler = null;
+
+        try {
+          if (pollTimer) clearInterval(pollTimer);
+        } catch (e) {
+          // ignore
+        }
+        pollTimer = null;
       };
 
       const maybeAutoInitialize = () => {
@@ -81,6 +92,26 @@
           maybeAutoInitialize();
         });
         observer.observe(document.body, { childList: true, subtree: true });
+      } catch (e) {
+        // ignore
+      }
+
+      try {
+        pollTimer = setInterval(() => {
+          try {
+            pollCount += 1;
+            maybeAutoInitialize();
+            const done =
+              started ||
+              (typeof isInitialized === 'function' ? isInitialized() : false) ||
+              (typeof isInitStarted === 'function' ? isInitStarted() : false);
+            if (done || pollCount >= maxPollCount) {
+              cleanup();
+            }
+          } catch (e) {
+            // ignore
+          }
+        }, pollIntervalMs);
       } catch (e) {
         // ignore
       }

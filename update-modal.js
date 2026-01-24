@@ -5,7 +5,7 @@ function showUpdateModal() {
       <div class="update-modal-content">
         <div class="update-modal-header">
                 <h3>WhatsApp Assistant Pro+ 更新说明</h3>
-      <span class="version">V3.2.0</span>
+      <span class="version">V3.2.1</span>
           <button class="modal-close">×</button>
         </div>
         <div class="update-modal-body">
@@ -211,9 +211,9 @@ async function checkAndShowUpdateLog() {
   try {
     const currentVersion = (() => {
       try {
-        return chrome && chrome.runtime && chrome.runtime.getManifest ? (chrome.runtime.getManifest().version || '3.2.0') : '3.2.0';
+        return chrome && chrome.runtime && chrome.runtime.getManifest ? (chrome.runtime.getManifest().version || '3.2.1') : '3.2.1';
       } catch (e) {
-        return '3.2.0';
+        return '3.2.1';
       }
     })(); // 当前版本号
     const data = await chrome.storage.local.get(['lastShownVersion']);

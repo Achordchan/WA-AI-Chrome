@@ -722,7 +722,7 @@
           const langPrefs = safeJsonParse(langPrefsRaw, {});
 
           const payload = {
-            version: '3.2.0',
+            version: '3.2.1',
             exportedAt: new Date().toISOString(),
             weatherCountryCorrections: weatherCorrections || {},
             weatherCountryResolved: weatherResolved || {},

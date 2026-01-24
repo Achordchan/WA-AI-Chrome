@@ -822,7 +822,8 @@ function getChatScrollContainer() {
   }
 
   try {
-    const main = document.querySelector('#main');
+    const svc = window.WAAP?.services?.whatsappDomService;
+    const main = svc?.getMain ? svc.getMain() : document.querySelector('#main');
     if (!main) return null;
     return main.querySelector('[data-testid="conversation-panel-messages"]') || null;
   } catch (e2) {

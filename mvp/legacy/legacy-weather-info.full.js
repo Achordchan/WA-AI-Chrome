@@ -12,13 +12,13 @@
 // AI全能助手 - WhatsApp增强功能模块
 // 作者: Achord (Tel: 13160235855, Email: achordchan@gmail.com)
 // 功能: 根据对方号码显示国家天气和当地时间
-// 版本: V3.2.0
+// 版本: V3.2.1
 // 
 // 请尊重开源项目，二开保留作者信息
 
 const WeatherInfo = {
   // 版本信息
-  version: 'V3.2.0',
+  version: 'V3.2.1',
   
   // 状态管理
   currentStatus: 'idle', // idle, loading, success, error, no-number

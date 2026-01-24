@@ -6,7 +6,39 @@
 
   function getMain() {
     try {
-      return document.querySelector('#main');
+      const mains = document.querySelectorAll('#main');
+      if (!mains || mains.length === 0) return null;
+      if (mains.length === 1) return mains[0];
+
+      let best = mains[0];
+      let bestScore = -1;
+
+      mains.forEach((el) => {
+        try {
+          if (!el || !el.querySelector) return;
+
+          let score = 0;
+          if (el.querySelector('footer') || el.querySelector('[data-testid="compose-box"]')) score += 5;
+          if (el.querySelector('[data-testid="conversation-panel-messages"]')) score += 4;
+          if (el.querySelector('div[data-pre-plain-text]')) score += 3;
+          if (
+            el.querySelector('header') ||
+            el.querySelector('[data-testid="conversation-header"]') ||
+            el.querySelector('[role="banner"]')
+          ) {
+            score += 2;
+          }
+
+          if (score > bestScore) {
+            bestScore = score;
+            best = el;
+          }
+        } catch (e) {
+          // ignore
+        }
+      });
+
+      return best;
     } catch (e) {
       return null;
     }

@@ -17,7 +17,8 @@
     }
 
     try {
-      const main = document.querySelector('#main');
+      const domService = window.WAAP?.services?.whatsappDomService;
+      const main = domService?.getMain ? domService.getMain() : document.querySelector('#main');
       if (!main) return false;
       const header = main.querySelector('header');
       if (!header) return false;

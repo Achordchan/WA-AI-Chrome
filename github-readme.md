@@ -5,7 +5,7 @@
 <img src="images/icon.svg" width="128" height="128" alt="WhatsApp Assistant Pro+ Logo">
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-V3.2.0-green.svg)](https://github.com/Achordchan/WA-AI-chrome/releases)
+[![Version](https://img.shields.io/badge/version-V3.2.1-green.svg)](https://github.com/Achordchan/WA-AI-chrome/releases)
 
 ![Chrome Web Store](https://img.shields.io/chrome-web-store/rating/pending)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/Achordchan/WA-AI-chrome/pulls)
@@ -18,7 +18,7 @@
 
 ## 核心特性
 
-### 全新功能 (V3.2.0)
+### 全新功能 (V3.2.1)
 
 - 语音消息转写 - 语音气泡新增“听”按钮，一键转写语音内容
 - 转写结果内一键翻译 - 转写结果区域新增“译”按钮，复用现有文本翻译能力
@@ -171,7 +171,7 @@
 
 ## 📈 更新日志
 
-### V3.2.0 (最新版本)
+### V3.2.1 (最新版本)
 - 语音消息转写：语音气泡新增“听”按钮，一键转写
 - 转写结果内一键翻译：转写结果区域新增“译”按钮
 - 界面一致性：转写卡片样式与单条消息翻译结果对齐

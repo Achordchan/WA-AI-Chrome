@@ -50,7 +50,8 @@
     }
 
     try {
-      const main = document.querySelector('#main');
+      const domService = window.WAAP?.services?.whatsappDomService;
+      const main = domService?.getMain ? domService.getMain() : document.querySelector('#main');
       if (!main) return '';
       const header = main.querySelector('header');
       if (!header) return '';
@@ -77,7 +78,8 @@
     }
 
     try {
-      const main = document.querySelector('#main');
+      const domService = window.WAAP?.services?.whatsappDomService;
+      const main = domService?.getMain ? domService.getMain() : document.querySelector('#main');
       if (!main) return false;
       return !!(el && main.contains(el));
     } catch (e) {
@@ -90,7 +92,8 @@
       if (window.WAAP?.services?.whatsappDomService?.getMessageElementsInActiveChat) {
         return window.WAAP.services.whatsappDomService.getMessageElementsInActiveChat();
       }
-      const main = document.querySelector('#main');
+      const domService = window.WAAP?.services?.whatsappDomService;
+      const main = domService?.getMain ? domService.getMain() : document.querySelector('#main');
       if (!main) return [];
       return Array.from(main.querySelectorAll('div[data-pre-plain-text]'));
     } catch (e) {

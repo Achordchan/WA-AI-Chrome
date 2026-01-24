@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "WhatsApp Assistant Pro+",
-  "version": "3.2.0",
+  "version": "3.2.1",
   "description": "AI + Translate WhatsApp messages | WhatsApp消息翻译助手 | Achord | Email:achordchan@gmail.com",
   "permissions": [
     "storage",

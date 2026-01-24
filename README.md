@@ -5,7 +5,7 @@
 <img src="images/icon.svg" width="128" height="128" alt="WhatsApp Assistant Pro+ Logo">
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-V3.2.0-green.svg)](https://github.com/Achordchan/WA-AI-chrome/releases)
+[![Version](https://img.shields.io/badge/version-V3.2.1-green.svg)](https://github.com/Achordchan/WA-AI-chrome/releases)
 ![Chrome Web Store](https://img.shields.io/chrome-web-store/rating/pending)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/Achordchan/WA-AI-chrome/pulls)
 
@@ -17,7 +17,7 @@
 
 ## ✨ 核心特性
 
-### 版本 V3.2.0 (最新版本)
+### 版本 V3.2.1 (最新版本)
 - 语音消息转写：设置中开启并填写 API 信息后，语音气泡新增“听”按钮，一键转写语音内容
 - STT 获取方式：需自行获取语音转写服务，建议使用智谱 AI
 - 修复部分场景下信息提示不消失导致布局异常的问题
@@ -173,11 +173,11 @@
 
 ## 📈 更新日志
 
-### 版本 V3.2.0 (最新版本)
-- 语音消息转写：设置中开启并填写 API 信息后，语音气泡新增“听”按钮，一键转写语音内容
-- STT 获取方式：需自行获取语音转写服务，建议使用智谱 AI
+### V3.2.1 (最新版本)
+- 语音消息转写：语音气泡新增“听”按钮，一键转写
+- 转写结果内一键翻译：转写结果区域新增“译”按钮
+- 界面一致性：转写卡片样式与单条消息翻译结果对齐
 - 修复部分场景下信息提示不消失导致布局异常的问题
-- 修复语音翻译 Token 数显示为 N/A 的问题
 - 天气/时间显示可自定义：可单独开启/关闭天气与当地时间显示
 - 号码获取更稳定：优先从标题/聊天内容识别，必要时自动使用“联系人信息侧栏”兜底获取真实号码
 - 防误判 + 缓存：避免把 WhatsApp 内部 ID 误当手机号，成功获取后会缓存，减少重复弹出与干扰

@@ -30,7 +30,7 @@
 
   const WeatherInfo = {
     // 版本信息
-    version: 'V3.2.0',
+    version: 'V3.2.1',
 
     // --- 状态字段：给 MVP services/presenters 读写用（尽量保持与旧版字段名兼容） ---
     currentStatus: 'idle',

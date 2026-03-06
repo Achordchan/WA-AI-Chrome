@@ -67,6 +67,30 @@
 
       const showToast = deps.showToast || window.showToast;
       const showExtensionInvalidatedError = deps.showExtensionInvalidatedError || window.showExtensionInvalidatedError;
+      const getTranslationPromptDefaults = () => {
+        try {
+          const fn = window.getDefaultTranslationPromptTemplates;
+          if (typeof fn === 'function') {
+            const result = fn();
+            if (result && typeof result === 'object') return result;
+          }
+        } catch (e) {
+          // ignore
+        }
+        return {
+          normal: `你是一位专业翻译。
+将用户提供的文本翻译成{{targetLanguageName}}。
+要求：只输出译文正文，不要解释，不要加标签，不要加引号；保留原文换行与段落；保持语气与信息完整。`,
+          reasoning: `你是一位专业翻译。
+将用户提供的文本翻译成{{targetLanguageName}}。
+请先思考翻译策略与难点（术语、习惯用语、语气、文化背景、格式等），但最终只输出译文正文。
+要求：
+1) 只输出译文，不要解释，不要加标签，不要加引号；
+2) 保留原文的换行与段落结构；
+3) 不要翻译人名/品牌名/产品型号/URL（除非原文本身就是翻译后的形式）；
+4) 保持原语气、敬语与情绪。`
+        };
+      };
 
       const tabButtons = content.querySelectorAll('.settings-tab');
       const panels = content.querySelectorAll('.settings-tab-panel');
@@ -1577,6 +1601,39 @@
         });
       }
 
+      const translationPromptTemplateEl = content.querySelector('#translationPromptTemplate');
+      const translationReasoningPromptTemplateEl = content.querySelector('#translationReasoningPromptTemplate');
+      const resetTranslationPromptTemplateBtn = content.querySelector('#resetTranslationPromptTemplate');
+      const resetTranslationReasoningPromptTemplateBtn = content.querySelector('#resetTranslationReasoningPromptTemplate');
+      const resetAllTranslationPromptTemplatesBtn = content.querySelector('#resetAllTranslationPromptTemplates');
+      const applyTranslationPromptDefaultsToForm = (scope = 'all') => {
+        try {
+          const defaults = getTranslationPromptDefaults();
+          if ((scope === 'all' || scope === 'normal') && translationPromptTemplateEl) {
+            translationPromptTemplateEl.value = defaults.normal || '';
+          }
+          if ((scope === 'all' || scope === 'reasoning') && translationReasoningPromptTemplateEl) {
+            translationReasoningPromptTemplateEl.value = defaults.reasoning || '';
+          }
+        } catch (e) {
+          // ignore
+        }
+      };
+
+      try {
+        resetTranslationPromptTemplateBtn?.addEventListener('click', () => {
+          applyTranslationPromptDefaultsToForm('normal');
+        });
+        resetTranslationReasoningPromptTemplateBtn?.addEventListener('click', () => {
+          applyTranslationPromptDefaultsToForm('reasoning');
+        });
+        resetAllTranslationPromptTemplatesBtn?.addEventListener('click', () => {
+          applyTranslationPromptDefaultsToForm('all');
+        });
+      } catch (e) {
+        // ignore
+      }
+
       function saveSettings() {
         try {
           const presetValue = document.getElementById('weatherCachePreset')?.value;
@@ -1646,7 +1703,9 @@
               } catch (e) {
                 return 10;
               }
-            })()
+            })(),
+            translationPromptTemplate: document.getElementById('translationPromptTemplate')?.value || '',
+            translationReasoningPromptTemplate: document.getElementById('translationReasoningPromptTemplate')?.value || ''
           };
 
           if (formData.translationApi === 'siliconflow') {
@@ -1749,6 +1808,8 @@
               'siliconflowModel',
               'openaiTemperature',
               'openaiReasoningEnabled',
+              'translationPromptTemplate',
+              'translationReasoningPromptTemplate',
               'siliconflowApiKey_ai',
               'siliconflowApiUrl_ai',
               'siliconflowModel_ai',
@@ -1916,6 +1977,20 @@
               const reasoningEnabled = document.getElementById('openaiReasoningEnabled');
               if (reasoningEnabled && data.openaiReasoningEnabled !== undefined) {
                 reasoningEnabled.checked = data.openaiReasoningEnabled;
+              }
+
+              try {
+                const defaults = getTranslationPromptDefaults();
+                if (translationPromptTemplateEl) {
+                  translationPromptTemplateEl.value = String(data.translationPromptTemplate || defaults.normal || '');
+                }
+                if (translationReasoningPromptTemplateEl) {
+                  translationReasoningPromptTemplateEl.value = String(
+                    data.translationReasoningPromptTemplate || defaults.reasoning || ''
+                  );
+                }
+              } catch (e) {
+                // ignore
               }
 
               if (data.siliconflowApiKey_ai) {

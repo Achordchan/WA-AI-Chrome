@@ -84,7 +84,9 @@
       } else if (service === 'siliconflow') {
         const normalizedTargetLang = targetLang === 'zh-CN' ? 'zh' : targetLang;
         try {
-          translation = await ApiServices.translation[service](text, apiKey, apiUrl, model, normalizedTargetLang);
+          translation = await ApiServices.translation[service](text, apiKey, apiUrl, model, normalizedTargetLang, {
+            source: 'single-message-translation'
+          });
         } catch (siliconflowError) {
           const errStatus = getErrStatus(siliconflowError);
           const errMsg = String(siliconflowError?.message || '');
@@ -109,7 +111,9 @@
             await new Promise((resolve) => setTimeout(resolve, 2000));
 
             try {
-              translation = await ApiServices.translation[service](text, apiKey, apiUrl, model, normalizedTargetLang);
+              translation = await ApiServices.translation[service](text, apiKey, apiUrl, model, normalizedTargetLang, {
+                source: 'single-message-translation-retry'
+              });
             } catch (retryError) {
               const retryStatus = getErrStatus(retryError);
               const retryMsg = String(retryError?.message || '');

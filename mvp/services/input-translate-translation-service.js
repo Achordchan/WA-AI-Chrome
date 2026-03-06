@@ -49,7 +49,9 @@
       if (service === 'google') {
         translation = await ApiServices.translation[service](text, 'auto', targetLang);
       } else if (service === 'siliconflow') {
-        translation = await ApiServices.translation[service](text, apiKey, apiUrl, model, targetLang);
+        translation = await ApiServices.translation[service](text, apiKey, apiUrl, model, targetLang, {
+          source: 'input-translate'
+        });
       } else {
         translation = await ApiServices.translation.google(text, 'auto', targetLang);
       }
@@ -99,7 +101,9 @@
 
       if (service === 'siliconflow') {
         if (!ApiServices?.translation?.siliconflow) throw new Error('ApiServices.translation.siliconflow 不可用');
-        return await ApiServices.translation.siliconflow(text, apiKey, apiUrl, model, normalizedTargetLang);
+        return await ApiServices.translation.siliconflow(text, apiKey, apiUrl, model, normalizedTargetLang, {
+          source: 'input-translate-ai'
+        });
       }
 
       throw new Error('AI 翻译仅支持 OpenAI 通用接口（siliconflow）');
@@ -125,7 +129,9 @@
         return await ApiServices.translation[service](text, 'auto', targetLang);
       }
       if (service === 'siliconflow') {
-        return await ApiServices.translation[service](text, apiKey, apiUrl, model, targetLang);
+        return await ApiServices.translation[service](text, apiKey, apiUrl, model, targetLang, {
+          source: type === 'ai' ? 'input-translate-perform-ai' : 'input-translate-perform'
+        });
       }
       return await ApiServices.translation.google(text, 'auto', targetLang);
     } catch (error) {
@@ -151,7 +157,9 @@
         if (service === 'google') {
           translation = await ApiServices.translation[service](text, 'auto', targetLang);
         } else if (service === 'siliconflow') {
-          translation = await ApiServices.translation[service](text, apiKey, apiUrl, model, targetLang);
+          translation = await ApiServices.translation[service](text, apiKey, apiUrl, model, targetLang, {
+            source: type === 'ai' ? 'input-translate-modal-ai' : 'input-translate-modal'
+          });
         } else {
           translation = await ApiServices.translation.google(text, 'auto', targetLang);
         }

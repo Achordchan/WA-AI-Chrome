@@ -225,13 +225,7 @@
             // ignore
           }
           WeatherInfo.checkForNewChatWindow();
-        }
-      } catch (e) {
-        // ignore
-      }
-
-      try {
-        if (typeof WeatherInfo.extractPhoneNumber === 'function') {
+        } else if (typeof WeatherInfo.extractPhoneNumber === 'function') {
           try {
             console.log('📞 尝试提取电话号码...');
           } catch (e) {

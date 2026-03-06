@@ -118,7 +118,7 @@
           // ignore
         }
 
-        // 触发天气信息检查
+        // 触发天气信息检查；若 chat flow 能工作，就不再额外手动触发一次取号
         if (typeof WeatherInfo.checkForNewChatWindow === 'function') {
           try {
             console.log('🔍 检查新聊天窗口的天气信息...');
@@ -126,10 +126,7 @@
             // ignore
           }
           WeatherInfo.checkForNewChatWindow();
-        }
-
-        // 如果有提取电话号码的功能，也触发一下
-        if (typeof WeatherInfo.extractPhoneNumber === 'function') {
+        } else if (typeof WeatherInfo.extractPhoneNumber === 'function') {
           try {
             console.log('📞 尝试提取电话号码...');
           } catch (e) {

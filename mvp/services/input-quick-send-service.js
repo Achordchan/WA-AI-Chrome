@@ -415,7 +415,7 @@
           ensureWaitToast();
 
           const chatWindow = doc.getElementById('main') || inputEl.closest('.app-wrapper-web') || doc;
-          const targetLang = typeof getRememberedLanguage === 'function' ? getRememberedLanguage(chatWindow) : 'en';
+          const targetLang = typeof getRememberedLanguage === 'function' ? await getRememberedLanguage(chatWindow) : 'en';
 
           if (typeof modalTranslation !== 'function') throw new Error('翻译函数不可用');
 

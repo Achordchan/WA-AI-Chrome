@@ -1626,16 +1626,14 @@ async function debugRetriggerCurrentInputTranslation() {
   }
 
   const langSvc = window.WAAP?.services?.inputTranslateLanguageService;
-  const targetLang = (() => {
-    try {
-      if (langSvc?.getRememberedLanguage) {
-        return langSvc.getRememberedLanguage(document.getElementById('main') || document);
-      }
-    } catch (e) {
-      // ignore
+  let targetLang = 'en';
+  try {
+    if (langSvc?.getRememberedLanguage) {
+      targetLang = await langSvc.getRememberedLanguage(document.getElementById('main') || document);
     }
-    return 'en';
-  })();
+  } catch (e) {
+    // ignore
+  }
 
   const result = await svc.modalTranslation(sourceText, targetLang, 'normal', {
     fetch: window.fetch,

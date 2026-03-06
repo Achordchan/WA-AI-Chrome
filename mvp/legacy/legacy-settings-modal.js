@@ -555,6 +555,58 @@ function legacyShowSettingsModal() {
     }
   };
 
+  const getStoredChatLanguagePreferences = async () => {
+    try {
+      const langService = window.WAAP?.services?.inputTranslateLanguageService;
+      if (langService?.getAllLanguagePreferences) {
+        const data = await langService.getAllLanguagePreferences();
+        return data && typeof data === 'object' ? data : {};
+      }
+    } catch (e) {
+      // ignore
+    }
+    return {};
+  };
+
+  const setStoredChatLanguagePreferences = async (next) => {
+    try {
+      const langService = window.WAAP?.services?.inputTranslateLanguageService;
+      if (langService?.setAllLanguagePreferences) {
+        await langService.setAllLanguagePreferences(next && typeof next === 'object' ? next : {});
+        return true;
+      }
+    } catch (e) {
+      // ignore
+    }
+    return false;
+  };
+
+  const removeStoredChatLanguagePreferencesByPhone = async (phoneDigits) => {
+    try {
+      const langService = window.WAAP?.services?.inputTranslateLanguageService;
+      if (langService?.removeLanguagePreferencesByPhone) {
+        await langService.removeLanguagePreferencesByPhone(phoneDigits);
+        return true;
+      }
+    } catch (e) {
+      // ignore
+    }
+    return false;
+  };
+
+  const clearStoredChatLanguagePreferences = async () => {
+    try {
+      const langService = window.WAAP?.services?.inputTranslateLanguageService;
+      if (langService?.clearLanguagePreferences) {
+        await langService.clearLanguagePreferences();
+        return true;
+      }
+    } catch (e) {
+      // ignore
+    }
+    return false;
+  };
+
   const loadPrivacyRecords = async () => {
     try {
       if (!privacyBody) return;
@@ -573,10 +625,7 @@ function legacyShowSettingsModal() {
         weatherResolved = {};
       }
 
-      const langPrefsRaw = (() => {
-        try { return localStorage.getItem('chatLanguagePreferences'); } catch (e) { return null; }
-      })();
-      const langPrefs = safeJsonParse(langPrefsRaw, {});
+      const langPrefs = await getStoredChatLanguagePreferences();
 
       const numbers = new Set();
       Object.keys(weatherCorrections || {}).forEach((k) => {
@@ -685,10 +734,7 @@ function legacyShowSettingsModal() {
         weatherResolved = {};
       }
 
-      const langPrefsRaw = (() => {
-        try { return localStorage.getItem('chatLanguagePreferences'); } catch (e) { return null; }
-      })();
-      const langPrefs = safeJsonParse(langPrefsRaw, {});
+      const langPrefs = await getStoredChatLanguagePreferences();
 
       const payload = {
         version: '3.2.2',
@@ -741,12 +787,9 @@ function legacyShowSettingsModal() {
       }
 
       try {
-        const currentRaw = (() => {
-          try { return localStorage.getItem('chatLanguagePreferences'); } catch (e) { return null; }
-        })();
-        const current = safeJsonParse(currentRaw, {});
+        const current = await getStoredChatLanguagePreferences();
         const merged = { ...current, ...incomingLang };
-        localStorage.setItem('chatLanguagePreferences', JSON.stringify(merged));
+        await setStoredChatLanguagePreferences(merged);
       } catch (e) {
         // ignore
       }
@@ -794,14 +837,8 @@ function legacyShowSettingsModal() {
         // ignore
       }
 
-      // localStorage: 删除语言偏好
       try {
-        const raw = (() => {
-          try { return localStorage.getItem('chatLanguagePreferences'); } catch (e) { return null; }
-        })();
-        const prefs = safeJsonParse(raw, {});
-        const next = removeKeysByPhone(prefs, phone);
-        localStorage.setItem('chatLanguagePreferences', JSON.stringify(next));
+        await removeStoredChatLanguagePreferencesByPhone(phone);
       } catch (e) {
         // ignore
       }
@@ -847,7 +884,7 @@ function legacyShowSettingsModal() {
       }
 
       try {
-        localStorage.removeItem('chatLanguagePreferences');
+        await clearStoredChatLanguagePreferences();
       } catch (e) {
         // ignore
       }

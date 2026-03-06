@@ -237,7 +237,7 @@
   }
 
   // 修改创建模态框的函数
-  function createTranslateModal(text, inputBox, options = {}, deps = {}) {
+  async function createTranslateModal(text, inputBox, options = {}, deps = {}) {
     try {
       const doc = deps.document || window.document;
       const setTimeoutFn = deps.setTimeout || window.setTimeout;
@@ -302,7 +302,7 @@
       // 获取当前聊天窗口
       const chatWindow = doc.getElementById('main') || inputBox.closest('.app-wrapper-web');
       // 获取记忆的语言选择
-      const rememberedLang = typeof getRememberedLanguage === 'function' ? getRememberedLanguage(chatWindow) : 'en';
+      const rememberedLang = typeof getRememberedLanguage === 'function' ? await getRememberedLanguage(chatWindow) : 'en';
 
       const hasSourceText = (text || '').trim().length > 0;
       const hideSource = options && options.hideSource === true;

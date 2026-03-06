@@ -746,7 +746,7 @@
           const langPrefs = safeJsonParse(langPrefsRaw, {});
 
           const payload = {
-            version: '3.2.1',
+            version: '3.2.2',
             exportedAt: new Date().toISOString(),
             weatherCountryCorrections: weatherCorrections || {},
             weatherCountryResolved: weatherResolved || {},
@@ -2012,7 +2012,7 @@
               } else if (data.siliconflowModel) {
                 document.getElementById('siliconflowModel_ai').value = data.siliconflowModel;
               } else {
-                document.getElementById('siliconflowModel_ai').value = 'gpt-3.5-turbo';
+                document.getElementById('siliconflowModel_ai').value = 'gpt-5.4-codex';
               }
 
               if (data.systemRole) {

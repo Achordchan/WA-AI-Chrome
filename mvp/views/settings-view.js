@@ -1031,10 +1031,10 @@
             <div class="api-key-input">
               <label>OpenAI 模型名称</label>
               <div class="api-key-wrapper">
-                <input type="text" id="siliconflowModel" placeholder="gpt-3.5-turbo">
+                <input type="text" id="siliconflowModel" placeholder="gpt-5.4-codex">
               </div>
             </div>
-            <p class="api-notice" style="margin-top: 8px; font-size: 12px; color: #666;">提示：任何兼容OpenAI接口的服务都可以使用，如硅基流动、智谱、Azure OpenAI、Claude API等</p>
+            <p class="api-notice" style="margin-top: 8px; font-size: 12px; color: #666;">提示：任何兼容OpenAI接口的服务都可以使用，注意添加完整后缀，例如/v1/xxxxx，如硅基流动、智谱、Azure OpenAI、Claude API等</p>
             <div class="advanced-settings-toggle" style="margin-top: 12px; cursor: pointer;">
               <span style="display: flex; align-items: center;">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="margin-right: 5px;" class="advanced-settings-icon">
@@ -1292,7 +1292,7 @@
               <div class="api-key-input">
                 <label>OpenAI 模型名称</label>
                 <div class="api-key-wrapper">
-                  <input type="text" id="siliconflowModel_ai" placeholder="gpt-3.5-turbo">
+                  <input type="text" id="siliconflowModel_ai" placeholder="gpt-5.4-codex">
                 </div>
               </div>
             </div>

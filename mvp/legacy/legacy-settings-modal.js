@@ -166,7 +166,7 @@ function legacyShowSettingsModal() {
             <div class="api-key-input">
               <label>OpenAI 模型名称</label>
               <div class="api-key-wrapper">
-                <input type="text" id="siliconflowModel" placeholder="gpt-3.5-turbo">
+                <input type="text" id="siliconflowModel" placeholder="gpt-5.4-codex">
               </div>
             </div>
             
@@ -332,7 +332,7 @@ function legacyShowSettingsModal() {
               <div class="api-key-input">
                 <label>OpenAI 模型名称</label>
                 <div class="api-key-wrapper">
-                  <input type="text" id="siliconflowModel_ai" placeholder="gpt-3.5-turbo">
+                  <input type="text" id="siliconflowModel_ai" placeholder="gpt-5.4-codex">
                 </div>
               </div>
             </div>
@@ -691,7 +691,7 @@ function legacyShowSettingsModal() {
       const langPrefs = safeJsonParse(langPrefsRaw, {});
 
       const payload = {
-        version: '3.2.1',
+        version: '3.2.2',
         exportedAt: new Date().toISOString(),
         weatherCountryCorrections: weatherCorrections || {},
         weatherCountryResolved: weatherResolved || {},
@@ -1564,7 +1564,7 @@ function legacyShowSettingsModal() {
           document.getElementById('siliconflowModel_ai').value = data.siliconflowModel;
         } else {
           // 提供默认值
-          document.getElementById('siliconflowModel_ai').value = "gpt-3.5-turbo";
+          document.getElementById('siliconflowModel_ai').value = "gpt-5.4-codex";
         }
         
         // 设置系统角色

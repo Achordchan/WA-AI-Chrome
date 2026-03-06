@@ -158,7 +158,7 @@ window.ApiServices = {
       text,
       apiKey,
       apiUrl = 'https://api.openai.com/v1/chat/completions',
-      model = 'gpt-3.5-turbo',
+      model = 'gpt-5.4-codex',
       targetLang = 'zh',
       debugContext = {}
     ) {
@@ -495,7 +495,7 @@ window.ApiServices = {
   // AI 分析服务
   analysis: {
     // OpenAI分析
-    async siliconflow(messages, apiKey, apiUrl = 'https://api.openai.com/v1/chat/completions', model = 'gpt-3.5-turbo', options = {}) {
+    async siliconflow(messages, apiKey, apiUrl = 'https://api.openai.com/v1/chat/completions', model = 'gpt-5.4-codex', options = {}) {
       try {
         console.log('开始 OpenAI 分析请求');
         
@@ -625,7 +625,7 @@ window.getAiService = function() {
 
           apiKey = data.siliconflowApiKey_ai || '';
           apiUrl = data.siliconflowApiUrl_ai || 'https://api.openai.com/v1/chat/completions';
-          model = data.siliconflowModel_ai || 'gpt-3.5-turbo';
+          model = data.siliconflowModel_ai || 'gpt-5.4-codex';
 
           resolve({
             enabled: true,
@@ -683,7 +683,7 @@ window.getTranslationService = () => {
 
         const apiKey = service === 'siliconflow' ? (data.siliconflowApiKey || '') : '';
         const apiUrl = data.siliconflowApiUrl || 'https://api.openai.com/v1/chat/completions';
-        const model = data.siliconflowModel || 'gpt-3.5-turbo';
+        const model = data.siliconflowModel || 'gpt-5.4-codex';
 
         // OpenAI 通用接口未配置 key 时，自动回退到 Google（避免把用户卡死在不可用状态）
         if (service === 'siliconflow' && !apiKey) {

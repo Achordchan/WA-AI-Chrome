@@ -232,20 +232,20 @@ async function verifyTranslation(translatedText, originalLang, targetLang) {
 }
 
 // 使用聊天对象名字存储语言选择
-function rememberLanguageChoice(chatWindow, lang) {
+async function rememberLanguageChoice(chatWindow, lang) {
   try {
     const svc = window.WAAP?.services?.inputTranslateLanguageService;
-    if (svc?.rememberLanguageChoice) return svc.rememberLanguageChoice(chatWindow, lang);
+    if (svc?.rememberLanguageChoice) return await svc.rememberLanguageChoice(chatWindow, lang);
   } catch (e) {
     // ignore
   }
 }
 
 // 获取记忆的语言选择
-function getRememberedLanguage(chatWindow) {
+async function getRememberedLanguage(chatWindow) {
   try {
     const svc = window.WAAP?.services?.inputTranslateLanguageService;
-    if (svc?.getRememberedLanguage) return svc.getRememberedLanguage(chatWindow);
+    if (svc?.getRememberedLanguage) return await svc.getRememberedLanguage(chatWindow);
   } catch (e) {
     // ignore
   }
@@ -289,11 +289,11 @@ function buildTranslateModalDeps() {
 }
 
 // 修改创建模态框的函数
-function createTranslateModal(text, inputBox, options = {}) {
+async function createTranslateModal(text, inputBox, options = {}) {
   try {
     const view = window.WAAP?.views?.inputTranslateModalView;
     if (view?.createTranslateModal) {
-      return view.createTranslateModal(text, inputBox, options, buildTranslateModalDeps());
+      return await view.createTranslateModal(text, inputBox, options, buildTranslateModalDeps());
     }
   } catch (e) {
     // ignore
@@ -302,7 +302,7 @@ function createTranslateModal(text, inputBox, options = {}) {
   try {
     const fallback = window.WAAP?.legacy?.inputTranslateModalFallback;
     if (fallback?.createTranslateModal) {
-      return fallback.createTranslateModal(text, inputBox, options, buildTranslateModalDeps());
+      return await fallback.createTranslateModal(text, inputBox, options, buildTranslateModalDeps());
     }
   } catch (e2) {
     // ignore

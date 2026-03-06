@@ -54,7 +54,7 @@
               const text = (inputBox.textContent || '').trim();
 
               if (typeof createTranslateModal !== 'function') return;
-              const modal = createTranslateModal(text, inputBox, { hideSource: !text });
+              const modal = await createTranslateModal(text, inputBox, { hideSource: !text });
               if (!modal) return;
 
               try {
@@ -130,7 +130,7 @@
         const text = (inputBox.textContent || '').trim();
 
         if (typeof createTranslateModal !== 'function') return;
-        const modal = createTranslateModal(text, inputBox, { hideSource: !text });
+        const modal = await createTranslateModal(text, inputBox, { hideSource: !text });
         if (!modal) return;
 
         try {

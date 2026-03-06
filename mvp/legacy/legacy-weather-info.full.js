@@ -2949,8 +2949,9 @@ const WeatherInfo = {
   
   // 清除用户修正缓存 (开发/调试使用)
   clearUserCorrections() {
-    localStorage.removeItem(this.cacheKey);
-    console.log('WeatherInfo: 用户修正缓存已清除');
+    this.userCorrections.clear();
+    chrome.storage.local.remove(['weatherCountryCorrections']);
+    console.log('WeatherInfo: 已清除所有用户修正记录');
   },
   
   // 手动触发天气信息功能

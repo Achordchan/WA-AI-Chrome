@@ -93,6 +93,58 @@
     }
   }
 
+  async function getChatLanguagePreferences() {
+    try {
+      const langService = window.WAAP?.services?.inputTranslateLanguageService;
+      if (langService?.getAllLanguagePreferences) {
+        const data = await langService.getAllLanguagePreferences();
+        return data && typeof data === 'object' ? data : {};
+      }
+    } catch (e) {
+      // ignore
+    }
+    return {};
+  }
+
+  async function setChatLanguagePreferences(next) {
+    try {
+      const langService = window.WAAP?.services?.inputTranslateLanguageService;
+      if (langService?.setAllLanguagePreferences) {
+        await langService.setAllLanguagePreferences(next && typeof next === 'object' ? next : {});
+        return true;
+      }
+    } catch (e) {
+      // ignore
+    }
+    return false;
+  }
+
+  async function removeChatLanguagePreferencesByPhone(phoneDigits) {
+    try {
+      const langService = window.WAAP?.services?.inputTranslateLanguageService;
+      if (langService?.removeLanguagePreferencesByPhone) {
+        await langService.removeLanguagePreferencesByPhone(phoneDigits);
+        return true;
+      }
+    } catch (e) {
+      // ignore
+    }
+    return false;
+  }
+
+  async function clearChatLanguagePreferences() {
+    try {
+      const langService = window.WAAP?.services?.inputTranslateLanguageService;
+      if (langService?.clearLanguagePreferences) {
+        await langService.clearLanguagePreferences();
+        return true;
+      }
+    } catch (e) {
+      // ignore
+    }
+    return false;
+  }
+
   async function getRawStorage() {
     let weatherCorrections = {};
     let weatherResolved = {};
@@ -111,14 +163,7 @@
       chatPhoneCache = {};
     }
 
-    const langPrefsRaw = (() => {
-      try {
-        return localStorage.getItem('chatLanguagePreferences');
-      } catch (e) {
-        return null;
-      }
-    })();
-    const chatLanguagePreferences = safeJsonParse(langPrefsRaw, {});
+    const chatLanguagePreferences = await getChatLanguagePreferences();
 
     return {
       weatherCountryCorrections: weatherCorrections || {},
@@ -277,16 +322,9 @@
     }
 
     try {
-      const currentRaw = (() => {
-        try {
-          return localStorage.getItem('chatLanguagePreferences');
-        } catch (e) {
-          return null;
-        }
-      })();
-      const current = safeJsonParse(currentRaw, {});
+      const current = await getChatLanguagePreferences();
       const merged = { ...current, ...incomingLang };
-      localStorage.setItem('chatLanguagePreferences', JSON.stringify(merged));
+      await setChatLanguagePreferences(merged);
     } catch (e) {
       // ignore
     }
@@ -345,16 +383,7 @@
     }
 
     try {
-      const raw = (() => {
-        try {
-          return localStorage.getItem('chatLanguagePreferences');
-        } catch (e) {
-          return null;
-        }
-      })();
-      const prefs = safeJsonParse(raw, {});
-      const next = removeKeysByPhone(prefs, phone);
-      localStorage.setItem('chatLanguagePreferences', JSON.stringify(next));
+      await removeChatLanguagePreferencesByPhone(phone);
     } catch (e) {
       // ignore
     }
@@ -384,7 +413,7 @@
     }
 
     try {
-      localStorage.removeItem('chatLanguagePreferences');
+      await clearChatLanguagePreferences();
     } catch (e) {
       // ignore
     }

@@ -1,6 +1,6 @@
 /*
 用途：输入框翻译（input-translate.js）语言相关逻辑的 MVP Service。
-说明：集中管理语言列表、语言搜索匹配、以及“按聊天对象记忆目标语言”的 localStorage 读写。
+说明：集中管理语言列表、语言搜索匹配、以及“按聊天对象记忆目标语言”的 chrome.storage.local 读写。
 作者：Achord
 */
 
@@ -9,6 +9,9 @@
   if (!window.WAAP.services) window.WAAP.services = {};
 
   if (window.WAAP.services.inputTranslateLanguageService) return;
+
+  const CHAT_LANGUAGE_PREFERENCES_KEY = 'waapChatLanguagePreferencesV1';
+  const LEGACY_CHAT_LANGUAGE_PREFERENCES_KEY = 'chatLanguagePreferences';
 
   const LANGUAGE_OPTIONS = [
     { code: 'zh', zh: '中文', en: 'Chinese', py: 'zw' },
@@ -48,6 +51,143 @@
   ];
 
   const LANGUAGES = Object.fromEntries(LANGUAGE_OPTIONS.map((l) => [l.code, l.zh]));
+
+  function safeJsonParse(raw, fallback) {
+    try {
+      if (!raw) return fallback;
+      return JSON.parse(raw);
+    } catch (e) {
+      return fallback;
+    }
+  }
+
+  function isPlainObject(value) {
+    return !!value && typeof value === 'object' && !Array.isArray(value);
+  }
+
+  function getChromeStorageLocal() {
+    try {
+      return chrome?.storage?.local || null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  async function safeStorageLocalGet(keys) {
+    try {
+      const storage = getChromeStorageLocal();
+      if (!storage?.get) return {};
+      const result = await storage.get(keys);
+      return result || {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  async function safeStorageLocalSet(payload) {
+    try {
+      const storage = getChromeStorageLocal();
+      if (!storage?.set) return false;
+      await storage.set(payload || {});
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  async function safeStorageLocalRemove(keys) {
+    try {
+      const storage = getChromeStorageLocal();
+      if (!storage?.remove) return false;
+      await storage.remove(keys);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function readLegacyLanguagePreferences() {
+    try {
+      return safeJsonParse(localStorage.getItem(LEGACY_CHAT_LANGUAGE_PREFERENCES_KEY), null);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function clearLegacyLanguagePreferences() {
+    try {
+      localStorage.removeItem(LEGACY_CHAT_LANGUAGE_PREFERENCES_KEY);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  async function getAllLanguagePreferences() {
+    const stored = await safeStorageLocalGet([CHAT_LANGUAGE_PREFERENCES_KEY]);
+    const current = stored ? stored[CHAT_LANGUAGE_PREFERENCES_KEY] : null;
+    const legacy = readLegacyLanguagePreferences();
+    if (isPlainObject(current) && isPlainObject(legacy)) {
+      const merged = { ...legacy, ...current };
+      await safeStorageLocalSet({ [CHAT_LANGUAGE_PREFERENCES_KEY]: merged });
+      clearLegacyLanguagePreferences();
+      return merged;
+    }
+
+    if (isPlainObject(current)) {
+      clearLegacyLanguagePreferences();
+      return current;
+    }
+
+    if (isPlainObject(legacy)) {
+      await safeStorageLocalSet({ [CHAT_LANGUAGE_PREFERENCES_KEY]: legacy });
+      clearLegacyLanguagePreferences();
+      return legacy;
+    }
+
+    return {};
+  }
+
+  async function setAllLanguagePreferences(preferences) {
+    const next = isPlainObject(preferences) ? preferences : {};
+    await safeStorageLocalSet({ [CHAT_LANGUAGE_PREFERENCES_KEY]: next });
+    clearLegacyLanguagePreferences();
+    return next;
+  }
+
+  function removeKeysByPhone(obj, phoneDigits) {
+    try {
+      if (!isPlainObject(obj)) return {};
+      const phone = String(phoneDigits || '').replace(/[^\d]/g, '');
+      if (!phone) return { ...obj };
+      const out = { ...obj };
+      Object.keys(out).forEach((key) => {
+        const raw = String(key || '');
+        const normalized = raw.startsWith('phone:')
+          ? raw.replace(/^phone:/, '').replace(/[^\d]/g, '')
+          : raw.replace(/[^\d]/g, '');
+        if (normalized && normalized === phone) {
+          delete out[key];
+        }
+      });
+      return out;
+    } catch (e) {
+      return isPlainObject(obj) ? obj : {};
+    }
+  }
+
+  async function removeLanguagePreferencesByPhone(phoneDigits) {
+    const current = await getAllLanguagePreferences();
+    const next = removeKeysByPhone(current, phoneDigits);
+    await setAllLanguagePreferences(next);
+    return next;
+  }
+
+  async function clearLanguagePreferences() {
+    await safeStorageLocalRemove([CHAT_LANGUAGE_PREFERENCES_KEY]);
+    clearLegacyLanguagePreferences();
+    return true;
+  }
 
   function getLanguageOptions() {
     return LANGUAGE_OPTIONS;
@@ -101,15 +241,15 @@
     return 'name:default';
   }
 
-  function rememberLanguageChoice(chatWindow, lang) {
+  async function rememberLanguageChoice(chatWindow, lang) {
     if (!chatWindow) return;
 
     const key = getChatLanguagePreferenceKey(chatWindow);
 
     try {
-      const languagePreferences = JSON.parse(localStorage.getItem('chatLanguagePreferences') || '{}');
+      const languagePreferences = await getAllLanguagePreferences();
       languagePreferences[key] = lang;
-      localStorage.setItem('chatLanguagePreferences', JSON.stringify(languagePreferences));
+      await setAllLanguagePreferences(languagePreferences);
 
       try {
         console.log('保存语言选择:', {
@@ -129,12 +269,12 @@
     }
   }
 
-  function getRememberedLanguage(chatWindow) {
+  async function getRememberedLanguage(chatWindow) {
     if (!chatWindow) return 'en';
 
     try {
       const key = getChatLanguagePreferenceKey(chatWindow);
-      const languagePreferences = JSON.parse(localStorage.getItem('chatLanguagePreferences') || '{}');
+      const languagePreferences = await getAllLanguagePreferences();
       let rememberedLang = languagePreferences[key];
 
       if (!rememberedLang && key.startsWith('phone:')) {
@@ -145,7 +285,7 @@
           const legacy = languagePreferences[chatName] || languagePreferences['default'];
           if (legacy) {
             languagePreferences[key] = legacy;
-            localStorage.setItem('chatLanguagePreferences', JSON.stringify(languagePreferences));
+            await setAllLanguagePreferences(languagePreferences);
             rememberedLang = legacy;
           }
         } catch (e) {
@@ -180,6 +320,10 @@
     langMatchesQuery,
     getChatLanguagePreferenceKey,
     rememberLanguageChoice,
-    getRememberedLanguage
+    getRememberedLanguage,
+    getAllLanguagePreferences,
+    setAllLanguagePreferences,
+    removeLanguagePreferencesByPhone,
+    clearLanguagePreferences
   };
 })();

@@ -1553,3 +1553,170 @@ try {
 } catch (e) {
   // ignore
 }
+
+function findDebugTranslationMessageTarget() {
+  try {
+    const translated = Array.from(document.querySelectorAll('.translation-content'));
+    for (let i = translated.length - 1; i >= 0; i -= 1) {
+      const root = translated[i]?.closest?.('div[data-pre-plain-text], div[tabindex="-1"]');
+      if (root) return root;
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  try {
+    const buttons = Array.from(document.querySelectorAll('.translate-btn[data-waap-kind="translate"], .translate-btn'));
+    for (let i = buttons.length - 1; i >= 0; i -= 1) {
+      const root = buttons[i]?.closest?.('div[data-pre-plain-text], div[tabindex="-1"]');
+      if (root) return root;
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  return null;
+}
+
+async function debugRetriggerCurrentMessageTranslation() {
+  const target = findDebugTranslationMessageTarget();
+  if (!target) {
+    throw new Error('未找到可重新翻译的消息，请先打开一个聊天并至少触发过一次单条翻译');
+  }
+
+  try {
+    const messageContainer = target.closest?.('.message-container') || target.parentElement || target;
+    messageContainer
+      ?.querySelectorAll?.('.translation-content,.thinking-content,.translation-loading,.translation-error')
+      ?.forEach?.((node) => {
+        try {
+          node.remove();
+        } catch (e) {
+          // ignore
+        }
+      });
+  } catch (e) {
+    // ignore
+  }
+
+  return await translateMessage(target);
+}
+
+function getDebugInputComposer() {
+  try {
+    return (
+      document.querySelector('footer._ak1i .lexical-rich-text-input div[contenteditable="true"]') ||
+      document.querySelector('#main footer div[contenteditable="true"]')
+    );
+  } catch (e) {
+    return null;
+  }
+}
+
+async function debugRetriggerCurrentInputTranslation() {
+  const inputEl = getDebugInputComposer();
+  const sourceText = String(inputEl?.textContent || '').trim();
+  if (!sourceText) {
+    throw new Error('输入框没有可翻译的文本，请先在主聊天输入框输入内容');
+  }
+
+  const svc = window.WAAP?.services?.inputTranslateTranslationService;
+  if (!svc?.modalTranslation) {
+    throw new Error('输入框翻译服务不可用');
+  }
+
+  const langSvc = window.WAAP?.services?.inputTranslateLanguageService;
+  const targetLang = (() => {
+    try {
+      if (langSvc?.getRememberedLanguage) {
+        return langSvc.getRememberedLanguage(document.getElementById('main') || document);
+      }
+    } catch (e) {
+      // ignore
+    }
+    return 'en';
+  })();
+
+  const result = await svc.modalTranslation(sourceText, targetLang, 'normal', {
+    fetch: window.fetch,
+    getAiService: window.getAiService,
+    getTranslationService: window.getTranslationService,
+    ApiServices: window.ApiServices,
+    LANGUAGES: langSvc?.getLanguagesMap ? langSvc.getLanguagesMap() : {}
+  });
+
+  try {
+    console.log('[WAAP][debug-input-translation-result]', {
+      targetLang,
+      sourceText,
+      result
+    });
+  } catch (e) {
+    // ignore
+  }
+
+  return result;
+}
+
+function installTranslationPromptDebugHelpers() {
+  try {
+    if (!window.WAAP) window.WAAP = {};
+    if (!window.WAAP.debug) window.WAAP.debug = {};
+    if (typeof window.WAAP.debug.waapTp === 'function' || typeof window.waapTp === 'function') return;
+
+    const savePromptTemplates = (normal, reasoning) =>
+      new Promise((resolve, reject) => {
+        try {
+          if (!chrome?.storage?.sync?.set) {
+            reject(new Error('chrome.storage.sync 不可用'));
+            return;
+          }
+          chrome.storage.sync.set(
+            {
+              translationPromptTemplate: String(normal || ''),
+              translationReasoningPromptTemplate: String(reasoning || normal || '')
+            },
+            () => {
+              if (chrome.runtime?.lastError) {
+                reject(new Error(chrome.runtime.lastError.message || '保存提示词失败'));
+                return;
+              }
+              resolve(true);
+            }
+          );
+        } catch (e) {
+          reject(e);
+        }
+      });
+
+    const waapTp = async (promptInput, mode = 'message') => {
+      let normalPrompt = '';
+      let reasoningPrompt = '';
+      let debugMode = String(mode || 'message');
+
+      if (promptInput && typeof promptInput === 'object') {
+        normalPrompt = String(promptInput.normal || promptInput.prompt || '');
+        reasoningPrompt = String(promptInput.reasoning || normalPrompt);
+        if (promptInput.mode) debugMode = String(promptInput.mode);
+      } else {
+        normalPrompt = String(promptInput || '');
+        reasoningPrompt = normalPrompt;
+      }
+
+      await savePromptTemplates(normalPrompt, reasoningPrompt);
+
+      if (debugMode === 'input') {
+        return await debugRetriggerCurrentInputTranslation();
+      }
+
+      return await debugRetriggerCurrentMessageTranslation();
+    };
+
+    window.WAAP.debug.waapTp = waapTp;
+    window.waapTp = waapTp;
+  } catch (e) {
+    // ignore
+  }
+}
+
+installTranslationPromptDebugHelpers();

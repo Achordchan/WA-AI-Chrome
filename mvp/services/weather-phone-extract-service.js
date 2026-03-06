@@ -689,6 +689,19 @@
 
         const backupResult = tryBackupMethods(owner, { ...deps, document: documentRef });
 
+        if (backupResult) {
+          try {
+            const chatKey = getActiveChatKey(owner);
+            const cleaned = cleanPhoneNumber(backupResult);
+            if (chatKey && cleaned && cleaned.startsWith('+')) {
+              cachePhoneForChatKey(chatKey, cleaned);
+              persistPhoneForChatKey(owner, chatKey, cleaned, deps);
+            }
+          } catch (e) {
+            // ignore
+          }
+        }
+
         if (!backupResult) {
           try {
             scheduleAutoOpenSidebarAndExtractPhone(owner, { ...deps, document: documentRef, XPathResult: XPathResultRef });
@@ -699,9 +712,7 @@
 
         // 只有在备用方案也失败时才设置为invalid状态
         try {
-          if (!backupResult) {
-            owner.lastDebugNumber = 'invalid';
-          }
+          owner.lastDebugNumber = backupResult ? String(backupResult) : 'invalid';
         } catch (e) {
           // ignore
         }

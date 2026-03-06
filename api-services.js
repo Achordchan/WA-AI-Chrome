@@ -11,6 +11,36 @@ function normalizeLangCode(lang) {
   }
 }
 
+const DEFAULT_TRANSLATION_PROMPT_TEMPLATE = `你是一位专业翻译。
+将用户提供的文本翻译成{{targetLanguageName}}。
+要求：只输出译文正文，不要解释，不要加标签，不要加引号；保留原文换行与段落；保持语气与信息完整。`;
+
+const DEFAULT_TRANSLATION_REASONING_PROMPT_TEMPLATE = `你是一位专业翻译。
+将用户提供的文本翻译成{{targetLanguageName}}。
+请先思考翻译策略与难点（术语、习惯用语、语气、文化背景、格式等），但最终只输出译文正文。
+要求：
+1) 只输出译文，不要解释，不要加标签，不要加引号；
+2) 保留原文的换行与段落结构；
+3) 不要翻译人名/品牌名/产品型号/URL（除非原文本身就是翻译后的形式）；
+4) 保持原语气、敬语与情绪。`;
+
+function getDefaultTranslationPromptTemplates() {
+  return {
+    normal: DEFAULT_TRANSLATION_PROMPT_TEMPLATE,
+    reasoning: DEFAULT_TRANSLATION_REASONING_PROMPT_TEMPLATE
+  };
+}
+
+function resolveTranslationPromptTemplate(template, targetLanguageName, fallbackTemplate) {
+  const baseTemplate = String(template || fallbackTemplate || '').trim();
+  const safeLangName = String(targetLanguageName || '目标语言').trim() || '目标语言';
+  return baseTemplate
+    .replace(/\{\{\s*targetLanguageName\s*\}\}/g, safeLangName)
+    .replace(/\{\{\s*targetLang\s*\}\}/g, safeLangName);
+}
+
+window.getDefaultTranslationPromptTemplates = getDefaultTranslationPromptTemplates;
+
 function getLanguageNameZh(code) {
   const map = {
     zh: '中文',
@@ -124,15 +154,56 @@ window.ApiServices = {
     },
 
     // OpenAI接口翻译
-    async siliconflow(text, apiKey, apiUrl = 'https://api.openai.com/v1/chat/completions', model = 'gpt-3.5-turbo', targetLang = 'zh') {
+    async siliconflow(
+      text,
+      apiKey,
+      apiUrl = 'https://api.openai.com/v1/chat/completions',
+      model = 'gpt-3.5-turbo',
+      targetLang = 'zh',
+      debugContext = {}
+    ) {
       try {
         const requestStartAt = Date.now();
+        const contextLabel = String(debugContext?.source || 'translation').trim() || 'translation';
+        const safeGroupStart = (label) => {
+          try {
+            if (typeof console.groupCollapsed === 'function') {
+              console.groupCollapsed(label);
+              return;
+            }
+          } catch (e) {
+            // ignore
+          }
+          try {
+            console.log(label);
+          } catch (e) {
+            // ignore
+          }
+        };
+        const safeGroupEnd = () => {
+          try {
+            if (typeof console.groupEnd === 'function') console.groupEnd();
+          } catch (e) {
+            // ignore
+          }
+        };
+        const stringifyContent = (value) => {
+          if (typeof value === 'string') return value;
+          if (value == null) return '';
+          try {
+            return JSON.stringify(value, null, 2);
+          } catch (e) {
+            return String(value);
+          }
+        };
+
         console.log('开始OpenAI翻译请求:', { 
           textLength: text?.length || 0, 
           apiKeyLength: apiKey?.length || 0,
           apiUrl, 
           model,
-          targetLang
+          targetLang,
+          contextLabel
         });
         
         // 验证参数
@@ -147,13 +218,22 @@ window.ApiServices = {
         // 获取温度和推理模型设置
         let temperature = 0.7;
         let useReasoning = false;
+        let settings = {};
         
         try {
           // 从存储中获取高级设置
-          const settings = await new Promise((resolve) => {
-            chrome.storage.sync.get(['openaiTemperature', 'openaiReasoningEnabled'], (data) => {
+          settings = await new Promise((resolve) => {
+            chrome.storage.sync.get(
+              [
+                'openaiTemperature',
+                'openaiReasoningEnabled',
+                'translationPromptTemplate',
+                'translationReasoningPromptTemplate'
+              ],
+              (data) => {
               resolve(data);
-            });
+              }
+            );
           });
           
           if (settings.openaiTemperature !== undefined) {
@@ -223,24 +303,43 @@ window.ApiServices = {
         
         console.log('翻译目标语言:', { targetLang, targetLanguageName });
         
-        // 构建系统提示，根据是否开启推理模式提供不同指令
-        let systemPrompt = '';
-
-        if (useReasoning) {
-          systemPrompt = `你是一位专业翻译。
-将用户提供的文本翻译成${targetLanguageName}。
-请先思考翻译策略与难点（术语、习惯用语、语气、文化背景、格式等），但最终只输出译文正文。
-要求：
-1) 只输出译文，不要解释，不要加标签，不要加引号；
-2) 保留原文的换行与段落结构；
-3) 不要翻译人名/品牌名/产品型号/URL（除非原文本身就是翻译后的形式）；
-4) 保持原语气、敬语与情绪。`;
-        } else {
-          systemPrompt = `你是一位专业翻译。
-将用户提供的文本翻译成${targetLanguageName}。
-要求：只输出译文正文，不要解释，不要加标签，不要加引号；保留原文换行与段落；保持语气与信息完整。`;
-        }
+        const promptDefaults = getDefaultTranslationPromptTemplates();
+        const promptTemplate = useReasoning
+          ? (settings.translationReasoningPromptTemplate || promptDefaults.reasoning)
+          : (settings.translationPromptTemplate || promptDefaults.normal);
+        const fallbackTemplate = useReasoning ? promptDefaults.reasoning : promptDefaults.normal;
+        const systemPrompt = resolveTranslationPromptTemplate(promptTemplate, targetLanguageName, fallbackTemplate);
         
+        const requestBody = {
+          model: model,
+          messages: [
+            {
+              role: 'system',
+              content: systemPrompt
+            },
+            {
+              role: 'user',
+              content: text
+            }
+          ],
+          temperature: temperature
+        };
+
+        safeGroupStart(`[WA AI翻译请求][${contextLabel}]`);
+        console.log('请求上下文:', {
+          contextLabel,
+          targetLang,
+          targetLanguageName,
+          apiUrl,
+          model,
+          useReasoning,
+          temperature
+        });
+        console.log('完整 system prompt:', systemPrompt);
+        console.log('完整 user 内容:', text);
+        console.log('完整 request body:', requestBody);
+        safeGroupEnd();
+
         // 发送API请求
         const response = await fetch(apiUrl, {
           method: 'POST',
@@ -248,20 +347,7 @@ window.ApiServices = {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${apiKey}`
           },
-          body: JSON.stringify({
-            model: model,
-            messages: [
-              {
-                "role": "system",
-                "content": systemPrompt
-              },
-              {
-                "role": "user",
-                "content": text
-              }
-            ],
-            temperature: temperature
-          })
+          body: JSON.stringify(requestBody)
         });
         
         // 检查响应状态
@@ -304,7 +390,21 @@ window.ApiServices = {
           throw new Error('API响应格式错误: 缺少翻译结果');
         }
         
-        const content = data.choices[0].message.content.trim();
+        const rawAssistantContent = data.choices[0].message.content;
+        const content = stringifyContent(rawAssistantContent).trim();
+
+        safeGroupStart(`[WA AI翻译响应][${contextLabel}]`);
+        console.log('响应元信息:', {
+          contextLabel,
+          status: response.status,
+          latencyMs,
+          usage,
+          model,
+          apiUrl
+        });
+        console.log('完整响应 JSON:', data);
+        console.log('AI 原始回复内容:', rawAssistantContent);
+        safeGroupEnd();
         
         // 如果开启了推理模式，则需要解析思考过程和翻译结果
         if (useReasoning) {

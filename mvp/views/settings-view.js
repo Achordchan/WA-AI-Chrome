@@ -294,6 +294,8 @@
       transition: border-color 0.2s;
       color: #000;
       background-color: #fff;
+      box-sizing: border-box;
+      min-width: 0;
     }
 
     .api-key-wrapper input:focus {
@@ -335,6 +337,8 @@
       background-repeat: no-repeat;
       background-position: right 12px center;
       color: #000;
+      box-sizing: border-box;
+      max-width: 100%;
     }
 
     select:focus {
@@ -346,6 +350,8 @@
     /* 文本区域样式 */
     textarea {
       width: 100%;
+      display: block;
+      max-width: 100%;
       padding: 10px 12px;
       border: 1px solid #bbb;
       border-radius: 6px;
@@ -355,6 +361,7 @@
       transition: border-color 0.2s;
       color: #000;
       background-color: #fff;
+      box-sizing: border-box;
     }
 
     textarea:focus {
@@ -816,6 +823,37 @@
       background: rgba(243,244,246,0.90);
     }
 
+    .prompt-input {
+      margin-top: 14px;
+    }
+
+    .prompt-input:first-child {
+      margin-top: 0;
+    }
+
+    .prompt-input label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+      color: #111b21;
+      font-weight: 600;
+    }
+
+    .prompt-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    .prompt-hint {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #667781;
+      line-height: 1.6;
+    }
+
     .privacy-empty {
       color: #667781;
       font-size: 12px;
@@ -996,7 +1034,7 @@
                 <input type="text" id="siliconflowModel" placeholder="gpt-3.5-turbo">
               </div>
             </div>
-            
+            <p class="api-notice" style="margin-top: 8px; font-size: 12px; color: #666;">提示：任何兼容OpenAI接口的服务都可以使用，如硅基流动、智谱、Azure OpenAI、Claude API等</p>
             <div class="advanced-settings-toggle" style="margin-top: 12px; cursor: pointer;">
               <span style="display: flex; align-items: center;">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="margin-right: 5px;" class="advanced-settings-icon">
@@ -1026,8 +1064,28 @@
                 <p style="margin-top: 6px; font-size: 12px; color: #666;">启用后，翻译将显示模型的思考过程</p>
               </div>
             </div>
+
+            <div class="settings-section" style="margin-top: 16px;">
+              <h4>AI Prompt</h4>
+              <div class="prompt-input">
+                <label for="translationPromptTemplate">普通模式提示词</label>
+                <textarea id="translationPromptTemplate" rows="5" placeholder="设置普通翻译模式下发送给 AI 的系统提示词"></textarea>
+                <div class="prompt-actions">
+                  <button type="button" class="privacy-row-btn" id="resetTranslationPromptTemplate">恢复默认</button>
+                </div>
+              </div>
+              <div class="prompt-input">
+                <label for="translationReasoningPromptTemplate">推理模式提示词</label>
+                <textarea id="translationReasoningPromptTemplate" rows="7" placeholder="设置推理翻译模式下发送给 AI 的系统提示词"></textarea>
+                <div class="prompt-actions">
+                  <button type="button" class="privacy-row-btn" id="resetTranslationReasoningPromptTemplate">恢复默认</button>
+                  <button type="button" class="privacy-row-btn" id="resetAllTranslationPromptTemplates">全部恢复默认</button>
+                </div>
+              </div>
+              <div class="prompt-hint">变量名：<code>{{targetLanguageName}}</code>。普通模式和推理模式分别生效；留空时会自动回退到内置默认提示词。</div>
+            </div>
             
-            <p class="api-notice" style="margin-top: 8px; font-size: 12px; color: #666;">提示：任何兼容OpenAI接口的服务都可以使用，如硅基流动、智谱、Azure OpenAI、Claude API等</p>
+            
           </div>
           
         </div>

@@ -77,6 +77,91 @@
     return null;
   }
 
+  function getWhatsappDomService() {
+    try {
+      return window.WAAP?.services?.whatsappDomService || null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function hasSendAction(scopeEl) {
+    try {
+      if (!scopeEl || !scopeEl.querySelector) return false;
+      return !!scopeEl.querySelector(
+        'button[aria-label="发送"], button[title="发送"], [role="button"][aria-label="发送"], [role="button"][title="发送"]'
+      );
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function isMediaCaptionInput(inputEl) {
+    try {
+      if (!inputEl || !(inputEl instanceof HTMLElement)) return false;
+
+      const ariaLabel = String(inputEl.getAttribute('aria-label') || '').trim();
+      const role = String(inputEl.getAttribute('role') || '').trim();
+      if (role !== 'textbox') return false;
+      if (!/^(输入消息|add a caption|caption)$/i.test(ariaLabel)) return false;
+
+      const scope =
+        inputEl.closest('.copyable-area') ||
+        inputEl.parentElement ||
+        inputEl.closest('div');
+      if (!scope) return false;
+
+      return hasSendAction(scope);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function getChatInputFromTarget(deps, target) {
+    try {
+      if (!target || !(target instanceof HTMLElement)) return null;
+
+      const inputEl = target.closest('div[contenteditable="true"]');
+      if (!inputEl) return null;
+
+      const domSvc = getWhatsappDomService();
+      const doc = deps?.document || window.document;
+      const main =
+        (typeof domSvc?.getMain === 'function' ? domSvc.getMain() : null) ||
+        doc.getElementById('main');
+      if (!main || !main.contains(inputEl)) {
+        return isMediaCaptionInput(inputEl) ? inputEl : null;
+      }
+
+      const footer =
+        (typeof domSvc?.getMainFooter === 'function' ? domSvc.getMainFooter(main) : null) ||
+        main.querySelector('footer') ||
+        main.querySelector('[data-testid="compose-box"]');
+
+      if (footer?.contains(inputEl)) {
+        return inputEl;
+      }
+
+      const activeEditable =
+        (typeof domSvc?.getChatEditable === 'function' ? domSvc.getChatEditable(footer) : null) ||
+        main.querySelector('.lexical-rich-text-input div[contenteditable="true"]') ||
+        main.querySelector('div[contenteditable="true"][role="textbox"]');
+
+      if (activeEditable === inputEl) {
+        return inputEl;
+      }
+
+      const ariaLabel = String(inputEl.getAttribute('aria-label') || '');
+      if (inputEl.getAttribute('role') === 'textbox' && /发送|send/i.test(ariaLabel)) {
+        return inputEl;
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    return null;
+  }
+
   async function applyTextToInputBox(deps, richTextInput, text, options = {}) {
     if (!richTextInput) return false;
 
@@ -322,12 +407,8 @@
           if (e.repeat) return;
           if (e.isComposing) return;
 
-          const target = e.target;
-          if (!target || !(target instanceof HTMLElement)) return;
-          const inputEl = target.closest('div[contenteditable="true"]');
+          const inputEl = getChatInputFromTarget(deps, e.target);
           if (!inputEl) return;
-          if (!inputEl.closest('footer._ak1i')) return;
-          if (!inputEl.closest('.lexical-rich-text-input')) return;
 
           const state = getQuickSendState(inputEl);
 
@@ -465,20 +546,17 @@
           }
         } catch (err) {
           try {
-            const target = e.target;
-            if (target && target instanceof HTMLElement) {
-              const inputEl = target.closest && target.closest('div[contenteditable="true"]');
-              if (inputEl) {
-                const state = inputQuickSendStateByInput.get(inputEl);
-                if (state && state.waitToastEl) {
-                  try {
-                    state.waitToastEl.remove();
-                  } catch (e2) {
-                    // ignore
-                  }
-                  state.waitToastEl = null;
-                  state.waitToastRequestId = 0;
+            const inputEl = getChatInputFromTarget(deps, e.target);
+            if (inputEl) {
+              const state = inputQuickSendStateByInput.get(inputEl);
+              if (state && state.waitToastEl) {
+                try {
+                  state.waitToastEl.remove();
+                } catch (e2) {
+                  // ignore
                 }
+                state.waitToastEl = null;
+                state.waitToastRequestId = 0;
               }
             }
           } catch (e2) {
@@ -487,24 +565,21 @@
           showQuickSendToast(deps, '翻译失败: ' + (err?.message || '未知错误'), true, 1800);
         } finally {
           try {
-            const target = e.target;
-            if (target && target instanceof HTMLElement) {
-              const inputEl = target.closest && target.closest('div[contenteditable="true"]');
-              if (inputEl) {
-                const state = inputQuickSendStateByInput.get(inputEl);
-                if (state && state.stage === 'translating' && myRequestId && state.requestId === myRequestId) {
-                  state.stage = 'idle';
-                  state.sourceTextAtTranslate = '';
-                  state.appliedText = '';
-                  try {
-                    if (state.waitToastEl && (!state.waitToastRequestId || state.waitToastRequestId === myRequestId)) {
-                      state.waitToastEl.remove();
-                      state.waitToastEl = null;
-                      state.waitToastRequestId = 0;
-                    }
-                  } catch (e3) {
-                    // ignore
+            const inputEl = getChatInputFromTarget(deps, e.target);
+            if (inputEl) {
+              const state = inputQuickSendStateByInput.get(inputEl);
+              if (state && state.stage === 'translating' && myRequestId && state.requestId === myRequestId) {
+                state.stage = 'idle';
+                state.sourceTextAtTranslate = '';
+                state.appliedText = '';
+                try {
+                  if (state.waitToastEl && (!state.waitToastRequestId || state.waitToastRequestId === myRequestId)) {
+                    state.waitToastEl.remove();
+                    state.waitToastEl = null;
+                    state.waitToastRequestId = 0;
                   }
+                } catch (e3) {
+                  // ignore
                 }
               }
             }

@@ -595,15 +595,12 @@
       const weatherContainer = documentRef.createElement('div');
       weatherContainer.className = 'wa-weather-info';
 
-      const allowCountryOverride = owner.displaySettings && owner.displaySettings.allowCountryOverride === true;
       const showWeather = owner.displaySettings ? owner.displaySettings.showWeather !== false : true;
       const showTime = owner.displaySettings ? owner.displaySettings.showTime !== false : true;
 
       const needsConfirmation = countryInfo.needsConfirmation && !countryInfo.isUserCorrected;
       const isAutoDetected = countryInfo.isAutoDetected;
       const isUserCorrected = countryInfo.isUserCorrected;
-
-      const showSelector = allowCountryOverride && needsConfirmation && countryInfo.sharedCountryData && countryInfo.sharedCountryData.countries;
 
       try {
         const view = window.WAAP?.views?.weatherInfoView;
@@ -614,7 +611,6 @@
             weatherData,
             timeData,
             {
-              showSelector,
               showWeather,
               showTime,
               needsConfirmation,
@@ -669,48 +665,21 @@
             }
 
             try {
-              let latestAllowOverride = owner.displaySettings && owner.displaySettings.allowCountryOverride === true;
-              const chromeRef = deps.chrome || window.chrome;
-              if (chromeRef?.storage?.sync?.get) {
-                const allowFromStore = await new Promise((resolve) => {
-                  try {
-                    chromeRef.storage.sync.get(['weatherAllowCountryOverride'], (data) => {
-                      try {
-                        if (chromeRef.runtime?.lastError) return resolve(null);
-                        resolve(data && data.weatherAllowCountryOverride === true);
-                      } catch (e2) {
-                        resolve(null);
-                      }
-                    });
-                  } catch (e2) {
-                    resolve(null);
-                  }
-                });
-                if (allowFromStore === true) {
-                  latestAllowOverride = true;
-                }
+              const view = window.WAAP?.views?.weatherInfoView;
+              const candidates = countryInfo?.sharedCountryData?.countries || [];
+              if (view?.confirmCountryOverride) {
+                const ok = await view.confirmCountryOverride(countryInfoEl, { document: documentRef });
+                if (!ok) return;
               }
-
-              if (latestAllowOverride) {
-                const candidates = countryInfo?.sharedCountryData?.countries || [];
-                if (typeof owner.openCountryOverridePrompt === 'function') {
-                  if (Array.isArray(candidates) && candidates.length > 0) {
-                    owner.openCountryOverridePrompt(countryInfo, { preferredCountries: candidates });
-                  } else {
-                    owner.openCountryOverridePrompt(countryInfo);
-                  }
-                  return;
+              if (typeof owner.openCountryOverridePrompt === 'function') {
+                if (Array.isArray(candidates) && candidates.length > 0) {
+                  owner.openCountryOverridePrompt(countryInfo, { preferredCountries: candidates });
+                } else {
+                  owner.openCountryOverridePrompt(countryInfo);
                 }
+                return;
               }
             } catch (e1) {
-              // ignore
-            }
-
-            try {
-              if (typeof owner.refreshWeatherInfo === 'function') {
-                owner.refreshWeatherInfo(countryInfo);
-              }
-            } catch (e2) {
               // ignore
             }
           };

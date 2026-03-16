@@ -245,15 +245,6 @@ function legacyShowSettingsModal() {
             </label>
           </div>
 
-          <div class="toggle-switch-container" style="margin-top: 12px;">
-            <label for="weatherAllowCountryOverride" class="toggle-label">允许手动选择对方国家</label>
-            <span class="wa-info" data-tip="手动选国家：保存设置 → 切换一次聊天窗口 → 点击国家名旁的“选择国家”即可修改">i</span>
-            <label class="toggle-switch">
-              <input type="checkbox" id="weatherAllowCountryOverride" class="toggle-input">
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-          <p style="margin-top: 6px; font-size: 12px; color: #666;">开启后，点击国家名称即可手动修改国家（按手机号保存到本地）。</p>
         </div>
       </div>
 
@@ -737,7 +728,7 @@ function legacyShowSettingsModal() {
       const langPrefs = await getStoredChatLanguagePreferences();
 
       const payload = {
-        version: '3.2.2',
+        version: '3.2.3',
         exportedAt: new Date().toISOString(),
         weatherCountryCorrections: weatherCorrections || {},
         weatherCountryResolved: weatherResolved || {},
@@ -1234,15 +1225,12 @@ function legacyShowSettingsModal() {
    const weatherOptions = content.querySelector('#weather-options');
    const weatherShowWeatherToggle = content.querySelector('#weatherShowWeather');
    const weatherShowTimeToggle = content.querySelector('#weatherShowTime');
-   const weatherAllowCountryOverrideToggle = content.querySelector('#weatherAllowCountryOverride');
-
    const updateWeatherOptionsUI = () => {
      try {
        const enabled = weatherEnabledToggle?.checked === true;
        if (weatherOptions) weatherOptions.style.display = enabled ? 'block' : 'none';
        if (weatherShowWeatherToggle) weatherShowWeatherToggle.disabled = !enabled;
        if (weatherShowTimeToggle) weatherShowTimeToggle.disabled = !enabled;
-       if (weatherAllowCountryOverrideToggle) weatherAllowCountryOverrideToggle.disabled = !enabled;
      } catch (e) {
        // ignore
      }
@@ -1289,8 +1277,7 @@ function legacyShowSettingsModal() {
         quickChatEnabled: document.getElementById('quickChatEnabled')?.checked === true,
         weatherEnabled: document.getElementById('weatherEnabled')?.checked !== false,
         weatherShowWeather: document.getElementById('weatherShowWeather')?.checked !== false,
-        weatherShowTime: document.getElementById('weatherShowTime')?.checked !== false,
-        weatherAllowCountryOverride: document.getElementById('weatherAllowCountryOverride')?.checked === true
+        weatherShowTime: document.getElementById('weatherShowTime')?.checked !== false
       };
 
       // 根据所选服务获取API Keys
@@ -1432,8 +1419,7 @@ function legacyShowSettingsModal() {
         'quickChatUnlocked',
         'weatherEnabled',
         'weatherShowWeather',
-        'weatherShowTime',
-        'weatherAllowCountryOverride'
+        'weatherShowTime'
       ], (data) => {
         // 检查chrome API是否可用
         if (chrome.runtime.lastError) {
@@ -1620,7 +1606,6 @@ function legacyShowSettingsModal() {
            const enabled = data.weatherEnabled !== false;
            const showWeather = data.weatherShowWeather !== false;
            const showTime = data.weatherShowTime !== false;
-           const allowOverride = data.weatherAllowCountryOverride === true;
 
            const weatherEnabledEl = document.getElementById('weatherEnabled');
            if (weatherEnabledEl) weatherEnabledEl.checked = enabled;
@@ -1630,9 +1615,6 @@ function legacyShowSettingsModal() {
 
            const weatherShowTimeEl = document.getElementById('weatherShowTime');
            if (weatherShowTimeEl) weatherShowTimeEl.checked = showTime;
-
-           const weatherAllowOverrideEl = document.getElementById('weatherAllowCountryOverride');
-           if (weatherAllowOverrideEl) weatherAllowOverrideEl.checked = allowOverride;
 
            updateWeatherOptionsUI();
          } catch (e) {

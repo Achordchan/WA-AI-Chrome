@@ -784,7 +784,7 @@
           const langPrefs = await getStoredChatLanguagePreferences();
 
           const payload = {
-            version: '3.2.2',
+            version: '3.2.3',
             exportedAt: new Date().toISOString(),
             weatherCountryCorrections: weatherCorrections || {},
             weatherCountryResolved: weatherResolved || {},
@@ -1516,7 +1516,6 @@
       const weatherOptions = content.querySelector('#weather-options');
       const weatherShowWeatherToggle = content.querySelector('#weatherShowWeather');
       const weatherShowTimeToggle = content.querySelector('#weatherShowTime');
-      const weatherAllowCountryOverrideToggle = content.querySelector('#weatherAllowCountryOverride');
       const weatherCachePresetSelect = content.querySelector('#weatherCachePreset');
       const weatherCacheCustomWrap = content.querySelector('#weatherCacheCustomWrap');
       const weatherCacheMinutesInput = content.querySelector('#weatherCacheMinutes');
@@ -1529,7 +1528,6 @@
           if (weatherOptions) weatherOptions.style.display = enabled ? 'block' : 'none';
           if (weatherShowWeatherToggle) weatherShowWeatherToggle.disabled = !enabled;
           if (weatherShowTimeToggle) weatherShowTimeToggle.disabled = !enabled;
-          if (weatherAllowCountryOverrideToggle) weatherAllowCountryOverrideToggle.disabled = !enabled;
           if (weatherCachePresetSelect) weatherCachePresetSelect.disabled = !enabled;
           if (weatherCacheMinutesInput) weatherCacheMinutesInput.disabled = !enabled;
           if (weatherCacheAutoRenewToggle) weatherCacheAutoRenewToggle.disabled = !enabled;
@@ -1712,7 +1710,6 @@
             weatherEnabled: document.getElementById('weatherEnabled')?.checked !== false,
             weatherShowWeather: document.getElementById('weatherShowWeather')?.checked !== false,
             weatherShowTime: document.getElementById('weatherShowTime')?.checked !== false,
-            weatherAllowCountryOverride: document.getElementById('weatherAllowCountryOverride')?.checked === true,
             weatherCacheMinutes,
             weatherCacheAutoRenew: document.getElementById('weatherCacheAutoRenew')?.checked !== false,
             weatherAutoRenewEvictDays: (() => {
@@ -1841,7 +1838,6 @@
               'weatherEnabled',
               'weatherShowWeather',
               'weatherShowTime',
-              'weatherAllowCountryOverride',
               'weatherCacheMinutes',
               'weatherCacheAutoRenew',
               'weatherAutoRenewEvictDays'
@@ -2050,7 +2046,6 @@
                 const enabled = data.weatherEnabled !== false;
                 const showWeather = data.weatherShowWeather !== false;
                 const showTime = data.weatherShowTime !== false;
-                const allowOverride = data.weatherAllowCountryOverride === true;
                 const cacheAutoRenew = data.weatherCacheAutoRenew !== false;
                 let evictDays = parseInt(String(data.weatherAutoRenewEvictDays ?? ''), 10);
                 if (!Number.isFinite(evictDays) || evictDays < 0) evictDays = 10;
@@ -2067,9 +2062,6 @@
 
                 const weatherShowTimeEl = document.getElementById('weatherShowTime');
                 if (weatherShowTimeEl) weatherShowTimeEl.checked = showTime;
-
-                const weatherAllowOverrideEl = document.getElementById('weatherAllowCountryOverride');
-                if (weatherAllowOverrideEl) weatherAllowOverrideEl.checked = allowOverride;
 
                 const weatherCacheAutoRenewEl = document.getElementById('weatherCacheAutoRenew');
                 if (weatherCacheAutoRenewEl) weatherCacheAutoRenewEl.checked = cacheAutoRenew;

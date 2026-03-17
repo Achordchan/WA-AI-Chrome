@@ -60,9 +60,9 @@
         </div>
       </div>
       <div class="translate-popup-footer">
-        <button class="translate-btn">翻译</button>
-        <button class="verify-btn" style="display: none">验证翻译</button>
-        <button class="apply-btn" style="display: none">应用</button>
+        <button class="translate-popup-translate-btn">翻译</button>
+        <button class="translate-popup-verify-btn" style="display: none">验证翻译</button>
+        <button class="translate-popup-apply-btn" style="display: none">应用</button>
       </div>
     </div>
   `;
@@ -165,9 +165,9 @@
       };
 
       let currentTranslation = '';
-      const translateBtn = popup.querySelector('.translate-btn');
-      const verifyBtn = popup.querySelector('.verify-btn');
-      const applyBtn = popup.querySelector('.apply-btn');
+      const translateBtn = popup.querySelector('.translate-popup-translate-btn');
+      const verifyBtn = popup.querySelector('.translate-popup-verify-btn');
+      const applyBtn = popup.querySelector('.translate-popup-apply-btn');
       const resultDiv = popup.querySelector('.translate-result');
       const verifyDiv = popup.querySelector('.translate-verify');
       const verifyText = popup.querySelector('.translate-verify-text');
@@ -301,17 +301,48 @@
       const chatWindow = doc.getElementById('main') || inputBox.closest('.app-wrapper-web');
       const rememberedLang = typeof getRememberedLanguage === 'function' ? await getRememberedLanguage(chatWindow) : 'en';
 
-      const hasSourceText = (text || '').trim().length > 0;
+      const normalizeTextForCompare = (value) =>
+        String(value || '')
+          .replace(/\u00A0/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+
+      const currentInputText = String(inputBox?.textContent || '').trim();
+      let modalSourceText = String(text || '').trim();
+      let currentTranslationText = '';
+
+      try {
+        if (typeof getQuickSendState === 'function') {
+          const quickSendState = getQuickSendState(inputBox);
+          const currentNorm = normalizeTextForCompare(currentInputText);
+          const appliedNorm = normalizeTextForCompare(quickSendState?.appliedText);
+          if (
+            quickSendState?.stage === 'translated_ready' &&
+            quickSendState?.sourceTextAtTranslate &&
+            currentNorm &&
+            appliedNorm &&
+            currentNorm === appliedNorm
+          ) {
+            modalSourceText = String(quickSendState.sourceTextAtTranslate || '').trim() || modalSourceText;
+            currentTranslationText = currentInputText;
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+
+      const hasSourceText = modalSourceText.length > 0;
       const hideSource = options && options.hideSource === true;
       const showSource = hasSourceText && !hideSource;
       const showVerify = showSource;
       const languageOnlyMode = !hasSourceText;
+      const hasCurrentTranslation = currentTranslationText.length > 0;
 
       const sourceSectionHtml = showSource
         ? `
         <div class="source-text">
           <div class="text-label">原文</div>
-          <div class="text-content">${text}</div>
+          <div class="text-content">${modalSourceText}</div>
         </div>
       `
         : '';
@@ -325,7 +356,7 @@
       `
         : '';
 
-      const verifyButtonHtml = showVerify ? `<button class="verify-btn" style="display: none">验证</button>` : '';
+      const verifyButtonHtml = showVerify ? `<button class="modal-verify-btn" style="display: none">验证</button>` : '';
 
       const contactKey = typeof getChatLanguagePreferenceKey === 'function' ? getChatLanguagePreferenceKey(chatWindow) : '';
       const contactNumber = contactKey && contactKey.startsWith('phone:') ? contactKey.replace(/^phone:/, '') : '';
@@ -353,27 +384,43 @@
         ${sourceSectionHtml}
         <div class="target-lang">
           <div class="text-label">目标语言</div>
-          <div class="lang-combobox" role="combobox" aria-expanded="false">
-            <input class="lang-combobox-input" type="text" autocomplete="off" spellcheck="false" placeholder="选择目标语言（支持中文 / English / 代码 / 拼音缩写）" />
-            <div class="lang-combobox-dropdown" style="display:none"></div>
+          <button class="lang-picker-trigger" type="button">选择目标语言</button>
+        </div>
+        <div class="quick-send-setting">
+          <div class="quick-send-label">快捷翻译</div>
+          <label class="quick-send-switch">
+            <input type="checkbox" class="quick-send-toggle">
+            <span class="quick-send-slider"></span>
+          </label>
+        </div>
+        <div class="wa-lang-picker-overlay" style="display:none;">
+          <div class="wa-lang-picker-panel" role="dialog" aria-modal="true">
+            <div class="wa-lang-picker-header">
+              <div class="wa-lang-picker-title">选择目标语言</div>
+              <button class="wa-lang-picker-close" type="button" aria-label="关闭">×</button>
+            </div>
+            <div class="wa-lang-picker-search-wrap">
+              <input class="wa-lang-picker-search" type="text" placeholder="搜索：中文 / English / 语言代码 / 拼音首字母" />
+            </div>
+            <div class="wa-lang-picker-list" role="listbox"></div>
           </div>
         </div>
         ${
           languageOnlyMode
             ? ''
             : `
-        <div class="translation-result">
+        <div class="translation-result" style="${hasCurrentTranslation ? '' : 'display:none'}">
           <div class="text-label">翻译结果</div>
-          <div class="result-content"></div>
+          <div class="result-content">${currentTranslationText}</div>
         </div>
         ${verifySectionHtml}
         `
         }
       </div>
       <div class="translate-modal-footer">
-        ${languageOnlyMode ? `<button class="save-lang-btn">保存</button>` : `<button class="translate-btn">翻译</button>`}
+        ${languageOnlyMode ? `<button class="save-lang-btn">保存</button>` : `<button class="modal-translate-btn">翻译</button>`}
         ${languageOnlyMode ? '' : verifyButtonHtml}
-        ${languageOnlyMode ? '' : `<button class="apply-btn" disabled>应用</button>`}
+        ${languageOnlyMode ? '' : `<button class="modal-apply-btn" disabled>应用</button>`}
       </div>
     </div>
   `;
@@ -470,87 +517,205 @@
       margin-bottom: 12px;
     }
 
-    .lang-combobox {
-      position: relative;
-    }
-
-    .lang-combobox-input {
-      width: 100%;
-      padding: 8px 34px 8px 10px;
+    .quick-send-setting {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      padding: 8px 10px;
       border: 1px solid #e9edef;
       border-radius: 8px;
+      background: #f8f9fa;
+    }
+
+    .quick-send-label {
+      color: #41525d;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .quick-send-switch {
+      position: relative;
+      display: inline-block;
+      width: 36px;
+      height: 20px;
+      flex-shrink: 0;
+    }
+
+    .quick-send-toggle {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .quick-send-slider {
+      position: absolute;
+      inset: 0;
+      cursor: pointer;
+      background: #ccd0d5;
+      border-radius: 999px;
+      transition: 0.2s;
+    }
+
+    .quick-send-slider:before {
+      content: '';
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      left: 2px;
+      top: 2px;
+      background: #fff;
+      border-radius: 50%;
+      transition: 0.2s;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+
+    .quick-send-toggle:checked + .quick-send-slider {
+      background: #00a884;
+    }
+
+    .quick-send-toggle:checked + .quick-send-slider:before {
+      transform: translateX(16px);
+    }
+
+    .lang-picker-trigger {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #e9edef;
+      border-radius: 12px;
       color: #41525d;
       font-size: 13px;
       background: white;
       box-sizing: border-box;
-      transition: box-shadow 0.2s, border-color 0.2s;
+      transition: box-shadow 0.2s, border-color 0.2s, background 0.2s;
+      text-align: left;
+      cursor: pointer;
     }
 
-    .lang-combobox-input:hover {
+    .lang-picker-trigger:hover {
       border-color: rgba(0, 168, 132, 0.65);
+      background: rgba(0, 168, 132, 0.03);
     }
 
-    .lang-combobox-input:focus {
+    .lang-picker-trigger:focus {
       outline: none;
       border-color: #00a884;
       box-shadow: 0 0 0 2px rgba(0, 168, 132, 0.12);
     }
 
-    .lang-combobox::after {
-      content: '';
+    .wa-lang-picker-overlay {
       position: absolute;
-      right: 10px;
-      top: 50%;
-      width: 12px;
-      height: 12px;
-      transform: translateY(-50%);
-      opacity: 0.7;
-      background: no-repeat center / contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 20 20'%3E%3Cpath fill='%23667781' d='M5.3 7.3a1 1 0 0 1 1.4 0L10 10.6l3.3-3.3a1 1 0 1 1 1.4 1.4l-4 4a1 1 0 0 1-1.4 0l-4-4a1 1 0 0 1 0-1.4'/%3E%3C/svg%3E");
-      pointer-events: none;
-    }
-
-    .lang-combobox-dropdown {
-      position: absolute;
-      left: 0;
-      right: 0;
-      top: calc(100% + 6px);
-      background: white;
-      border: 1px solid #e9edef;
-      border-radius: 10px;
-      box-shadow: 0 12px 28px rgba(11, 20, 26, 0.18);
-      overflow: hidden;
-      z-index: 1000000;
-      max-height: 240px;
-      overflow-y: auto;
-    }
-
-    .lang-combobox-item {
-      padding: 10px 10px;
-      font-size: 13px;
-      color: #41525d;
-      cursor: pointer;
+      inset: 0;
+      z-index: 1000001;
       display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(11, 20, 26, 0.18);
+      backdrop-filter: blur(2px);
+      border-radius: 8px;
+    }
+
+    .wa-lang-picker-overlay, .wa-lang-picker-overlay * {
+      box-sizing: border-box;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    .wa-lang-picker-panel {
+      width: min(480px, calc(100% - 24px));
+      max-height: min(560px, calc(100% - 24px));
+      background: white;
+      border: 1px solid rgba(17, 24, 39, 0.08);
+      border-radius: 14px;
+      box-shadow: 0 18px 48px rgba(11, 20, 26, 0.18);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .wa-lang-picker-header {
+      display: flex;
+      align-items: center;
       justify-content: space-between;
+      padding: 12px 12px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    }
+
+    .wa-lang-picker-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: rgba(17, 24, 39, 0.92);
+    }
+
+    .wa-lang-picker-close {
+      width: 30px;
+      height: 30px;
+      border-radius: 999px;
+      border: 1px solid rgba(0, 0, 0, 0.10);
+      background: rgba(255, 255, 255, 0.9);
+      cursor: pointer;
+      font-size: 18px;
+      line-height: 26px;
+      color: rgba(17, 24, 39, 0.70);
+    }
+
+    .wa-lang-picker-search-wrap {
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    }
+
+    .wa-lang-picker-search {
+      width: 100%;
+      border: 1px solid rgba(0, 0, 0, 0.10);
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 13px;
+      outline: none;
+    }
+
+    .wa-lang-picker-list {
+      padding: 10px;
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .wa-lang-picker-item {
+      width: 100%;
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: grid;
+      grid-template-columns: 1fr auto;
       gap: 10px;
+      align-items: center;
+      cursor: pointer;
+      text-align: left;
     }
 
-    .lang-combobox-item .muted {
-      color: #8696a0;
+    .wa-lang-picker-item:hover {
+      border-color: rgba(0, 168, 132, 0.40);
+      box-shadow: 0 0 0 3px rgba(0, 168, 132, 0.12);
+    }
+
+    .wa-lang-picker-name {
+      font-size: 13px;
+      color: rgba(17, 24, 39, 0.88);
+    }
+
+    .wa-lang-picker-code {
       font-size: 12px;
+      font-weight: 700;
+      color: rgba(0, 0, 0, 0.42);
     }
 
-    .lang-combobox-item:hover {
-      background: rgba(0, 168, 132, 0.08);
-    }
-
-    .lang-combobox-item.active {
-      background: rgba(0, 168, 132, 0.14);
-    }
-
-    .lang-combobox-empty {
-      padding: 10px 10px;
+    .wa-lang-picker-empty {
+      padding: 10px;
       font-size: 12px;
-      color: #8696a0;
+      color: rgba(17, 24, 39, 0.60);
     }
 
     .translate-modal-footer {
@@ -571,17 +736,17 @@
       transition: all 0.2s;
     }
 
-    .translate-btn {
+    .modal-translate-btn {
       background: #00a884;
       color: white;
     }
 
-    .apply-btn {
+    .modal-apply-btn {
       background: #8696a0;
       color: white;
     }
 
-    .apply-btn:disabled {
+    .modal-apply-btn:disabled {
       background: #e9edef;
       color: #8696a0;
       cursor: not-allowed;
@@ -623,13 +788,13 @@
       border: 1px solid #e9edef;
     }
 
-    .verify-btn {
+    .modal-verify-btn {
       background: #f0f2f5;
       color: #41525d;
       border: 1px solid #e9edef;
     }
 
-    .verify-btn:hover {
+    .modal-verify-btn:hover {
       background: #e9edef;
     }
 
@@ -662,20 +827,23 @@
       ensureStyleInjected(doc, 'waap-input-translate-modal-style', styles);
 
       const closeBtn = modal.querySelector('.modal-close');
-      const translateBtn = modal.querySelector('.translate-btn');
-      const verifyBtn = modal.querySelector('.verify-btn');
-      const applyBtn = modal.querySelector('.apply-btn');
+      const translateBtn = modal.querySelector('.modal-translate-btn');
+      const verifyBtn = modal.querySelector('.modal-verify-btn');
+      const applyBtn = modal.querySelector('.modal-apply-btn');
       const saveLangBtn = modal.querySelector('.save-lang-btn');
+      const translationResult = modal.querySelector('.translation-result');
       const resultContent = modal.querySelector('.result-content');
-      const langCombo = modal.querySelector('.lang-combobox');
-      const langInput = modal.querySelector('.lang-combobox-input');
-      const langDropdown = modal.querySelector('.lang-combobox-dropdown');
+      const langTrigger = modal.querySelector('.lang-picker-trigger');
+      const langPickerOverlay = modal.querySelector('.wa-lang-picker-overlay');
+      const langPickerClose = modal.querySelector('.wa-lang-picker-close');
+      const langPickerSearch = modal.querySelector('.wa-lang-picker-search');
+      const langPickerList = modal.querySelector('.wa-lang-picker-list');
+      const quickSendToggle = modal.querySelector('.quick-send-toggle');
       const verifyResult = modal.querySelector('.verify-result');
       const verifyContent = modal.querySelector('.verify-content');
 
       let selectedLang = rememberedLang || 'en';
-      let filteredList = [];
-      let activeIndex = -1;
+      let quickSendStorageListener = null;
 
       const getLangLabel = (code) => {
         const item = Array.isArray(LANGUAGE_OPTIONS) ? LANGUAGE_OPTIONS.find((l) => l.code === code) : null;
@@ -685,184 +853,138 @@
 
       const setSelectedLang = (code) => {
         selectedLang = code;
-        if (langInput) langInput.value = getLangLabel(code);
+        if (langTrigger) langTrigger.textContent = getLangLabel(code);
         if (!languageOnlyMode && typeof rememberLanguageChoice === 'function') {
           rememberLanguageChoice(chatWindow, code);
         }
       };
 
-      const openDropdown = () => {
-        if (!langDropdown || !langCombo) return;
-        langDropdown.style.display = 'block';
-        langCombo.setAttribute('aria-expanded', 'true');
+      const openPicker = () => {
+        if (!langPickerOverlay) return;
+        langPickerOverlay.style.display = 'flex';
+        if (langPickerSearch) {
+          langPickerSearch.value = '';
+          renderPicker('');
+          try {
+            langPickerSearch.focus();
+          } catch (e) {
+            // ignore
+          }
+        }
       };
 
-      const closeDropdown = () => {
-        if (!langDropdown || !langCombo) return;
-        langDropdown.style.display = 'none';
-        langCombo.setAttribute('aria-expanded', 'false');
+      const closePicker = () => {
+        if (!langPickerOverlay) return;
+        langPickerOverlay.style.display = 'none';
       };
 
-      const renderDropdown = (filterText = '') => {
-        if (!langDropdown) return;
+      const renderPicker = (filterText = '') => {
+        if (!langPickerList) return;
         const list = Array.isArray(LANGUAGE_OPTIONS)
           ? LANGUAGE_OPTIONS.filter((l) => (typeof langMatchesQuery === 'function' ? langMatchesQuery(l, filterText) : true))
           : [];
-        filteredList = list;
 
         if (!list.length) {
-          activeIndex = -1;
-          langDropdown.innerHTML = '<div class="lang-combobox-empty">无匹配语言</div>';
+          langPickerList.innerHTML = '<div class="wa-lang-picker-empty">无匹配语言</div>';
           return;
         }
 
-        const selectedIdx = list.findIndex((l) => l.code === selectedLang);
-        activeIndex = selectedIdx >= 0 ? selectedIdx : 0;
-
-        langDropdown.innerHTML = list
-          .map((l, idx) => {
-            const active = idx === activeIndex ? ' active' : '';
-            return `<div class="lang-combobox-item${active}" data-code="${l.code}"><span>${l.zh}${l.en ? ` (${l.en})` : ''}</span><span class="muted">${l.code}</span></div>`;
+        langPickerList.innerHTML = list
+          .map((l) => {
+            return `<button type="button" class="wa-lang-picker-item" data-code="${l.code}">
+              <span class="wa-lang-picker-name">${l.zh}${l.en ? ` (${l.en})` : ''}</span>
+              <span class="wa-lang-picker-code">${l.code}</span>
+            </button>`;
           })
           .join('');
       };
 
-      const ensureActiveVisible = () => {
-        if (!langDropdown) return;
-        const activeEl = langDropdown.querySelector('.lang-combobox-item.active');
-        if (!activeEl) return;
-        const top = activeEl.offsetTop;
-        const bottom = top + activeEl.offsetHeight;
-        if (top < langDropdown.scrollTop) {
-          langDropdown.scrollTop = top;
-        } else if (bottom > langDropdown.scrollTop + langDropdown.clientHeight) {
-          langDropdown.scrollTop = bottom - langDropdown.clientHeight;
-        }
-      };
-
-      const highlightActive = () => {
-        if (!langDropdown) return;
-        const items = Array.from(langDropdown.querySelectorAll('.lang-combobox-item'));
-        items.forEach((el, idx) => {
-          if (idx === activeIndex) el.classList.add('active');
-          else el.classList.remove('active');
-        });
-        ensureActiveVisible();
-      };
-
-      const pickActive = () => {
-        if (activeIndex < 0 || activeIndex >= filteredList.length) return;
-        setSelectedLang(filteredList[activeIndex].code);
-        closeDropdown();
-      };
-
-      let blurCloseTimer = null;
-      let dropdownPointerDown = false;
-
       const onDocMouseDown = (e) => {
         if (!modal.contains(e.target)) {
-          closeDropdown();
-          if (langInput) langInput.value = getLangLabel(selectedLang);
+          closePicker();
         }
       };
 
       doc.addEventListener('mousedown', onDocMouseDown, true);
 
+      try {
+        const chromeRef = window.chrome;
+        if (chromeRef?.storage?.sync && quickSendToggle) {
+          chromeRef.storage.sync.get(['inputQuickTranslateSend'], (data) => {
+            quickSendToggle.checked = data.inputQuickTranslateSend === true;
+          });
+
+          quickSendToggle.addEventListener('change', () => {
+            try {
+              chromeRef.storage.sync.set({
+                inputQuickTranslateSend: quickSendToggle.checked === true
+              });
+            } catch (e) {
+              // ignore
+            }
+          });
+
+          if (chromeRef.storage?.onChanged) {
+            quickSendStorageListener = (changes, areaName) => {
+              if (areaName !== 'sync' || !changes.inputQuickTranslateSend) return;
+              quickSendToggle.checked = changes.inputQuickTranslateSend.newValue === true;
+            };
+            chromeRef.storage.onChanged.addListener(quickSendStorageListener);
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+
       closeBtn.onclick = () => {
         doc.removeEventListener('mousedown', onDocMouseDown, true);
+        try {
+          if (quickSendStorageListener && window.chrome?.storage?.onChanged?.removeListener) {
+            window.chrome.storage.onChanged.removeListener(quickSendStorageListener);
+          }
+        } catch (e) {
+          // ignore
+        }
         modal.remove();
       };
 
       setSelectedLang(selectedLang);
-      renderDropdown('');
+      renderPicker('');
 
-      if (langInput) {
-        try {
-          langInput.setAttribute('name', 'waai_target_language');
-          langInput.setAttribute('autocomplete', 'off');
-          langInput.setAttribute('autocapitalize', 'off');
-          langInput.setAttribute('autocorrect', 'off');
-          langInput.setAttribute('spellcheck', 'false');
-          langInput.setAttribute('data-lpignore', 'true');
-          langInput.setAttribute('data-1p-ignore', 'true');
-          langInput.setAttribute('data-bwignore', 'true');
-          langInput.setAttribute('data-form-type', 'other');
-        } catch (e) {
-          // ignore
-        }
-
-        langInput.addEventListener('focus', () => {
-          if (blurCloseTimer) {
-            clearTimeout(blurCloseTimer);
-            blurCloseTimer = null;
-          }
-          openDropdown();
-          const q = langInput.value === getLangLabel(selectedLang) ? '' : langInput.value;
-          renderDropdown(q);
-          langInput.select();
+      if (langTrigger) {
+        langTrigger.addEventListener('click', () => {
+          renderPicker('');
+          openPicker();
         });
+      }
 
-        langInput.addEventListener('input', (e) => {
-          openDropdown();
-          renderDropdown(e.target.value);
+      if (langPickerClose) {
+        langPickerClose.addEventListener('click', closePicker);
+      }
+
+      if (langPickerOverlay) {
+        langPickerOverlay.addEventListener('click', (e) => {
+          if (e.target === langPickerOverlay) closePicker();
         });
+      }
 
-        langInput.addEventListener('blur', () => {
-          if (blurCloseTimer) clearTimeout(blurCloseTimer);
-          blurCloseTimer = setTimeoutFn(() => {
-            if (dropdownPointerDown) return;
-            closeDropdown();
-            langInput.value = getLangLabel(selectedLang);
-          }, 140);
+      if (langPickerSearch) {
+        langPickerSearch.addEventListener('input', (e) => {
+          renderPicker(e.target.value);
         });
-
-        langInput.addEventListener('keydown', (e) => {
-          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-            e.preventDefault();
-            openDropdown();
-            if (!filteredList.length) return;
-            if (e.key === 'ArrowDown') activeIndex = Math.min(filteredList.length - 1, activeIndex + 1);
-            if (e.key === 'ArrowUp') activeIndex = Math.max(0, activeIndex - 1);
-            highlightActive();
-            return;
-          }
-          if (e.key === 'Enter') {
-            if (langDropdown && langDropdown.style.display !== 'none') {
-              e.preventDefault();
-              pickActive();
-            }
-            return;
-          }
+        langPickerSearch.addEventListener('keydown', (e) => {
           if (e.key === 'Escape') {
-            closeDropdown();
-            langInput.value = getLangLabel(selectedLang);
-            return;
-          }
-          if (e.key === 'Tab') {
-            closeDropdown();
-            langInput.value = getLangLabel(selectedLang);
-            return;
+            closePicker();
           }
         });
       }
 
-      if (langDropdown) {
-        langDropdown.addEventListener(
-          'mousedown',
-          () => {
-            dropdownPointerDown = true;
-            setTimeoutFn(() => {
-              dropdownPointerDown = false;
-            }, 0);
-          },
-          true
-        );
-        langDropdown.addEventListener('mousedown', (e) => {
-          const item = e.target.closest('.lang-combobox-item');
+      if (langPickerList) {
+        langPickerList.addEventListener('click', (e) => {
+          const item = e.target.closest('.wa-lang-picker-item');
           if (!item) return;
-          e.preventDefault();
           setSelectedLang(item.getAttribute('data-code'));
-          closeDropdown();
+          closePicker();
         });
       }
 
@@ -874,6 +996,13 @@
             }
             toast('已保存', 'success', 900);
             doc.removeEventListener('mousedown', onDocMouseDown, true);
+            try {
+              if (quickSendStorageListener && window.chrome?.storage?.onChanged?.removeListener) {
+                window.chrome.storage.onChanged.removeListener(quickSendStorageListener);
+              }
+            } catch (e) {
+              // ignore
+            }
             modal.remove();
           } catch (e) {
             toastError('保存失败');
@@ -888,14 +1017,14 @@
             const targetLang = selectedLang;
 
             const liveText = (inputBox?.textContent || '').trim();
-            const sourceText = liveText || (text || '').trim();
-            if (!sourceText) {
+            const requestSourceText = currentTranslationText ? modalSourceText : liveText || modalSourceText;
+            if (!requestSourceText) {
               toast('请输入要翻译的内容', 'info', 1200);
               return;
             }
 
             if (typeof modalTranslation !== 'function') throw new Error('翻译函数不可用');
-            const translation = await modalTranslation(sourceText, targetLang, 'normal');
+            const translation = await modalTranslation(requestSourceText, targetLang, 'normal');
 
             if (translation && typeof translation === 'object') {
               if (translation.hasThinking) {
@@ -916,6 +1045,7 @@
               resultContent.textContent = translation;
             }
 
+            if (translationResult) translationResult.style.display = 'block';
             if (verifyBtn) verifyBtn.style.display = 'inline-block';
             applyBtn.disabled = false;
             if (verifyResult) verifyResult.style.display = 'none';
@@ -924,6 +1054,7 @@
               rememberLanguageChoice(chatWindow, targetLang);
             }
           } catch (error) {
+            if (translationResult) translationResult.style.display = 'block';
             resultContent.textContent = '翻译失败: ' + (error.message || '未知错误');
             toastError('翻译失败: ' + (error.message || '未知错误'), 'MODAL_TRANSLATION_ERROR');
           } finally {
@@ -1013,6 +1144,13 @@
               // ignore
             }
 
+            try {
+              if (quickSendStorageListener && window.chrome?.storage?.onChanged?.removeListener) {
+                window.chrome.storage.onChanged.removeListener(quickSendStorageListener);
+              }
+            } catch (e) {
+              // ignore
+            }
             modal.remove();
           } catch (error) {
             alert('应用翻译结果失败: ' + error.message);

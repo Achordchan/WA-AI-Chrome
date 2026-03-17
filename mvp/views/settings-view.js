@@ -1207,17 +1207,6 @@
             </label>
           </div>
 
-          <div class="toggle-switch-container" style="margin-top: 12px;">
-            <label for="weatherAllowCountryOverride" class="toggle-label">允许手动选择对方国家</label>
-            <span class="wa-info" data-tip="手动选国家：保存设置 → 切换一次聊天窗口 → 点击国家名旁的“选择国家”即可修改">i</span>
-            <label class="toggle-switch">
-              <input type="checkbox" id="weatherAllowCountryOverride" class="toggle-input">
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-          <p style="margin-top: 6px; font-size: 12px; color: #666;">开启后，点击国家名称即可手动修改国家（按手机号保存到本地）。</p>
-
-          
         </div>
       </div>
 

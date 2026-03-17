@@ -17,17 +17,55 @@
   const INPUT_TRANSLATE_THROTTLE_MS = 800;
   let lastInputTranslateAttemptAt = 0;
 
+  function getActiveInputTranslateTarget(doc) {
+    const previewInput = Array.from(
+      doc.querySelectorAll('div[contenteditable="true"][role="textbox"]')
+    ).find((el) => /^(输入消息|add a caption|caption)$/i.test(el.getAttribute('aria-label') || ''));
+    if (previewInput) {
+      const previewScope = previewInput.closest('.copyable-area') || doc;
+      const emojiButton = previewScope.querySelector(
+        '[title="打开表情符号面板"], [aria-label="打开表情符号面板"]'
+      );
+      return {
+        kind: 'preview',
+        inputBox: previewInput,
+        container: previewInput.closest('.lexical-rich-text-input'),
+        mountParent: emojiButton?.parentNode || previewInput.closest('.lexical-rich-text-input')?.parentNode,
+        beforeNode: emojiButton || previewInput.closest('.lexical-rich-text-input')?.nextSibling
+      };
+    }
+
+    const footer = doc.querySelector('footer._ak1i');
+    if (!footer) return null;
+
+    const inputBox = footer.querySelector('.lexical-rich-text-input div[contenteditable="true"]');
+    if (!inputBox) return null;
+
+    return {
+      kind: 'chat',
+      inputBox,
+      container: inputBox.closest('.lexical-rich-text-input'),
+      mountParent: inputBox.closest('.lexical-rich-text-input')?.parentNode,
+      beforeNode: inputBox.closest('.lexical-rich-text-input')?.nextSibling
+    };
+  }
+
+  function getMountedTranslateButton(target) {
+    try {
+      if (!target?.mountParent || !target?.kind) return null;
+      return target.mountParent.querySelector(`.input-translate-btn[data-waai-target="${target.kind}"]`);
+    } catch (e) {
+      return null;
+    }
+  }
+
   function isChatWindowActiveForInputTranslate(deps = {}) {
     const doc = deps.document || window.document;
 
     const main = doc.getElementById('main');
     if (!main) return false;
 
-    if (doc.querySelector('footer._ak1i')) return true;
-
-    if (main.querySelector('.lexical-rich-text-input div[contenteditable="true"]')) return true;
-
-    return false;
+    return !!getActiveInputTranslateTarget(doc) || !!main.querySelector('.lexical-rich-text-input div[contenteditable="true"]');
   }
 
   function createTranslateButton(deps = {}) {
@@ -41,14 +79,10 @@
 
         return view.createTranslateButton({
           document: doc,
-          onClick: async () => {
+          onClick: async (_event, anchorButton) => {
             try {
-              const footer = doc.querySelector('footer._ak1i');
-              if (!footer) return;
-
-              const inputBox = footer.querySelector(
-                '.lexical-rich-text-input div[contenteditable="true"]'
-              );
+              const target = getActiveInputTranslateTarget(doc);
+              const inputBox = target?.inputBox;
               if (!inputBox) return;
 
               const text = (inputBox.textContent || '').trim();
@@ -58,8 +92,11 @@
               if (!modal) return;
 
               try {
-                const btn = doc.querySelector('.input-translate-btn');
-                btn?.parentElement && btn.parentElement.appendChild(modal);
+                const host =
+                  (anchorButton?.parentElement?.classList?.contains('input-translate-btn')
+                    ? anchorButton.parentElement
+                    : null) || getMountedTranslateButton(target);
+                host && host.appendChild(modal);
               } catch (e3) {
                 // ignore
               }
@@ -121,10 +158,8 @@
       }
 
       try {
-        const footer = doc.querySelector('footer._ak1i');
-        if (!footer) return;
-
-        const inputBox = footer.querySelector('.lexical-rich-text-input div[contenteditable="true"]');
+        const target = getActiveInputTranslateTarget(doc);
+        const inputBox = target?.inputBox;
         if (!inputBox) return;
 
         const text = (inputBox.textContent || '').trim();
@@ -134,7 +169,10 @@
         if (!modal) return;
 
         try {
-          button.parentElement && button.parentElement.appendChild(modal);
+          const host =
+            (button.parentElement?.classList?.contains('input-translate-btn') ? button.parentElement : null) ||
+            button;
+          host.appendChild(modal);
         } catch (e3) {
           // ignore
         }
@@ -177,18 +215,13 @@
     }
     lastInputTranslateAttemptAt = nowMs;
 
-    if (doc.querySelector('.input-translate-btn')) {
-      return true;
-    }
-
-    const footer = doc.querySelector('footer._ak1i');
-    if (!footer) {
-      return handleRetry(deps, 'footer', retryCount, maxRetries);
-    }
-
-    const inputBox = footer.querySelector('.lexical-rich-text-input div[contenteditable="true"]');
-    if (!inputBox) {
+    const target = getActiveInputTranslateTarget(doc);
+    if (!target?.inputBox || !target?.container || !target?.mountParent) {
       return handleRetry(deps, 'input box', retryCount, maxRetries);
+    }
+
+    if (getMountedTranslateButton(target)) {
+      return true;
     }
 
     try {
@@ -196,14 +229,13 @@
         document: doc,
         createTranslateModal: deps.createTranslateModal
       });
-      translateBtn.classList.add('input-translate-btn');
+      const anchorHost = doc.createElement('div');
+      anchorHost.className = 'input-translate-btn';
+      anchorHost.dataset.waaiTarget = target.kind;
+      anchorHost.style.cssText = 'position: relative; display: flex; align-items: center; overflow: visible;';
+      anchorHost.appendChild(translateBtn);
 
-      const container = inputBox.closest('.lexical-rich-text-input');
-      if (!container) {
-        return handleRetry(deps, 'container', retryCount, maxRetries);
-      }
-
-      container.parentNode.insertBefore(translateBtn, container.nextSibling);
+      target.mountParent.insertBefore(anchorHost, target.beforeNode || null);
       return true;
     } catch (error) {
       return handleRetry(deps, 'error', retryCount, maxRetries);
@@ -220,11 +252,7 @@
     try {
       const observer = new MutationObserverRef((mutations) => {
         for (const mutation of mutations) {
-          if (
-            mutation.type === 'childList' &&
-            mutation.addedNodes.length > 0 &&
-            !doc.querySelector('.input-translate-btn')
-          ) {
+          if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
             if (!isChatWindowActiveForInputTranslate({ document: doc })) {
               continue;
             }

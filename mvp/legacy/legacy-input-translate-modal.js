@@ -60,9 +60,9 @@
         </div>
       </div>
       <div class="translate-popup-footer">
-        <button class="translate-btn">翻译</button>
-        <button class="verify-btn" style="display: none">验证翻译</button>
-        <button class="apply-btn" style="display: none">应用</button>
+        <button class="translate-popup-translate-btn">翻译</button>
+        <button class="translate-popup-verify-btn" style="display: none">验证翻译</button>
+        <button class="translate-popup-apply-btn" style="display: none">应用</button>
       </div>
     </div>
   `;
@@ -165,9 +165,9 @@
       };
 
       let currentTranslation = '';
-      const translateBtn = popup.querySelector('.translate-btn');
-      const verifyBtn = popup.querySelector('.verify-btn');
-      const applyBtn = popup.querySelector('.apply-btn');
+      const translateBtn = popup.querySelector('.translate-popup-translate-btn');
+      const verifyBtn = popup.querySelector('.translate-popup-verify-btn');
+      const applyBtn = popup.querySelector('.translate-popup-apply-btn');
       const resultDiv = popup.querySelector('.translate-result');
       const verifyDiv = popup.querySelector('.translate-verify');
       const verifyText = popup.querySelector('.translate-verify-text');
@@ -304,17 +304,48 @@
       // 获取记忆的语言选择
       const rememberedLang = typeof getRememberedLanguage === 'function' ? await getRememberedLanguage(chatWindow) : 'en';
 
-      const hasSourceText = (text || '').trim().length > 0;
+      const normalizeTextForCompare = (value) =>
+        String(value || '')
+          .replace(/\u00A0/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+
+      const currentInputText = String(inputBox?.textContent || '').trim();
+      let modalSourceText = String(text || '').trim();
+      let currentTranslationText = '';
+
+      try {
+        if (typeof getQuickSendState === 'function') {
+          const quickSendState = getQuickSendState(inputBox);
+          const currentNorm = normalizeTextForCompare(currentInputText);
+          const appliedNorm = normalizeTextForCompare(quickSendState?.appliedText);
+          if (
+            quickSendState?.stage === 'translated_ready' &&
+            quickSendState?.sourceTextAtTranslate &&
+            currentNorm &&
+            appliedNorm &&
+            currentNorm === appliedNorm
+          ) {
+            modalSourceText = String(quickSendState.sourceTextAtTranslate || '').trim() || modalSourceText;
+            currentTranslationText = currentInputText;
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+
+      const hasSourceText = modalSourceText.length > 0;
       const hideSource = options && options.hideSource === true;
       const showSource = hasSourceText && !hideSource;
       const showVerify = showSource;
       const languageOnlyMode = !hasSourceText;
+      const hasCurrentTranslation = currentTranslationText.length > 0;
 
       const sourceSectionHtml = showSource
         ? `
         <div class="source-text">
           <div class="text-label">原文</div>
-          <div class="text-content">${text}</div>
+          <div class="text-content">${modalSourceText}</div>
         </div>
       `
         : '';
@@ -328,7 +359,7 @@
       `
         : '';
 
-      const verifyButtonHtml = showVerify ? `<button class="verify-btn" style="display: none">验证</button>` : '';
+      const verifyButtonHtml = showVerify ? `<button class="modal-verify-btn" style="display: none">验证</button>` : '';
 
       const contactKey = typeof getChatLanguagePreferenceKey === 'function' ? getChatLanguagePreferenceKey(chatWindow) : '';
       const contactNumber = contactKey && contactKey.startsWith('phone:') ? contactKey.replace(/^phone:/, '') : '';
@@ -365,18 +396,18 @@
           languageOnlyMode
             ? ''
             : `
-        <div class="translation-result">
+        <div class="translation-result" style="${hasCurrentTranslation ? '' : 'display:none'}">
           <div class="text-label">翻译结果</div>
-          <div class="result-content"></div>
+          <div class="result-content">${currentTranslationText}</div>
         </div>
         ${verifySectionHtml}
         `
         }
       </div>
       <div class="translate-modal-footer">
-        ${languageOnlyMode ? `<button class="save-lang-btn">保存</button>` : `<button class="translate-btn">翻译</button>`}
+        ${languageOnlyMode ? `<button class="save-lang-btn">保存</button>` : `<button class="modal-translate-btn">翻译</button>`}
         ${languageOnlyMode ? '' : verifyButtonHtml}
-        ${languageOnlyMode ? '' : `<button class="apply-btn" disabled>应用</button>`}
+        ${languageOnlyMode ? '' : `<button class="modal-apply-btn" disabled>应用</button>`}
       </div>
     </div>
   `;
@@ -574,17 +605,17 @@
       transition: all 0.2s;
     }
 
-    .translate-btn {
+    .modal-translate-btn {
       background: #00a884;
       color: white;
     }
 
-    .apply-btn {
+    .modal-apply-btn {
       background: #8696a0;
       color: white;
     }
 
-    .apply-btn:disabled {
+    .modal-apply-btn:disabled {
       background: #e9edef;
       color: #8696a0;
       cursor: not-allowed;
@@ -626,13 +657,13 @@
       border: 1px solid #e9edef;
     }
 
-    .verify-btn {
+    .modal-verify-btn {
       background: #f0f2f5;
       color: #41525d;
       border: 1px solid #e9edef;
     }
 
-    .verify-btn:hover {
+    .modal-verify-btn:hover {
       background: #e9edef;
     }
 
@@ -665,10 +696,11 @@
       ensureStyleInjected(doc, 'waap-input-translate-modal-style', styles);
 
       const closeBtn = modal.querySelector('.modal-close');
-      const translateBtn = modal.querySelector('.translate-btn');
-      const verifyBtn = modal.querySelector('.verify-btn');
-      const applyBtn = modal.querySelector('.apply-btn');
+      const translateBtn = modal.querySelector('.modal-translate-btn');
+      const verifyBtn = modal.querySelector('.modal-verify-btn');
+      const applyBtn = modal.querySelector('.modal-apply-btn');
       const saveLangBtn = modal.querySelector('.save-lang-btn');
+      const translationResult = modal.querySelector('.translation-result');
       const resultContent = modal.querySelector('.result-content');
       const langCombo = modal.querySelector('.lang-combobox');
       const langInput = modal.querySelector('.lang-combobox-input');
@@ -891,14 +923,14 @@
             const targetLang = selectedLang;
 
             const liveText = (inputBox?.textContent || '').trim();
-            const sourceText = liveText || (text || '').trim();
-            if (!sourceText) {
+            const requestSourceText = currentTranslationText ? modalSourceText : liveText || modalSourceText;
+            if (!requestSourceText) {
               toast('请输入要翻译的内容', 'info', 1200);
               return;
             }
 
             if (typeof modalTranslation !== 'function') throw new Error('翻译函数不可用');
-            const translation = await modalTranslation(sourceText, targetLang, 'normal');
+            const translation = await modalTranslation(requestSourceText, targetLang, 'normal');
 
             if (translation && typeof translation === 'object') {
               if (translation.hasThinking) {
@@ -921,6 +953,7 @@
               resultContent.textContent = translation;
             }
 
+            if (translationResult) translationResult.style.display = 'block';
             if (verifyBtn) verifyBtn.style.display = 'inline-block';
             applyBtn.disabled = false;
             if (verifyResult) verifyResult.style.display = 'none';
@@ -929,6 +962,7 @@
               rememberLanguageChoice(chatWindow, targetLang);
             }
           } catch (error) {
+            if (translationResult) translationResult.style.display = 'block';
             resultContent.textContent = '翻译失败: ' + (error.message || '未知错误');
             toastError('翻译失败: ' + (error.message || '未知错误'), 'MODAL_TRANSLATION_ERROR');
           } finally {

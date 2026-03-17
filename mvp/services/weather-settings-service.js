@@ -43,7 +43,6 @@
           'weatherEnabled',
           'weatherShowWeather',
           'weatherShowTime',
-          'weatherAllowCountryOverride',
           'weatherCacheMinutes',
           'weatherCacheAutoRenew',
           'weatherAutoRenewEvictDays'
@@ -58,7 +57,6 @@
             owner.displaySettings.enabled = data.weatherEnabled !== false;
             owner.displaySettings.showWeather = data.weatherShowWeather !== false;
             owner.displaySettings.showTime = data.weatherShowTime !== false;
-            owner.displaySettings.allowCountryOverride = data.weatherAllowCountryOverride === true;
 
             owner.applyWeatherCacheMinutes?.(data.weatherCacheMinutes);
             owner.displaySettings.cacheAutoRenew = data.weatherCacheAutoRenew !== false;
@@ -106,7 +104,6 @@
             !!changes.weatherEnabled ||
             !!changes.weatherShowWeather ||
             !!changes.weatherShowTime ||
-            !!changes.weatherAllowCountryOverride ||
             !!changes.weatherCacheMinutes ||
             !!changes.weatherCacheAutoRenew ||
             !!changes.weatherAutoRenewEvictDays;
@@ -121,9 +118,6 @@
           }
           if (changes.weatherShowTime) {
             owner.displaySettings.showTime = changes.weatherShowTime.newValue !== false;
-          }
-          if (changes.weatherAllowCountryOverride) {
-            owner.displaySettings.allowCountryOverride = changes.weatherAllowCountryOverride.newValue === true;
           }
           if (changes.weatherCacheMinutes) {
             owner.applyWeatherCacheMinutes?.(changes.weatherCacheMinutes.newValue);

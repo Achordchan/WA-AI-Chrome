@@ -321,23 +321,6 @@
          color: #00a884;
        }
 
-       .country-confirm-chip {
-         border: 1px solid rgba(0, 0, 0, 0.12);
-         background: rgba(255, 255, 255, 0.75);
-         color: #3b4a54;
-         padding: 4px 10px;
-         border-radius: 999px;
-         font-size: 12px;
-         line-height: 16px;
-         cursor: pointer;
-         flex-shrink: 0;
-       }
-
-       .country-confirm-chip:hover {
-         background: rgba(255, 255, 255, 0.95);
-         border-color: rgba(0, 0, 0, 0.18);
-       }
-       
        @keyframes pulse {
          0% { opacity: 1; }
          50% { opacity: 0.5; }
@@ -711,7 +694,7 @@
     }
   }
 
-  function confirmForceRefresh(anchorEl, deps = {}) {
+  function showConfirmBubble(anchorEl, title, okText, deps = {}) {
     return new Promise((resolve) => {
       try {
         const documentRef = deps.document || window.document;
@@ -740,10 +723,10 @@
           ? 'wa-weather-confirm-bubble wa-weather-confirm-bubble-dark'
           : 'wa-weather-confirm-bubble';
         bubble.innerHTML = `
-          <div class="wa-weather-confirm-bubble-title">你已开启自动续期缓存，是否强制刷新？</div>
+          <div class="wa-weather-confirm-bubble-title">${title}</div>
           <div class="wa-weather-confirm-bubble-actions">
             <button type="button" class="wa-weather-confirm-btn" data-act="cancel">取消</button>
-            <button type="button" class="wa-weather-confirm-btn wa-weather-confirm-btn-primary" data-act="ok">强制刷新</button>
+            <button type="button" class="wa-weather-confirm-btn wa-weather-confirm-btn-primary" data-act="ok">${okText}</button>
           </div>
         `;
 
@@ -820,13 +803,20 @@
     });
   }
 
+  function confirmForceRefresh(anchorEl, deps = {}) {
+    return showConfirmBubble(anchorEl, '你已开启自动续期缓存，是否强制刷新？', '强制刷新', deps);
+  }
+
+  function confirmCountryOverride(anchorEl, deps = {}) {
+    return showConfirmBubble(anchorEl, '是否修改国家？', '修改国家', deps);
+  }
+
   function renderWeather(container, countryInfo, weatherData, timeData, options = {}, deps = {}) {
     try {
       if (!container) return false;
 
       const generateWeatherHTML = typeof deps.generateWeatherHTML === 'function' ? deps.generateWeatherHTML : null;
 
-      const showSelector = options.showSelector === true;
       const showWeather = options.showWeather !== false;
       const showTime = options.showTime !== false;
       const needsConfirmation = options.needsConfirmation === true;
@@ -857,7 +847,6 @@
           <span class="country-flag">${renderCountryFlag(countryInfo)}</span>
           <span class="country-name">${countryInfo.name}</span>
         </span>
-        ${showSelector ? `<button class="country-confirm-chip" type="button">选择国家</button>` : ''}
         ${showWeather ? `
         <span class="weather-info" id="weather-data-container">
           ${weatherHtml}
@@ -883,6 +872,7 @@
     renderCountryFlag,
     renderWeather,
     setWeatherLoading,
-    confirmForceRefresh
+    confirmForceRefresh,
+    confirmCountryOverride
   };
 })();

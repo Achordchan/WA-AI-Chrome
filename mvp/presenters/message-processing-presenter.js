@@ -4,23 +4,109 @@
 
   if (window.WAAP.presenters.messageProcessingPresenter) return;
 
+  const TEXT_MESSAGE_ROOT_SELECTOR = 'div.copyable-text[data-pre-plain-text], div[data-pre-plain-text]';
+  const VOICE_MESSAGE_ROOT_SELECTOR = 'div[tabindex="-1"][data-id], div[tabindex="-1"]';
+  const VOICE_MARKER_SELECTOR =
+    'span[aria-label="语音消息"], span[aria-label="Voice message"], button[aria-label*="播放语音"], button[aria-label*="Play voice"], span[data-icon="audio-play"], span[data-icon="ptt-status"]';
+
+  function hasVoiceMarker(messageElement) {
+    try {
+      return !!(
+        messageElement?.querySelector?.('audio') ||
+        messageElement?.querySelector?.(VOICE_MARKER_SELECTOR)
+      );
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function isVoiceMessage(messageElement) {
+    try {
+      return !!messageElement?.matches?.(VOICE_MESSAGE_ROOT_SELECTOR) && hasVoiceMarker(messageElement);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function resolveMessageOwnerElement(target) {
+    try {
+      if (!target || !(target instanceof Element)) return null;
+      if (target.matches(TEXT_MESSAGE_ROOT_SELECTOR)) return target;
+
+      const textRoot = target.closest?.(TEXT_MESSAGE_ROOT_SELECTOR);
+      if (textRoot) return textRoot;
+
+      const voiceRoot = target.matches(VOICE_MESSAGE_ROOT_SELECTOR)
+        ? target
+        : target.closest?.(VOICE_MESSAGE_ROOT_SELECTOR);
+      if (voiceRoot && hasVoiceMarker(voiceRoot)) return voiceRoot;
+    } catch (e) {
+      // ignore
+    }
+    return null;
+  }
+
+  function resolveButtonContainer(messageElement, deps = {}) {
+    try {
+      const owner = resolveMessageOwnerElement(messageElement) || messageElement;
+      const existing = owner?.querySelector?.('.translate-btn-container');
+      if (existing) return existing;
+
+      const buttonContainer = document.createElement('span');
+      buttonContainer.className = 'translate-btn-container';
+
+      const getRoot = deps.getMessageTextRoot || getMessageTextRoot;
+      const resolveVoiceAnchor = () => {
+        try {
+          const marker = owner.querySelector?.(VOICE_MARKER_SELECTOR);
+          let node = marker?.parentElement || null;
+          while (node && node !== owner) {
+            const style = window.getComputedStyle(node);
+            if (/(flex|inline-flex)/.test(style?.display || '') && node.children.length > 1) {
+              return node;
+            }
+            node = node.parentElement;
+          }
+        } catch (e) {
+          // ignore
+        }
+        return owner;
+      };
+
+      const anchorRoot = isVoiceMessage(owner) ? resolveVoiceAnchor() : getRoot(owner);
+      if (anchorRoot && anchorRoot.firstChild) {
+        anchorRoot.insertBefore(buttonContainer, anchorRoot.firstChild);
+      } else if (anchorRoot) {
+        anchorRoot.appendChild(buttonContainer);
+      } else if (owner?.firstChild) {
+        owner.insertBefore(buttonContainer, owner.firstChild);
+      } else {
+        owner?.appendChild?.(buttonContainer);
+      }
+      return buttonContainer;
+    } catch (e) {
+      return null;
+    }
+  }
+
   function getMessageTextRoot(messageElement) {
-    if (!messageElement) return null;
+    const owner = resolveMessageOwnerElement(messageElement) || messageElement;
+    if (!owner) return null;
 
     const isInsideQuotedBlock = (el) => {
       try {
         if (!el) return false;
         const qa = el.closest('[data-testid*="quoted"], [data-testid*="reply"], [aria-label*="引用"], [aria-label*="回复"]');
-        return !!(qa && messageElement.contains(qa));
+        return !!(qa && owner.contains(qa));
       } catch (e) {
         return false;
       }
     };
 
-    const selectable = messageElement.querySelector('.selectable-text');
+    const selectable = owner.querySelector('.selectable-text');
     if (selectable && !isInsideQuotedBlock(selectable)) return selectable;
 
-    const candidates = messageElement.querySelectorAll('span[dir], div[dir]');
+    const candidates = owner.querySelectorAll('span[dir], div[dir]');
     let best = null;
     let bestLen = 0;
     let bestQuoted = null;
@@ -46,62 +132,20 @@
     if (best) return best;
     if (bestQuoted) return bestQuoted;
 
-    if (messageElement.classList && messageElement.classList.contains('copyable-text')) {
-      return messageElement;
+    if (owner.classList && owner.classList.contains('copyable-text')) {
+      return owner;
     }
 
-    return messageElement;
+    return owner;
   }
 
   function addTranslateButton(messageElement, deps = {}) {
     try {
-      if (!messageElement) return false;
+      const owner = resolveMessageOwnerElement(messageElement);
+      if (!owner) return false;
+      if (isVoiceMessage(owner)) return true;
 
-      const hasVoice = (() => {
-        try {
-          if (messageElement.querySelector('audio')) return true;
-        } catch (e) {
-          // ignore
-        }
-        try {
-          return !!(
-            messageElement.querySelector('[aria-label="语音消息"]') ||
-            messageElement.querySelector('[aria-label="Voice message"]') ||
-            messageElement.querySelector('button[aria-label*="播放语音"]') ||
-            messageElement.querySelector('button[aria-label*="Play voice"]')
-          );
-        } catch (e2) {
-          return false;
-        }
-      })();
-      if (hasVoice) return true;
-
-      const getOrCreateButtonContainer = () => {
-        try {
-          const existing = messageElement.querySelector('.translate-btn-container');
-          if (existing) return existing;
-
-          const buttonContainer = document.createElement('span');
-          buttonContainer.className = 'translate-btn-container';
-
-          const getRoot = deps.getMessageTextRoot || getMessageTextRoot;
-          const textRoot = getRoot(messageElement);
-          if (textRoot && textRoot.firstChild) {
-            textRoot.insertBefore(buttonContainer, textRoot.firstChild);
-          } else if (textRoot) {
-            textRoot.appendChild(buttonContainer);
-          } else if (messageElement.firstChild) {
-            messageElement.insertBefore(buttonContainer, messageElement.firstChild);
-          } else {
-            messageElement.appendChild(buttonContainer);
-          }
-          return buttonContainer;
-        } catch (e) {
-          return null;
-        }
-      };
-
-      const container = getOrCreateButtonContainer();
+      const container = resolveButtonContainer(owner, deps);
       if (!container) return false;
 
       if (container.querySelector('.translate-btn[data-waap-kind="translate"]')) {
@@ -122,7 +166,7 @@
 
         try {
           if (window.WAAP?.presenters?.translationPresenter?.translateMessage) {
-            const ok = await window.WAAP.presenters.translationPresenter.translateMessage(messageElement, {
+              const ok = await window.WAAP.presenters.translationPresenter.translateMessage(owner, {
               translateText: deps.translateText,
               getMessageTextRoot: deps.getMessageTextRoot,
               collectTextContent: deps.collectTextContent,
@@ -138,7 +182,7 @@
         try {
           const fn = deps.translateMessage;
           if (typeof fn === 'function') {
-            await fn(messageElement);
+            await fn(owner);
           }
         } catch (e4) {
           // ignore
@@ -154,7 +198,8 @@
 
   function addVoiceTranscribeButton(messageElement, deps = {}) {
     try {
-      if (!messageElement) return false;
+      const owner = resolveMessageOwnerElement(messageElement);
+      if (!owner) return false;
 
       try {
         const enabled = typeof deps.isSttEnabled === 'function'
@@ -165,52 +210,9 @@
         // ignore
       }
 
-      const hasVoice = (() => {
-        try {
-          if (messageElement.querySelector('audio')) return true;
-        } catch (e) {
-          // ignore
-        }
-        try {
-          return !!(
-            messageElement.querySelector('[aria-label="语音消息"]') ||
-            messageElement.querySelector('[aria-label="Voice message"]') ||
-            messageElement.querySelector('button[aria-label*="播放语音"]') ||
-            messageElement.querySelector('button[aria-label*="Play voice"]')
-          );
-        } catch (e2) {
-          return false;
-        }
-      })();
+      if (!isVoiceMessage(owner)) return true;
 
-      if (!hasVoice) return true;
-
-      const getOrCreateButtonContainer = () => {
-        try {
-          const existing = messageElement.querySelector('.translate-btn-container');
-          if (existing) return existing;
-
-          const buttonContainer = document.createElement('span');
-          buttonContainer.className = 'translate-btn-container';
-
-          const getRoot = deps.getMessageTextRoot || getMessageTextRoot;
-          const textRoot = getRoot(messageElement);
-          if (textRoot && textRoot.firstChild) {
-            textRoot.insertBefore(buttonContainer, textRoot.firstChild);
-          } else if (textRoot) {
-            textRoot.appendChild(buttonContainer);
-          } else if (messageElement.firstChild) {
-            messageElement.insertBefore(buttonContainer, messageElement.firstChild);
-          } else {
-            messageElement.appendChild(buttonContainer);
-          }
-          return buttonContainer;
-        } catch (e) {
-          return null;
-        }
-      };
-
-      const container2 = getOrCreateButtonContainer();
+      const container2 = resolveButtonContainer(owner, deps);
       if (!container2) return false;
 
       if (container2.querySelector('.translate-btn[data-waap-kind="voice"]')) {
@@ -232,11 +234,11 @@
         try {
           const p = window.WAAP?.presenters?.voiceTranscribePresenter;
           if (p?.transcribeMessage) {
-            let targetMessage = messageElement;
+            let targetMessage = owner;
             try {
               const btnEl = e?.currentTarget || voiceBtn;
-              const owner = btnEl?.closest?.('div[tabindex="-1"], div[data-pre-plain-text]') || null;
-              if (owner) targetMessage = owner;
+              const buttonOwner = resolveMessageOwnerElement(btnEl);
+              if (buttonOwner) targetMessage = buttonOwner;
             } catch (e0) {
               // ignore
             }
@@ -278,56 +280,37 @@
 
   function processMessage(message, deps = {}) {
     try {
-      if (!message) return false;
+      const owner = resolveMessageOwnerElement(message);
+      if (!owner) return false;
 
       try {
-        const okRoot = (() => {
-          try {
-            if (!message.matches) return false;
-            if (message.matches('div[data-pre-plain-text]')) return true;
-            if (message.matches('div[tabindex="-1"]')) {
-              return !!(
-                message.querySelector?.('audio') ||
-                message.querySelector?.('[aria-label="语音消息"]') ||
-                message.querySelector?.('[aria-label="Voice message"]') ||
-                message.querySelector?.('button[aria-label*="播放语音"]') ||
-                message.querySelector?.('button[aria-label*="Play voice"]') ||
-                message.querySelector?.('span[data-icon="audio-play"]') ||
-                message.querySelector?.('span[data-icon="ptt-status"]')
-              );
-            }
-            return false;
-          } catch (e) {
-            return false;
-          }
-        })();
-        if (!okRoot) return false;
+        if (!resolveMessageOwnerElement(owner)) return false;
       } catch (e) {
         return false;
       }
 
       try {
-        addTranslateButton(message, deps);
+        addTranslateButton(owner, deps);
       } catch (e0) {
         // ignore
       }
 
       try {
-        addVoiceTranscribeButton(message, deps);
+        addVoiceTranscribeButton(owner, deps);
       } catch (e1) {
         // ignore
       }
 
-      if (!message.dataset.processed) {
+      if (!owner.dataset.processed) {
         try {
-          message.classList.add('message-wrapper');
-          message.classList.add('waai-message');
-          message.style.position = 'relative';
+          owner.classList.add('message-wrapper');
+          owner.classList.add('waai-message');
+          owner.style.position = 'relative';
         } catch (e) {
           // ignore
         }
 
-        message.dataset.processed = 'true';
+        owner.dataset.processed = 'true';
       }
 
       return true;
@@ -337,6 +320,13 @@
   }
 
   window.WAAP.presenters.messageProcessingPresenter = {
+    TEXT_MESSAGE_ROOT_SELECTOR,
+    VOICE_MESSAGE_ROOT_SELECTOR,
+    VOICE_MARKER_SELECTOR,
+    hasVoiceMarker,
+    isVoiceMessage,
+    resolveMessageOwnerElement,
+    resolveButtonContainer,
     getMessageTextRoot,
     addTranslateButton,
     addVoiceTranscribeButton,

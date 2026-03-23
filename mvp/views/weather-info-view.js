@@ -57,14 +57,26 @@
     }
   }
 
-  function renderCountryFlag(countryInfo) {
+  function renderCountryFlag(countryInfo, deps = {}) {
     try {
-      const flag = countryInfo && countryInfo.flag ? String(countryInfo.flag) : '';
+      const flagService = window.WAAP?.services?.countryFlagService;
+      if (flagService?.renderFlagHtml) {
+        return flagService.renderFlagHtml(
+          countryInfo,
+          {
+            shellClassName: 'wa-country-flag-shell',
+            imageClassName: 'wa-country-flag-img',
+            badgeClassName: 'country-flag-badge',
+            alt: `${countryInfo?.name || countryInfo?.country || '国家'}图标`
+          },
+          deps
+        );
+      }
       const code = countryInfo && countryInfo.country ? String(countryInfo.country).toUpperCase() : '';
       const safeCode = code.replace(/[^A-Z0-9_]/g, '').slice(0, 10);
-      return `<span class="country-flag-emoji">${flag || '🌍'}</span><span class="country-flag-badge">${safeCode || '--'}</span>`;
+      return `<span class="country-flag-badge">${safeCode || '--'}</span>`;
     } catch (e) {
-      return `<span class="country-flag-emoji">🌍</span><span class="country-flag-badge">--</span>`;
+      return `<span class="country-flag-badge">--</span>`;
     }
   }
 
@@ -114,7 +126,7 @@
             .wa-country-picker-group-label{font-size:11px;color:rgba(17,24,39,0.55);padding:8px 8px 2px;}
             .wa-country-picker-item{width:100%;border:1px solid rgba(0,0,0,0.08);background:rgba(255,255,255,0.9);border-radius:12px;padding:10px 10px;display:grid;grid-template-columns:26px 1fr auto;gap:10px;align-items:center;cursor:pointer;text-align:left;}
             .wa-country-picker-item:hover{border-color:rgba(0,168,132,0.40);box-shadow:0 0 0 3px rgba(0,168,132,0.12);}
-            .wa-country-picker-flag{font-size:16px;line-height:1;}
+            .wa-country-picker-flag{display:inline-flex;align-items:center;justify-content:center;line-height:1;}
             .wa-country-picker-name{font-size:13px;color:rgba(17,24,39,0.88);}
             .wa-country-picker-code{font-size:12px;font-weight:700;color:rgba(0,0,0,0.42);}
             .wa-country-picker-more-hint,.wa-country-picker-empty{padding:10px;font-size:12px;color:rgba(17,24,39,0.60);}
@@ -199,17 +211,14 @@
        }
        
        .country-flag {
-         font-size: 14px;
-       }
-
-       .country-flag-emoji {
-         display: inline-block;
-         font-size: 14px;
+         display: inline-flex;
+         align-items: center;
+         justify-content: center;
          line-height: 1;
        }
 
        .country-flag-badge {
-         display: none;
+         display: inline-flex;
          align-items: center;
          justify-content: center;
          height: 16px;
@@ -224,14 +233,6 @@
          text-transform: uppercase;
        }
 
-       .waap-flag-emoji-unsupported .country-flag-emoji {
-         display: none;
-       }
-
-       .waap-flag-emoji-unsupported .country-flag-badge {
-         display: inline-flex;
-       }
-       
        .country-name {
          font-size: 13px;
          color: #8696a0;
@@ -559,7 +560,9 @@
        }
 
        .wa-country-picker-flag {
-         font-size: 16px;
+         display: inline-flex;
+         align-items: center;
+         justify-content: center;
          line-height: 1;
        }
 
@@ -844,7 +847,7 @@
       container.innerHTML = `
       <div class="weather-inline">
         <span class="country-info">
-          <span class="country-flag">${renderCountryFlag(countryInfo)}</span>
+          <span class="country-flag">${renderCountryFlag(countryInfo, deps)}</span>
           <span class="country-name">${countryInfo.name}</span>
         </span>
         ${showWeather ? `

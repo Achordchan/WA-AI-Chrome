@@ -5,7 +5,7 @@ function showUpdateModal() {
       <div class="update-modal-content">
         <div class="update-modal-header">
                 <h3>WhatsApp Assistant Pro+ 更新说明</h3>
-      <span class="version">V3.2.3</span>
+      <span class="version">V3.2.4</span>
           <button class="modal-close">×</button>
         </div>
         <div class="update-modal-body">
@@ -15,27 +15,29 @@ function showUpdateModal() {
             <h4>本次更新</h4>
             <ul>
               <li><strong>语音消息转写</strong> - 设置中开启并填写API信息后在语音气泡上新增“听”按钮，一键转写语音内容</li>
-              
-              
-              
-              
+              <li><strong>转写结果内一键翻译</strong> - 转写结果区域新增“译”按钮，可直接继续翻译</li>
+              <li><strong>媒体预览说明翻译</strong> - 图片/视频发送前的说明输入框支持翻译按钮与回车快捷翻译</li>
+              <li><strong>快速对话免费开放</strong> - 快速对话功能正式开放，默认启用</li>
               <li><strong>STT 获取方式</strong> - 需自行获取语音转写服务，建议使用智谱 AI</li>
             </ul>
           </div>
           <div class="update-section">
             <h4>翻译与分析</h4>
             <ul>
-            
+              <li>修复输入框翻译按钮、回车快捷翻译在 WhatsApp 最新 DOM 下的挂载与触发问题</li>
+              <li>修复媒体预览说明输入框中翻译弹窗与按钮定位异常的问题</li>
+              <li>修复顶部工具栏、消息“译 / 听”按钮错位的问题</li>
               <li>修复部分场景下信息提示不消失导致布局异常的问题</li>
               <li>修复语音翻译 Token 数显示为 N/A 的问题</li>
-            
             </ul>
           </div>
           <div class="update-section">
             <h4>天气与号码识别（重要）</h4>
             <ul>
               <li><strong>天气/时间显示可自定义</strong> - 可单独开启/关闭天气与当地时间显示</li>
-              <li><strong>号码获取更稳定</strong> - 优先从标题/聊天内容识别；必要时自动使用“联系人信息侧栏”兜底获取真实号码</li>
+              <li><strong>号码获取更稳定</strong> - 已适配 WhatsApp 最新 DOM，修复“未检测到联系人号码”</li>
+              <li><strong>顶部显示更稳</strong> - 修复国家/天气/时间显示错位，并避免污染联系人标题文本</li>
+              <li><strong>SVG 国旗兼容</strong> - 顶部国家显示与国家选择器改为本地 SVG，兼容 Windows emoji 显示问题</li>
               <li><strong>防误判 + 缓存</strong> - 避免把 WhatsApp 内部 ID 误当手机号；成功获取后会缓存，减少重复弹出与干扰</li>
             </ul>
           </div>
@@ -211,9 +213,9 @@ async function checkAndShowUpdateLog() {
   try {
     const currentVersion = (() => {
       try {
-        return chrome && chrome.runtime && chrome.runtime.getManifest ? (chrome.runtime.getManifest().version || '3.2.3') : '3.2.3';
+        return chrome && chrome.runtime && chrome.runtime.getManifest ? (chrome.runtime.getManifest().version || '3.2.4') : '3.2.4';
       } catch (e) {
-        return '3.2.3';
+        return '3.2.4';
       }
     })(); // 当前版本号
     const data = await chrome.storage.local.get(['lastShownVersion']);

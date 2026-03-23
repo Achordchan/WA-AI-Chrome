@@ -22,56 +22,6 @@
     }
 
     try {
-      const documentRef = deps.document || window.document;
-      const header = messageContainer?.querySelector ? messageContainer.querySelector('header') : null;
-
-      const view = deps.toolbarView || window.WAAP?.views?.toolbarView;
-      if (header && view?.createToolbar && view?.attachToHeader) {
-        const toolbar = view.createToolbar({
-          onSettings: () => {
-            try {
-              const fn = deps.showSettingsModal || window.showSettingsModal;
-              if (typeof fn === 'function') fn();
-            } catch (e) {
-              // ignore
-            }
-          },
-          onTranslateAll: () => {
-            try {
-              const fn = deps.showTranslateConfirmDialog || window.showTranslateConfirmDialog;
-              if (typeof fn === 'function') fn(messageContainer);
-            } catch (e) {
-              // ignore
-            }
-          },
-          onAnalyze: async () => {
-            try {
-              const fn = deps.analyzeConversation || window.analyzeConversation;
-              if (typeof fn === 'function') await fn(messageContainer);
-            } catch (e) {
-              // ignore
-            }
-          }
-        });
-
-        try {
-          view.ensureStyles?.();
-        } catch (e) {
-          // ignore
-        }
-
-        view.attachToHeader(header, toolbar);
-        return true;
-      }
-
-      // 如果 header 不存在或 view 不可用，继续往下走 legacy DOM fallback
-      //（这里不做重试，重试由 legacy-add-analysis-button 负责）
-      void documentRef;
-    } catch (e) {
-      // ignore
-    }
-
-    try {
       const fallback = window.WAAP?.legacy?.addAnalysisButtonFallback;
       if (fallback?.addAnalysisButton) {
         return fallback.addAnalysisButton(messageContainer, retryCount, maxRetries, deps);

@@ -23,6 +23,88 @@
     };
   }
 
+  function resolveActionSlot(buttonEl, scope) {
+    if (!buttonEl) return null;
+
+    let current = buttonEl.parentElement || buttonEl;
+    while (current && current !== scope) {
+      const parent = current.parentElement;
+      if (!parent) break;
+      if (parent.children.length > 1) {
+        return {
+          parent,
+          slot: current
+        };
+      }
+      current = parent;
+    }
+
+    return null;
+  }
+
+  function collectAncestors(element) {
+    const ancestors = [];
+    let current = element;
+    while (current) {
+      ancestors.push(current);
+      current = current.parentElement;
+    }
+    return ancestors;
+  }
+
+  function getDirectChild(container, element) {
+    let current = element;
+    while (current && current.parentElement !== container) {
+      current = current.parentElement;
+    }
+    return current && current.parentElement === container ? current : null;
+  }
+
+  function findSharedActionBar(scope = document) {
+    try {
+      const newChatBtn =
+        scope?.querySelector?.('button[aria-label="新聊天"]') ||
+        scope?.querySelector?.('button[aria-label="New chat"]') ||
+        document.querySelector('button[aria-label="新聊天"]') ||
+        document.querySelector('button[aria-label="New chat"]');
+      const menuBtn =
+        scope?.querySelector?.('button[aria-label="菜单"]') ||
+        scope?.querySelector?.('button[aria-label="Menu"]') ||
+        document.querySelector('button[aria-label="菜单"]') ||
+        document.querySelector('button[aria-label="Menu"]');
+
+      if (newChatBtn && menuBtn) {
+        const newChatAncestors = collectAncestors(newChatBtn);
+        const menuAncestors = new Set(collectAncestors(menuBtn));
+        for (const ancestor of newChatAncestors) {
+          if (menuAncestors.has(ancestor) && ancestor.children && ancestor.children.length >= 2) {
+            return { bar: ancestor, newChatBtn, menuBtn };
+          }
+        }
+      }
+
+      if (newChatBtn) {
+        return {
+          bar: newChatBtn.parentElement?.parentElement || newChatBtn.parentElement || newChatBtn,
+          newChatBtn,
+          menuBtn
+        };
+      }
+
+      if (menuBtn) {
+        return {
+          bar: menuBtn.parentElement?.parentElement || menuBtn.parentElement || menuBtn,
+          newChatBtn,
+          menuBtn
+        };
+      }
+    } catch (e) {
+      return null;
+    }
+
+    return null;
+  }
+
   // 修改addQuickChatButton函数
   function addQuickChatButton() {
     try {
@@ -34,8 +116,15 @@
         return;
       }
 
+      let targetContainer = null;
+      const actionBarInfo = findSharedActionBar(document);
+      if (actionBarInfo?.bar) {
+        targetContainer = actionBarInfo.bar;
+      }
+
       // 扩展选择器列表，增加更多可能的DOM路径
       const selectors = [
+        'header[data-tab="2"]',
         '.x78zum5.x1okw0bk.x6s0dn4.xh8yej3.x14wi4xw.xexx8yu.x4uap5.x18d9i69.xkhd6sd',
         'div[data-tab="3"]',
         '#side header',
@@ -47,12 +136,13 @@
         '#app div[data-testid="chat-list-header"]'
       ];
 
-      let targetContainer = null;
-      for (const selector of selectors) {
-        targetContainer = document.querySelector(selector);
-        if (targetContainer) {
-          console.log('找到目标容器，使用选择器:', selector);
-          break;
+      if (!targetContainer) {
+        for (const selector of selectors) {
+          targetContainer = document.querySelector(selector);
+          if (targetContainer) {
+            console.log('找到目标容器，使用选择器:', selector);
+            break;
+          }
         }
       }
 
@@ -255,35 +345,61 @@
 
       // 尝试多种方式插入按钮
       try {
-        // 方式1：使用新提供的XPath路径插入
+        // 方式1：围绕新聊天 / 菜单按钮动作区插入
         try {
-          // 使用document.evaluate来解析XPath
-          const xpathResult = document.evaluate(
-            '//*[@id="app"]/div/div[3]/div/div[3]/header/header/div/span/div/div[1]',
-            document,
-            null,
-            XPathResult.FIRST_ORDERED_NODE_TYPE,
-            null
-          );
+          const scope =
+            (targetContainer.matches && targetContainer.matches('header') ? targetContainer : null) ||
+            targetContainer.querySelector?.('header') ||
+            targetContainer;
+          const sharedActionBar = findSharedActionBar(scope);
+          const menuBtn = sharedActionBar?.menuBtn || null;
+          const actionBtn = sharedActionBar?.newChatBtn || null;
+          const menuSlot = resolveActionSlot(menuBtn, scope);
+          const actionSlot = resolveActionSlot(actionBtn, scope);
 
-          // 获取匹配的节点
-          const targetElement = xpathResult.singleNodeValue;
+          if (sharedActionBar?.bar) {
+            const menuAnchor = menuBtn ? getDirectChild(sharedActionBar.bar, menuBtn) : null;
+            if (menuAnchor) {
+              sharedActionBar.bar.insertBefore(quickChatBtn, menuAnchor);
+              console.log('成功在共同动作栏菜单前插入按钮');
+              return;
+            }
 
-          if (targetElement) {
-            // 在目标元素前插入按钮
-            targetElement.parentNode.insertBefore(quickChatBtn, targetElement);
-            console.log('成功使用新的XPath路径插入按钮');
+            const actionAnchor = actionBtn ? getDirectChild(sharedActionBar.bar, actionBtn) : null;
+            if (actionAnchor) {
+              sharedActionBar.bar.insertBefore(quickChatBtn, actionAnchor.nextSibling || null);
+              console.log('成功在共同动作栏新聊天按钮后插入按钮');
+              return;
+            }
+          }
+
+          if (menuSlot?.parent && actionSlot?.parent && menuSlot.parent === actionSlot.parent) {
+            menuSlot.parent.insertBefore(quickChatBtn, menuSlot.slot);
+            console.log('成功在动作栏菜单前插入按钮');
             return;
           }
-          console.log('未找到新的XPath路径元素，尝试其他方法');
-        } catch (xpathError) {
-          console.error('XPath查询错误:', xpathError);
+
+          if (menuSlot?.parent) {
+            menuSlot.parent.insertBefore(quickChatBtn, menuSlot.slot);
+            console.log('成功在菜单按钮前插入按钮');
+            return;
+          }
+
+          if (actionSlot?.parent) {
+            actionSlot.parent.insertBefore(quickChatBtn, actionSlot.slot.nextSibling || null);
+            console.log('成功在新聊天按钮后插入按钮');
+            return;
+          }
+        } catch (insertError) {
+          console.error('动作区插入错误:', insertError);
         }
 
         // 方式2：在"对话"标题后插入
-        const titleElement = targetContainer.querySelector('div[title="对话"]');
-        if (titleElement && titleElement.nextSibling) {
-          titleElement.parentNode.insertBefore(quickChatBtn, titleElement.nextSibling);
+        const titleElement =
+          targetContainer.querySelector('div[title="对话"]') ||
+          targetContainer.querySelector('div[title="Chats"]');
+        if (titleElement && titleElement.parentNode) {
+          titleElement.parentNode.insertBefore(quickChatBtn, titleElement.nextSibling || null);
           console.log('成功在对话标题后插入按钮');
           return;
         }
@@ -307,6 +423,7 @@
   function retryAddButton() {
     // 使用之前定义好的选择器列表
     const selectors = [
+      'header[data-tab="2"]',
       '.x78zum5.x1okw0bk.x6s0dn4.xh8yej3.x14wi4xw.xexx8yu.x4uap5.x18d9i69.xkhd6sd',
       'div[data-tab="3"]',
       '#side header',
@@ -321,10 +438,17 @@
     ];
 
     let targetContainer = null;
-    for (const selector of selectors) {
-      targetContainer = document.querySelector(selector);
-      if (targetContainer) {
-        break;
+    const actionBarInfo = findSharedActionBar(document);
+    if (actionBarInfo?.bar) {
+      targetContainer = actionBarInfo.bar;
+    }
+
+    if (!targetContainer) {
+      for (const selector of selectors) {
+        targetContainer = document.querySelector(selector);
+        if (targetContainer) {
+          break;
+        }
       }
     }
 
@@ -352,18 +476,16 @@
   }
 
   function initializeQuickChat(deps = {}) {
-    // 兜底保护：就算 MVP 未加载，也默认拒绝普通用户启用（需要管理员解锁 + 手动开启）
     try {
       const chromeRef = deps.chrome || window.chrome;
       const documentRef = deps.document || window.document;
 
       if (!chromeRef?.storage?.sync?.get) {
-        // 无法读取开关时，保守起见不启用
+        retryAddButton();
       } else {
-        chromeRef.storage.sync.get(['quickChatEnabled', 'quickChatUnlocked'], (data) => {
-          const enabled = data?.quickChatEnabled === true;
-          const unlocked = data?.quickChatUnlocked === true;
-          if (!(enabled && unlocked)) {
+        chromeRef.storage.sync.get(['quickChatEnabled'], (data) => {
+          const enabled = data?.quickChatEnabled !== false;
+          if (!enabled) {
             return;
           }
 

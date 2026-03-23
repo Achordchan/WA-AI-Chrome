@@ -64,6 +64,7 @@
                   if (owner.currentInfoElement !== el) return;
                   if (owner.currentStatus !== 'success') return;
                   el.remove();
+                  removeCurrentInfoHost(owner);
                   owner.currentInfoElement = null;
                   owner.currentStatus = 'idle';
                 } catch (e1) {
@@ -106,6 +107,7 @@
                 if (owner.currentInfoElement !== el) return;
                 if (owner.currentStatus !== 'success') return;
                 el.remove();
+                removeCurrentInfoHost(owner);
                 owner.currentInfoElement = null;
                 owner.currentStatus = 'idle';
               } catch (e1) {
@@ -319,6 +321,84 @@
     }
   }
 
+  function collectShadowStyleText(documentRef, styleIds = []) {
+    try {
+      return styleIds
+        .map((id) => {
+          try {
+            return documentRef.querySelector(`#${id}`)?.textContent || '';
+          } catch (e) {
+            return '';
+          }
+        })
+        .filter(Boolean)
+        .join('\n');
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function createShadowMount(documentRef, options = {}) {
+    try {
+      const host = documentRef.createElement('span');
+      if (options.hostClassName) host.className = options.hostClassName;
+      if (options.hostStyle) host.style.cssText = options.hostStyle;
+
+      const shadowRoot = host.attachShadow({ mode: 'open' });
+      const style = documentRef.createElement('style');
+      style.textContent = `${options.inlineCss || ''}\n${collectShadowStyleText(documentRef, options.styleIds || [])}`;
+
+      const body = documentRef.createElement(options.bodyTagName || 'div');
+      if (options.bodyClassName) body.className = options.bodyClassName;
+
+      shadowRoot.appendChild(style);
+      shadowRoot.appendChild(body);
+      return { host, shadowRoot, body };
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function removeCurrentInfoHost(owner) {
+    try {
+      if (owner?.currentInfoHost) {
+        try {
+          owner.currentInfoHost.remove();
+        } catch (e) {
+          // ignore
+        }
+        owner.currentInfoHost = null;
+      }
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function resolveHeaderActionAnchor(baseElement) {
+    try {
+      if (!baseElement?.closest) return null;
+
+      const header =
+        baseElement.closest('#main header') ||
+        baseElement.closest('header[data-testid="conversation-info-header"]');
+      if (!header) return null;
+
+      let current = baseElement;
+      while (current && current !== header) {
+        const parent = current.parentElement;
+        if (!parent) break;
+        if (current.matches?.('button, [role="button"]')) return current;
+        if (parent === header) return current;
+        current = parent;
+      }
+
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   function findInsertionContainer(owner, deps = {}) {
     try {
       const documentRef = deps.document || window.document;
@@ -368,18 +448,31 @@
         return false;
       }
 
-      const existingStatus = insertPosition.querySelector('.weather-info-status');
-      if (existingStatus) {
-        try {
-          existingStatus.remove();
-        } catch (e) {
-          // ignore
-        }
-      }
+      removeCurrentInfoHost(owner);
 
       const statusElement = showStatus(owner, 'loading', getLoadingStatusText(owner), { document: documentRef });
       if (!statusElement) return false;
-      insertPosition.appendChild(statusElement);
+
+      const statusMount = createShadowMount(documentRef, {
+        hostClassName: 'wa-weather-status-host',
+        hostStyle: 'display:inline-flex;vertical-align:middle;margin-left:8px;',
+        bodyClassName: 'wa-weather-status-root',
+        styleIds: ['weather-status-animations']
+      });
+      if (!statusMount?.body) return false;
+
+      statusMount.body.appendChild(statusElement);
+      const phoneElement = findPhoneNumberElement({ document: documentRef });
+      const contactElement = findContactNameElement({ document: documentRef });
+
+      if (phoneElement?.parentElement) {
+        phoneElement.insertAdjacentElement('afterend', statusMount.host);
+      } else if (contactElement?.parentElement) {
+        contactElement.insertAdjacentElement('afterend', statusMount.host);
+      } else {
+        insertPosition.appendChild(statusMount.host);
+      }
+      owner.currentInfoHost = statusMount.host;
       return true;
     } catch (e) {
       return false;
@@ -440,7 +533,10 @@
 
       owner.clockInterval = setIntervalRef(() => {
         try {
-          const timeElements = documentRef.querySelectorAll('.local-time[data-timezone]');
+          const timeElements = Array.from(documentRef.querySelectorAll('.local-time[data-timezone]'));
+          if (owner.currentWeatherContentElement?.querySelectorAll) {
+            timeElements.push(...owner.currentWeatherContentElement.querySelectorAll('.local-time[data-timezone]'));
+          }
           timeElements.forEach((element) => {
             try {
               const tz = element.getAttribute('data-timezone');
@@ -507,7 +603,11 @@
 
       const documentRef = deps.document || window.document;
 
-      const weatherContainer = owner.currentWeatherElement.querySelector('#weather-data-container');
+      const weatherRoot =
+        owner.currentWeatherContentElement ||
+        owner.currentWeatherElement?.shadowRoot ||
+        owner.currentWeatherElement;
+      const weatherContainer = weatherRoot?.querySelector?.('#weather-data-container') || null;
       if (!weatherContainer) {
         return false;
       }
@@ -559,6 +659,7 @@
           // ignore
         }
         owner.currentWeatherElement = null;
+        owner.currentWeatherContentElement = null;
       }
 
       if (owner.currentInfoElement) {
@@ -569,6 +670,7 @@
         }
         owner.currentInfoElement = null;
       }
+      removeCurrentInfoHost(owner);
 
       owner.currentStatus = 'idle';
       stopRealtimeClock(owner, deps);
@@ -639,19 +741,30 @@
         // ignore
       }
 
+      const weatherMount = createShadowMount(documentRef, {
+        hostClassName: 'wa-weather-shadow-host',
+        hostStyle: 'display:inline-flex;vertical-align:middle;margin-left:8px;',
+        bodyClassName: 'wa-weather-shadow-root',
+        inlineCss: ':host{display:inline-flex;vertical-align:middle;margin-left:8px;}',
+        styleIds: ['wa-weather-styles', 'wa-country-flag-styles']
+      });
+      if (!weatherMount?.body) return false;
+      weatherMount.body.appendChild(weatherContainer);
+
       const phoneElement = findPhoneNumberElement({ document: documentRef });
-      if (phoneElement) {
-        phoneElement.insertAdjacentElement('afterend', weatherContainer);
+      if (phoneElement?.parentElement) {
+        phoneElement.insertAdjacentElement('afterend', weatherMount.host);
       } else {
         const contactElement = findContactNameElement({ document: documentRef });
-        if (contactElement) {
-          contactElement.insertAdjacentElement('afterend', weatherContainer);
+        if (contactElement?.parentElement) {
+          contactElement.insertAdjacentElement('afterend', weatherMount.host);
         } else {
-          insertionContainer.appendChild(weatherContainer);
+          insertionContainer.appendChild(weatherMount.host);
         }
       }
 
-      owner.currentWeatherElement = weatherContainer;
+      owner.currentWeatherElement = weatherMount.host;
+      owner.currentWeatherContentElement = weatherContainer;
 
       // 交互：点国旗/国家名 -> 选国家；点天气 -> 强制刷新；点空白 -> 普通刷新
       try {
@@ -889,16 +1002,22 @@
 
       const input = overlay.querySelector('.wa-country-picker-search');
       const listEl = overlay.querySelector('.wa-country-picker-list');
+      const flagService = window.WAAP?.services?.countryFlagService;
+
+      try {
+        flagService?.ensureStyles?.({ document: documentRef });
+      } catch (e) {
+        // ignore
+      }
 
       const allItems = (Array.isArray(countries) ? countries : [])
         .filter(Boolean)
         .map((c) => {
           const name = String(c.name || '').trim();
           const code = String(c.country || '').trim();
-          const flag = String(c.flag || '🌍');
           const initials = getPinyinInitials(name);
           const searchText = `${name} ${code} ${code.toLowerCase()} ${initials}`.toLowerCase();
-          return { ...c, _name: name, _code: code, _flag: flag, _initials: initials, _searchText: searchText };
+          return { ...c, _name: name, _code: code, _initials: initials, _searchText: searchText };
         });
 
       const byCode = new Map();
@@ -943,8 +1062,20 @@
             btn.type = 'button';
             btn.className = 'wa-country-picker-item';
             btn.setAttribute('role', 'option');
+            const flagHtml = flagService?.renderFlagHtml
+              ? flagService.renderFlagHtml(
+                  it,
+                  {
+                    shellClassName: 'wa-country-flag-shell',
+                    imageClassName: 'wa-country-flag-img',
+                    badgeClassName: 'wa-country-flag-code-badge',
+                    alt: `${it._name || it._code || '国家'}图标`
+                  },
+                  { document: documentRef, chrome: window.chrome }
+                )
+              : `<span class="wa-country-flag-code-badge">${it._code || '--'}</span>`;
             btn.innerHTML = `
-              <span class="wa-country-picker-flag">${it._flag}</span>
+              <span class="wa-country-picker-flag">${flagHtml}</span>
               <span class="wa-country-picker-name">${it._name}</span>
               <span class="wa-country-picker-code">${it._code}</span>
             `;

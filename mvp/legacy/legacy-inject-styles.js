@@ -157,6 +157,9 @@
       display: flex;
       align-items: center;
       white-space: pre-wrap;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
     }
 
     html[data-theme='dark'] .transcription-loading,
@@ -174,6 +177,9 @@
       background-color: rgba(180, 35, 24, 0.06);
       border-radius: 0 4px 4px 0;
       white-space: pre-wrap;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
     }
 
     html[data-theme='dark'] .transcription-error,
@@ -192,6 +198,9 @@
       border-left: 3px solid #4ade80;
       background-color: rgba(232, 245, 233, 0.8);
       border-radius: 0 5px 5px 0;
+      width: 100%;
+      max-width: 100%;
+      box-sizing: border-box;
     }
 
     .transcription-content .transcription-header {

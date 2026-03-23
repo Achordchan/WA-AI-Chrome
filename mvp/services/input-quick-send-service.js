@@ -86,10 +86,14 @@
   }
 
   function hasSendAction(scopeEl) {
+    const domSvc = getWhatsappDomService();
+    if (typeof domSvc?.hasSendAction === 'function') {
+      return domSvc.hasSendAction(scopeEl);
+    }
     try {
       if (!scopeEl || !scopeEl.querySelector) return false;
       return !!scopeEl.querySelector(
-        'button[aria-label="发送"], button[title="发送"], [role="button"][aria-label="发送"], [role="button"][title="发送"]'
+        'button[aria-label="发送"], button[title="发送"], [role="button"][aria-label="发送"], [role="button"][title="发送"], button[aria-label="Send"], button[title="Send"], [role="button"][aria-label="Send"], [role="button"][title="Send"]'
       );
     } catch (e) {
       return false;
@@ -97,6 +101,10 @@
   }
 
   function isMediaCaptionInput(inputEl) {
+    const domSvc = getWhatsappDomService();
+    if (typeof domSvc?.isMediaCaptionInput === 'function') {
+      return domSvc.isMediaCaptionInput(inputEl);
+    }
     try {
       if (!inputEl || !(inputEl instanceof HTMLElement)) return false;
 
@@ -131,6 +139,13 @@
         doc.getElementById('main');
       if (!main || !main.contains(inputEl)) {
         return isMediaCaptionInput(inputEl) ? inputEl : null;
+      }
+
+      const activeTarget =
+        (typeof domSvc?.getActiveInputTarget === 'function' ? domSvc.getActiveInputTarget(main) : null) ||
+        null;
+      if (activeTarget?.inputBox === inputEl) {
+        return inputEl;
       }
 
       const footer =

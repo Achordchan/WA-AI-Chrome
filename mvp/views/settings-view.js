@@ -1211,17 +1211,17 @@
       </div>
 
       <div class="settings-section">
-        <h4>快速对话（内测）</h4>
+        <h4>快速对话</h4>
 
         <div class="toggle-switch-container">
           <label for="quickChatEnabled" class="toggle-label">启用快速对话</label>
-          <span class="wa-info" data-tip="该功能仍在内测中，默认不开放；需要管理员口令解锁后才能启用">i</span>
+          <span class="wa-info" data-tip="开启后，会在左侧聊天列表顶部显示“快速对话”按钮，可直接输入手机号发起临时会话">i</span>
           <label class="toggle-switch">
-            <input type="checkbox" id="quickChatEnabled" class="toggle-input">
+            <input type="checkbox" id="quickChatEnabled" class="toggle-input" checked>
             <span class="toggle-slider"></span>
           </label>
         </div>
-        <p style="margin-top: 6px; font-size: 12px; color: #666;">未解锁时无法开启；解锁后启用会在左侧聊天列表顶部显示“快速对话”按钮。</p>
+        <p style="margin-top: 6px; font-size: 12px; color: #666;">开启后会在左侧聊天列表顶部显示“快速对话”按钮，输入手机号即可直接发起临时会话。</p>
       </div>
 
       <!-- AI服务设置 -->

@@ -15,6 +15,9 @@
           align-items: center;
           margin-left: 12px;
           gap: 4px;
+          flex: 0 0 auto;
+          width: auto;
+          min-width: fit-content;
         }
 
         .analysis-btn-container.waap-toolbar .settings-btn,
@@ -110,10 +113,49 @@
     return el;
   }
 
+  function findHeaderActionMount(headerEl) {
+    if (!headerEl?.querySelector) return null;
+
+    const markerSelectors = [
+      'button[aria-label="菜单"]',
+      'button[aria-label="搜索"]',
+      'button[aria-label="目录"]',
+      'button[aria-label="Menu"]',
+      'button[aria-label="Search"]',
+      'button[aria-label="Catalog"]'
+    ];
+
+    for (const selector of markerSelectors) {
+      const marker = headerEl.querySelector(selector);
+      if (!marker) continue;
+
+      let node = marker.parentElement;
+      let best = null;
+      while (node && node !== headerEl) {
+        try {
+          const style = window.getComputedStyle(node);
+          const isFlex = style && /(flex|inline-flex)/.test(style.display || '');
+          if (isFlex && node.querySelectorAll('button').length >= 3) {
+            return node;
+          }
+        } catch (e) {
+          // ignore
+        }
+        if (!best) best = node;
+        node = node.parentElement;
+      }
+
+      if (best) return best;
+    }
+
+    return null;
+  }
+
   function attachToHeader(headerEl, toolbarEl) {
     if (!headerEl || !toolbarEl) return false;
     try {
-      headerEl.appendChild(toolbarEl);
+      const mount = findHeaderActionMount(headerEl) || headerEl;
+      mount.appendChild(toolbarEl);
       return true;
     } catch (e) {
       return false;
@@ -123,6 +165,7 @@
   window.WAAP.views.toolbarView = {
     ensureStyles,
     createToolbar,
+    findHeaderActionMount,
     attachToHeader
   };
 })();

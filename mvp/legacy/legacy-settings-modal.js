@@ -249,17 +249,17 @@ function legacyShowSettingsModal() {
       </div>
 
       <div class="settings-section">
-        <h4>快速对话（内测）</h4>
+        <h4>快速对话</h4>
 
         <div class="toggle-switch-container">
           <label for="quickChatEnabled" class="toggle-label">启用快速对话</label>
-          <span class="wa-info" data-tip="该功能仍在内测中，默认不开放；需要管理员口令解锁后才能启用">i</span>
+          <span class="wa-info" data-tip="开启后，会在左侧聊天列表顶部显示“快速对话”按钮，可直接输入手机号发起临时会话">i</span>
           <label class="toggle-switch">
-            <input type="checkbox" id="quickChatEnabled" class="toggle-input">
+            <input type="checkbox" id="quickChatEnabled" class="toggle-input" checked>
             <span class="toggle-slider"></span>
           </label>
         </div>
-        <p style="margin-top: 6px; font-size: 12px; color: #666;">未解锁时无法开启；解锁后启用会在左侧聊天列表顶部显示“快速对话”按钮。</p>
+        <p style="margin-top: 6px; font-size: 12px; color: #666;">开启后会在左侧聊天列表顶部显示“快速对话”按钮，输入手机号即可直接发起临时会话。</p>
       </div>
 
       <!-- AI服务设置 -->
@@ -510,6 +510,7 @@ function legacyShowSettingsModal() {
   const renderPrivacyRows = (records) => {
     try {
       if (!privacyBody) return;
+      const flagService = window.WAAP?.services?.countryFlagService;
       const list = Array.isArray(records) ? records : [];
       if (list.length === 0) {
         privacyBody.innerHTML = '<tr><td colspan="4" class="privacy-empty">暂无记录</td></tr>';
@@ -525,7 +526,16 @@ function legacyShowSettingsModal() {
         const langTd = document.createElement('td');
         const actionTd = document.createElement('td');
         phoneTd.textContent = r.phone || '';
-        countryTd.textContent = r.countryLabel || '暂无数据';
+        if (flagService?.renderCountryLabelHtml && r.countryData) {
+          flagService.ensureStyles?.({ document });
+          countryTd.innerHTML = flagService.renderCountryLabelHtml(
+            r.countryData,
+            { wrapperClassName: 'wa-country-inline-label', nameClassName: 'wa-country-inline-name', codeClassName: 'wa-country-inline-code' },
+            { document, chrome }
+          );
+        } else {
+          countryTd.textContent = r.countryLabel || '暂无数据';
+        }
         langTd.textContent = r.langLabel || '暂无数据';
 
         const btn = document.createElement('button');
@@ -695,6 +705,7 @@ function legacyShowSettingsModal() {
         }
         return {
           phone,
+          countryData: correction || resolved || null,
           countryLabel: buildCountryLabel(correction || resolved),
           langLabel: lang ? langLabel(lang) : '暂无数据'
         };
@@ -728,7 +739,7 @@ function legacyShowSettingsModal() {
       const langPrefs = await getStoredChatLanguagePreferences();
 
       const payload = {
-        version: '3.2.3',
+        version: '3.2.4',
         exportedAt: new Date().toISOString(),
         weatherCountryCorrections: weatherCorrections || {},
         weatherCountryResolved: weatherResolved || {},
@@ -1133,16 +1144,6 @@ function legacyShowSettingsModal() {
               if (keyElAi) keyElAi.value = presetApiKey;
 
               showToast('已应用管理员预设', 'success');
-              try {
-                chrome.storage.sync.set({ quickChatUnlocked: true }, () => {
-                  const quickChatToggle = document.getElementById('quickChatEnabled');
-                  if (quickChatToggle) {
-                    quickChatToggle.disabled = false;
-                  }
-                });
-              } catch (e) {
-                // ignore
-              }
               close();
             } catch (e) {
               console.error('应用管理员预设失败:', e);
@@ -1416,7 +1417,6 @@ function legacyShowSettingsModal() {
         // 系统角色
         'systemRole',
         'quickChatEnabled',
-        'quickChatUnlocked',
         'weatherEnabled',
         'weatherShowWeather',
         'weatherShowTime'
@@ -1471,9 +1471,7 @@ function legacyShowSettingsModal() {
         try {
           const quickChatToggle = document.getElementById('quickChatEnabled');
           if (quickChatToggle) {
-            const unlocked = data.quickChatUnlocked === true;
-            quickChatToggle.checked = unlocked && (data.quickChatEnabled === true);
-            quickChatToggle.disabled = !unlocked;
+            quickChatToggle.checked = data.quickChatEnabled !== false;
           }
         } catch (e) {
           // ignore

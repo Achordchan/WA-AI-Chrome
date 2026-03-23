@@ -316,6 +316,106 @@
     }
   }
 
+  function normalizeValidPhoneText(rawText) {
+    try {
+      const cleaned = cleanPhoneNumber(String(rawText || '').trim());
+      if (!cleaned || !cleaned.startsWith('+')) return '';
+      const digits = cleaned.replace(/[^\d]/g, '');
+      if (digits.length < 8 || digits.length > 15) return '';
+      return cleaned;
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function getHeaderPhoneCandidate(owner, deps = {}) {
+    try {
+      const documentRef = deps.document || window.document;
+      const domService = deps.whatsappDomService || window.WAAP?.services?.whatsappDomService;
+      const main = domService?.getMain ? domService.getMain() : documentRef.querySelector('#main');
+      const header = domService?.getMainHeader ? domService.getMainHeader(main) : main?.querySelector?.('header');
+      if (!header) return null;
+
+      const candidateSelectors = [
+        '[role="button"] span[dir="auto"]',
+        'button span[dir="auto"]',
+        'a span[dir="auto"]',
+        'span[dir="auto"]',
+        '[title*="+"]',
+        '[aria-label*="+"]'
+      ];
+
+      const seen = new Set();
+      for (const selector of candidateSelectors) {
+        const nodes = header.querySelectorAll(selector);
+        for (const node of nodes) {
+          if (!node || seen.has(node)) continue;
+          seen.add(node);
+
+          const rawText =
+            node.getAttribute?.('title') ||
+            node.getAttribute?.('aria-label') ||
+            node.textContent ||
+            node.innerText ||
+            '';
+          const phone = normalizeValidPhoneText(rawText);
+          if (!phone) continue;
+
+          return {
+            phone,
+            element: node
+          };
+        }
+      }
+
+      const headerLines = String(header.innerText || '')
+        .split('\n')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      for (const line of headerLines) {
+        const phone = normalizeValidPhoneText(line);
+        if (phone) {
+          return {
+            phone,
+            element: header
+          };
+        }
+      }
+    } catch (e) {
+      return null;
+    }
+
+    return null;
+  }
+
+  function commitResolvedPhone(owner, rawPhone, deps = {}) {
+    try {
+      const phone = normalizeValidPhoneText(rawPhone);
+      if (!phone) return '';
+
+      try {
+        const cb = deps.onPhoneNumber;
+        if (typeof cb === 'function') cb(phone);
+      } catch (e) {
+        // ignore
+      }
+
+      try {
+        const chatKey = getActiveChatKey(owner);
+        if (chatKey) {
+          cachePhoneForChatKey(chatKey, phone);
+          persistPhoneForChatKey(owner, chatKey, phone, deps);
+        }
+      } catch (e) {
+        // ignore
+      }
+
+      return phone;
+    } catch (e) {
+      return '';
+    }
+  }
+
   function ensureInputActivityTracking(documentRef) {
     try {
       if (inputActivityInstalled) return;
@@ -456,14 +556,11 @@
 
       const clickOpen = () => {
         try {
-          const currentChatXPath = '//*[@id="main"]/header/div[2]/div/div/div/div/span';
-          const phoneElement = documentRef.evaluate(
-            currentChatXPath,
-            documentRef,
-            null,
-            XPathResultRef.FIRST_ORDERED_NODE_TYPE,
-            null
-          ).singleNodeValue;
+          const headerCandidate = getHeaderPhoneCandidate(owner, {
+            ...deps,
+            document: documentRef
+          });
+          const phoneElement = headerCandidate?.element || null;
 
           const header =
             documentRef.querySelector('header[data-testid="conversation-info-header"]') ||
@@ -606,121 +703,55 @@
       // ignore
     }
 
-    // 当前聊天对象号码的精确XPath（用户测试成功的路径）
-    const currentChatXPath = '//*[@id="main"]/header/div[2]/div/div/div/div/span';
-
     try {
-      // 使用精确XPath获取当前聊天对象号码
-      const phoneElement = documentRef.evaluate(
-        currentChatXPath,
-        documentRef,
-        null,
-        XPathResultRef.FIRST_ORDERED_NODE_TYPE,
-        null
-      ).singleNodeValue;
-
-      if (phoneElement) {
-        const phoneText = phoneElement.textContent || phoneElement.innerText;
-
-        // 验证是否为有效电话号码格式
-        const phoneRegex = /^\+\d{1,3}[\s\d\-\(\)]{8,}$/;
-        if (phoneRegex.test(phoneText.trim())) {
-          // 只在号码变化时输出详细信息
-          const numbersOnly = phoneText.replace(/[^\d]/g, '');
-          try {
-            if (owner.currentPhoneNumber !== numbersOnly) {
-              console.log('✅ 成功获取当前聊天对象号码!');
-              console.log('📞 号码:', phoneText);
-              console.log('🎯 开始处理号码...');
-            }
-          } catch (e) {
-            // ignore
-          }
-
-          try {
-            const cb = deps.onPhoneNumber;
-            if (typeof cb === 'function') cb(phoneText.trim());
-          } catch (e) {
-            // ignore
-          }
-
-          try {
-            const chatKey = getActiveChatKey(owner);
-            const cleaned = cleanPhoneNumber(phoneText.trim());
-            if (chatKey && cleaned && cleaned.startsWith('+')) {
-              cachePhoneForChatKey(chatKey, cleaned);
-              persistPhoneForChatKey(owner, chatKey, cleaned, deps);
-            }
-          } catch (e) {
-            // ignore
-          }
-
-          return phoneText.trim();
-        }
-
-        // 只在不是重复的无效格式时输出日志
+      const headerCandidate = getHeaderPhoneCandidate(owner, {
+        ...deps,
+        document: documentRef
+      });
+      if (headerCandidate?.phone) {
+        const numbersOnly = headerCandidate.phone.replace(/[^\d]/g, '');
         try {
-          if (owner.lastDebugNumber !== 'invalid') {
-            console.log('❌ 获取的文本不是有效的电话号码格式:', phoneText);
-            console.log('🔄 尝试备用方案...');
+          if (owner.currentPhoneNumber !== numbersOnly) {
+            console.log('✅ 成功获取当前聊天对象号码!');
+            console.log('📞 号码:', headerCandidate.phone);
+            console.log('🎯 开始处理号码...');
           }
         } catch (e) {
           // ignore
         }
 
-        try {
-          const fromSidebar = tryExtractPhoneFromContactInfoSidebar(owner, { ...deps, document: documentRef });
-          if (fromSidebar) {
-            try {
-              const chatKey = getActiveChatKey(owner);
-              const cleaned = cleanPhoneNumber(fromSidebar);
-              if (chatKey && cleaned && cleaned.startsWith('+')) {
-                cachePhoneForChatKey(chatKey, cleaned);
-                persistPhoneForChatKey(owner, chatKey, cleaned, deps);
-              }
-            } catch (e) {
-              // ignore
-            }
-            return fromSidebar;
-          }
-        } catch (e) {
-          // ignore
-        }
-
-        const backupResult = tryBackupMethods(owner, { ...deps, document: documentRef });
-
-        if (backupResult) {
-          try {
-            const chatKey = getActiveChatKey(owner);
-            const cleaned = cleanPhoneNumber(backupResult);
-            if (chatKey && cleaned && cleaned.startsWith('+')) {
-              cachePhoneForChatKey(chatKey, cleaned);
-              persistPhoneForChatKey(owner, chatKey, cleaned, deps);
-            }
-          } catch (e) {
-            // ignore
-          }
-        }
-
-        if (!backupResult) {
-          try {
-            scheduleAutoOpenSidebarAndExtractPhone(owner, { ...deps, document: documentRef, XPathResult: XPathResultRef });
-          } catch (e) {
-            // ignore
-          }
-        }
-
-        // 只有在备用方案也失败时才设置为invalid状态
-        try {
-          owner.lastDebugNumber = backupResult ? String(backupResult) : 'invalid';
-        } catch (e) {
-          // ignore
-        }
-
-        return backupResult;
+        const committed = commitResolvedPhone(owner, headerCandidate.phone, deps);
+        if (committed) return committed;
       }
 
-      return null;
+      try {
+        const fromSidebar = tryExtractPhoneFromContactInfoSidebar(owner, { ...deps, document: documentRef });
+        if (fromSidebar) {
+          const committed = commitResolvedPhone(owner, fromSidebar, deps);
+          if (committed) return committed;
+        }
+      } catch (e) {
+        // ignore
+      }
+
+      const backupResult = tryBackupMethods(owner, { ...deps, document: documentRef });
+      const committedBackup = commitResolvedPhone(owner, backupResult, deps);
+
+      if (!committedBackup) {
+        try {
+          scheduleAutoOpenSidebarAndExtractPhone(owner, { ...deps, document: documentRef, XPathResult: XPathResultRef });
+        } catch (e) {
+          // ignore
+        }
+      }
+
+      try {
+        owner.lastDebugNumber = committedBackup ? String(committedBackup) : 'invalid';
+      } catch (e) {
+        // ignore
+      }
+
+      return committedBackup || null;
     } catch (error) {
       try {
         console.error('❌ 获取当前聊天号码时发生错误:', error);

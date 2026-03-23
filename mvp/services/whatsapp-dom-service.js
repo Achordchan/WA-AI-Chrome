@@ -4,6 +4,49 @@
 
   if (window.WAAP.services.whatsappDomService) return;
 
+  const MEDIA_CAPTION_LABEL_RE = /^(输入消息|add a caption|caption)$/i;
+
+  function getTextboxAriaLabel(el) {
+    try {
+      return String(el?.getAttribute?.('aria-label') || '').trim();
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function isSendButtonLike(el) {
+    try {
+      if (!el) return false;
+      const label = `${el.getAttribute?.('aria-label') || ''} ${el.getAttribute?.('title') || ''}`.trim();
+      return /发送|send/i.test(label);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function isEmojiButtonLike(el) {
+    try {
+      if (!el) return false;
+      const label = `${el.getAttribute?.('aria-label') || ''} ${el.getAttribute?.('title') || ''}`.trim();
+      return /表情|emoji|sticker|caption|动图/i.test(label);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function findActionButton(scopeEl, matcher) {
+    try {
+      if (!scopeEl?.querySelectorAll || typeof matcher !== 'function') return null;
+      return Array.from(scopeEl.querySelectorAll('button, [role="button"]')).find((el) => matcher(el)) || null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function hasSendAction(scopeEl) {
+    return !!findActionButton(scopeEl, isSendButtonLike);
+  }
+
   function getMain() {
     try {
       const mains = document.querySelectorAll('#main');
@@ -67,9 +110,9 @@
       const main = mainEl || getMain();
       if (!main) return null;
       const footer = (
-        main.querySelector('footer._ak1i') ||
+        main.querySelector('[data-testid="compose-box"]') ||
         main.querySelector('footer') ||
-        main.querySelector('[data-testid="compose-box"]')
+        main.querySelector('footer._ak1i')
       );
       if (footer) return footer;
       return document.querySelector('[data-testid="compose-box"]') || document.querySelector('#main footer');
@@ -97,6 +140,73 @@
       );
     } catch (e) {
       return null;
+    }
+  }
+
+  function getMediaCaptionInputTarget(mainEl) {
+    try {
+      const main = mainEl || getMain();
+      if (!main) return null;
+      const footer = getMainFooter(main);
+      const inputs = main.querySelectorAll('div[contenteditable="true"][role="textbox"]');
+      for (const inputBox of inputs) {
+        if (footer && footer.contains(inputBox)) continue;
+
+        const ariaLabel = getTextboxAriaLabel(inputBox);
+        const scope = inputBox.closest('.copyable-area') || inputBox.parentElement || inputBox.closest('div');
+        if (!scope || !hasSendAction(scope)) continue;
+        if (ariaLabel && !MEDIA_CAPTION_LABEL_RE.test(ariaLabel)) continue;
+
+        const container = inputBox.closest('.lexical-rich-text-input');
+        const emojiButton = findActionButton(scope, isEmojiButtonLike);
+        return {
+          kind: 'preview',
+          inputBox,
+          container,
+          mountParent: emojiButton?.parentNode || container?.parentNode || scope,
+          beforeNode: emojiButton || container?.nextSibling || null,
+          scope
+        };
+      }
+    } catch (e) {
+      // ignore
+    }
+    return null;
+  }
+
+  function getChatInputTarget(mainEl) {
+    try {
+      const main = mainEl || getMain();
+      if (!main) return null;
+      const footer = getMainFooter(main);
+      const inputBox = getChatEditable(footer);
+      if (!inputBox) return null;
+
+      const container = inputBox.closest('.lexical-rich-text-input');
+      return {
+        kind: 'chat',
+        inputBox,
+        container,
+        mountParent: container?.parentNode || footer,
+        beforeNode: container?.nextSibling || null,
+        scope: footer
+      };
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function getActiveInputTarget(mainEl) {
+    return getMediaCaptionInputTarget(mainEl) || getChatInputTarget(mainEl);
+  }
+
+  function isMediaCaptionInput(inputEl) {
+    try {
+      const main = getMain();
+      const target = getMediaCaptionInputTarget(main);
+      return !!(target?.inputBox && target.inputBox === inputEl);
+    } catch (e) {
+      return false;
     }
   }
 
@@ -204,6 +314,11 @@
     getMainHeader,
     getMainFooter,
     getChatEditable,
+    getChatInputTarget,
+    getMediaCaptionInputTarget,
+    getActiveInputTarget,
+    isMediaCaptionInput,
+    hasSendAction,
     isChatWindowExists,
     getChatTitleFirstLine,
     getMessageElementsInActiveChat,

@@ -4,6 +4,9 @@
 
   if (window.WAAP.presenters.messageObserverPresenter) return;
 
+  const VOICE_MARKER_SELECTOR =
+    'span[aria-label="语音消息"], span[aria-label="Voice message"], button[aria-label*="播放语音"], button[aria-label*="Play voice"], span[data-icon="audio-play"], span[data-icon="ptt-status"]';
+
   function getMain() {
     try {
       const svc = window.WAAP?.services?.whatsappDomService;
@@ -18,13 +21,28 @@
     }
   }
 
+  function getMessageProcessing() {
+    try {
+      return window.WAAP?.presenters?.messageProcessingPresenter || null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   function collectAddedMessageElements(node) {
     const collected = [];
     try {
       if (!node || node.nodeType !== 1) return collected;
+      const processing = getMessageProcessing();
+      const resolveOwner = processing?.resolveMessageOwnerElement;
+      const isVoiceMessage = processing?.isVoiceMessage;
+      const textSelector = processing?.TEXT_MESSAGE_ROOT_SELECTOR || 'div[data-pre-plain-text]';
       const pushUnique = (el) => {
         try {
           if (!el) return;
+          if (typeof resolveOwner === 'function') {
+            el = resolveOwner(el) || el;
+          }
           try {
             const main = getMain();
             if (!main) return;
@@ -36,17 +54,10 @@
 
           try {
             if (!el.matches) return;
-            if (el.matches('div[data-pre-plain-text]')) {
+            if (el.matches(textSelector)) {
               // ok
-            } else if (el.matches('div[tabindex="-1"]')) {
-              const hasVoiceMarker = !!(
-                el.querySelector?.('span[aria-label="语音消息"], span[aria-label="Voice message"], button[aria-label*="播放语音"], button[aria-label*="Play voice"], span[data-icon="audio-play"], span[data-icon="ptt-status"]')
-              );
-              if (!hasVoiceMarker) return;
-
-              // Avoid selecting large containers: a single voice bubble should not contain other message roots.
-              const hasNestedMessageRoots = !!el.querySelector?.('div[tabindex="-1"], div[data-pre-plain-text]');
-              if (hasNestedMessageRoots) return;
+            } else if (typeof isVoiceMessage === 'function') {
+              if (!isVoiceMessage(el)) return;
             } else {
               return;
             }
@@ -64,11 +75,10 @@
       const resolveVoiceRoot = (markerEl) => {
         try {
           if (!markerEl) return null;
-          return (
-            markerEl.closest?.('div[tabindex="-1"]') ||
-            markerEl.closest?.('div[data-pre-plain-text]') ||
-            null
-          );
+          if (typeof resolveOwner === 'function') {
+            return resolveOwner(markerEl);
+          }
+          return markerEl.closest?.('div[tabindex="-1"]') || markerEl.closest?.(textSelector) || null;
         } catch (e) {
           return null;
         }
@@ -78,7 +88,7 @@
         try {
           if (!root || !root.querySelectorAll) return;
           const markers = root.querySelectorAll(
-            'span[aria-label="语音消息"], span[aria-label="Voice message"], button[aria-label*="播放语音"], button[aria-label*="Play voice"], span[data-icon="audio-play"], span[data-icon="ptt-status"]'
+            VOICE_MARKER_SELECTOR
           );
           markers.forEach((m) => pushUnique(resolveVoiceRoot(m)));
         } catch (e) {
@@ -86,11 +96,11 @@
         }
       };
 
-      if (node.matches && node.matches('div[data-pre-plain-text]')) {
+      if (node.matches && node.matches(textSelector)) {
         pushUnique(node);
       }
       try {
-        const closest = node.closest?.('div[data-pre-plain-text]');
+        const closest = node.closest?.(textSelector);
         if (closest) pushUnique(closest);
       } catch (e) {
         // ignore
@@ -99,7 +109,7 @@
       try {
         if (node.matches) {
           if (
-            node.matches('span[aria-label="语音消息"], span[aria-label="Voice message"], button[aria-label*="播放语音"], button[aria-label*="Play voice"], span[data-icon="audio-play"], span[data-icon="ptt-status"]')
+            node.matches(VOICE_MARKER_SELECTOR)
           ) {
             pushUnique(resolveVoiceRoot(node));
           }
@@ -110,7 +120,7 @@
 
       collectVoiceMarkersFrom(node);
 
-      const nested = node.querySelectorAll ? node.querySelectorAll('div[data-pre-plain-text]') : [];
+      const nested = node.querySelectorAll ? node.querySelectorAll(textSelector) : [];
       try {
         nested.forEach((m) => pushUnique(m));
       } catch (e) {
@@ -136,37 +146,31 @@
       const getMessageTextRoot = deps.getMessageTextRoot;
       const collectTextContent = deps.collectTextContent;
       const maybeAutoTranslateNewMessage = deps.maybeAutoTranslateNewMessage;
+      const processing = getMessageProcessing();
+      const resolveOwner = deps.resolveMessageOwnerElement || processing?.resolveMessageOwnerElement;
+      const hasVoiceMarker = deps.hasVoiceMarker || processing?.hasVoiceMarker;
+      const isVoiceMessage = deps.isVoiceMessage || processing?.isVoiceMessage;
+      const textSelector = processing?.TEXT_MESSAGE_ROOT_SELECTOR || 'div[data-pre-plain-text]';
 
       if (!documentRef?.body || typeof MutationObserverRef !== 'function') {
         return () => {};
       }
 
-      const hasVoiceMarker = (el) => {
-        try {
-          return !!(
-            el?.querySelector?.('span[aria-label="语音消息"], span[aria-label="Voice message"], button[aria-label*="播放语音"], button[aria-label*="Play voice"], span[data-icon="audio-play"], span[data-icon="ptt-status"]')
-          );
-        } catch (e) {
-          return false;
-        }
-      };
-
       const isValidMessageRoot = (el, mainEl) => {
         try {
           if (!el) return false;
+          if (typeof resolveOwner === 'function') {
+            const resolved = resolveOwner(el);
+            if (!resolved) return false;
+            el = resolved;
+          }
           const main = mainEl || getMain();
           if (!main) return false;
           if (el === main) return false;
           if (!main.contains(el)) return false;
-          if (!el.matches) return false;
-          if (el.matches('div[data-pre-plain-text]')) return true;
-          if (el.matches('div[tabindex="-1"]')) {
-            if (!hasVoiceMarker(el)) return false;
-            const hasNestedMessageRoots = !!el.querySelector?.('div[tabindex="-1"], div[data-pre-plain-text]');
-            if (hasNestedMessageRoots) return false;
-            return true;
-          }
-          return false;
+          if (el.matches?.(textSelector)) return true;
+          if (typeof isVoiceMessage === 'function') return isVoiceMessage(el);
+          return !!hasVoiceMarker?.(el);
         } catch (e) {
           return false;
         }
@@ -179,7 +183,9 @@
           const containers = main.querySelectorAll?.('.translate-btn-container') || [];
           containers.forEach((c) => {
             try {
-              const owner = c.closest?.('div[data-pre-plain-text], div[tabindex="-1"]');
+              const owner = typeof resolveOwner === 'function'
+                ? resolveOwner(c)
+                : c.closest?.(`${textSelector}, div[tabindex="-1"]`);
               if (!owner || !isValidMessageRoot(owner, main)) {
                 c.remove();
               }
@@ -218,7 +224,11 @@
 
             try {
               const main = getMain();
-              if (main && !main.querySelector('.analysis-btn-container')) {
+              const header =
+                window.WAAP?.services?.whatsappDomService?.getMainHeader?.(main) ||
+                main?.querySelector?.('header') ||
+                null;
+              if (main && header && !header.querySelector('.analysis-btn-container.waap-toolbar, .analysis-btn-container')) {
                 if (typeof addAnalysisButton === 'function') {
                   addAnalysisButton(main);
                 }
@@ -273,7 +283,7 @@
       observer.observe(documentRef.body, { childList: true, subtree: true });
 
       try {
-        const existing = documentRef.querySelectorAll('div[data-pre-plain-text]');
+        const existing = documentRef.querySelectorAll(textSelector);
         existing.forEach((message) => {
           try {
             if (message && message.dataset && !message.dataset.processed) {
@@ -289,7 +299,7 @@
 
       try {
         const voiceMarkers = documentRef.querySelectorAll(
-          'span[aria-label="语音消息"], span[aria-label="Voice message"], button[aria-label*="播放语音"], button[aria-label*="Play voice"], span[data-icon="audio-play"], span[data-icon="ptt-status"]'
+          VOICE_MARKER_SELECTOR
         );
         const main = getMain();
         try {
@@ -300,8 +310,9 @@
         voiceMarkers.forEach((m) => {
           try {
             const root =
+              (typeof resolveOwner === 'function' ? resolveOwner(m) : null) ||
               m.closest?.('div[tabindex="-1"]') ||
-              m.closest?.('div[data-pre-plain-text]') ||
+              m.closest?.(textSelector) ||
               null;
             if (root && root.dataset && isValidMessageRoot(root, main)) {
               if (typeof processMessage === 'function') processMessage(root);

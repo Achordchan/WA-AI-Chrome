@@ -533,6 +533,7 @@
       const renderPrivacyRows = (records) => {
         try {
           if (!privacyBody) return;
+          const flagService = window.WAAP?.services?.countryFlagService;
           const list = Array.isArray(records) ? records : [];
           if (list.length === 0) {
             privacyBody.innerHTML = '<tr><td colspan="4" class="privacy-empty">暂无记录</td></tr>';
@@ -548,7 +549,16 @@
             const langTd = document.createElement('td');
             const actionTd = document.createElement('td');
             phoneTd.textContent = r.phone || '';
-            countryTd.textContent = r.countryLabel || '暂无数据';
+            if (flagService?.renderCountryLabelHtml && r.countryData) {
+              flagService.ensureStyles?.({ document });
+              countryTd.innerHTML = flagService.renderCountryLabelHtml(
+                r.countryData,
+                { wrapperClassName: 'wa-country-inline-label', nameClassName: 'wa-country-inline-name', codeClassName: 'wa-country-inline-code' },
+                { document, chrome }
+              );
+            } else {
+              countryTd.textContent = r.countryLabel || '暂无数据';
+            }
             langTd.textContent = r.langLabel || '暂无数据';
 
             const btn = document.createElement('button');
@@ -728,6 +738,7 @@
 
             return {
               phone,
+              countryData: correction || resolved || null,
               countryLabel: buildCountryLabel(correction || resolved),
               langLabel: lang ? langLabel(lang) : '暂无数据'
             };
@@ -784,7 +795,7 @@
           const langPrefs = await getStoredChatLanguagePreferences();
 
           const payload = {
-            version: '3.2.3',
+            version: '3.2.4',
             exportedAt: new Date().toISOString(),
             weatherCountryCorrections: weatherCorrections || {},
             weatherCountryResolved: weatherResolved || {},
@@ -1426,16 +1437,6 @@
                     // ignore
                   }
 
-                  try {
-                    chrome.storage.sync.set({ quickChatUnlocked: true }, () => {
-                      const quickChatToggle = document.getElementById('quickChatEnabled');
-                      if (quickChatToggle) {
-                        quickChatToggle.disabled = false;
-                      }
-                    });
-                  } catch (e) {
-                    // ignore
-                  }
                   close();
                 } catch (e) {
                   console.error('应用管理员预设失败:', e);
@@ -1834,7 +1835,6 @@
               'siliconflowModel_ai',
               'systemRole',
               'quickChatEnabled',
-              'quickChatUnlocked',
               'weatherEnabled',
               'weatherShowWeather',
               'weatherShowTime',
@@ -1916,9 +1916,7 @@
               try {
                 const quickChatToggle = document.getElementById('quickChatEnabled');
                 if (quickChatToggle) {
-                  const unlocked = data.quickChatUnlocked === true;
-                  quickChatToggle.checked = unlocked && data.quickChatEnabled === true;
-                  quickChatToggle.disabled = !unlocked;
+                  quickChatToggle.checked = data.quickChatEnabled !== false;
                 }
               } catch (e) {
                 // ignore

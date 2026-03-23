@@ -17,36 +17,36 @@
   const INPUT_TRANSLATE_THROTTLE_MS = 800;
   let lastInputTranslateAttemptAt = 0;
 
+  function getWhatsappDomService() {
+    try {
+      return window.WAAP?.services?.whatsappDomService || null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   function getActiveInputTranslateTarget(doc) {
-    const previewInput = Array.from(
-      doc.querySelectorAll('div[contenteditable="true"][role="textbox"]')
-    ).find((el) => /^(输入消息|add a caption|caption)$/i.test(el.getAttribute('aria-label') || ''));
-    if (previewInput) {
-      const previewScope = previewInput.closest('.copyable-area') || doc;
-      const emojiButton = previewScope.querySelector(
-        '[title="打开表情符号面板"], [aria-label="打开表情符号面板"]'
-      );
-      return {
-        kind: 'preview',
-        inputBox: previewInput,
-        container: previewInput.closest('.lexical-rich-text-input'),
-        mountParent: emojiButton?.parentNode || previewInput.closest('.lexical-rich-text-input')?.parentNode,
-        beforeNode: emojiButton || previewInput.closest('.lexical-rich-text-input')?.nextSibling
-      };
+    try {
+      const domSvc = getWhatsappDomService();
+      const main = doc.getElementById('main');
+      if (typeof domSvc?.getActiveInputTarget === 'function') {
+        const target = domSvc.getActiveInputTarget(main);
+        if (target?.inputBox) return target;
+      }
+    } catch (e) {
+      // ignore
     }
 
-    const footer = doc.querySelector('footer._ak1i');
-    if (!footer) return null;
-
-    const inputBox = footer.querySelector('.lexical-rich-text-input div[contenteditable="true"]');
+    const footer = doc.querySelector('#main [data-testid="compose-box"], #main footer');
+    const inputBox = footer?.querySelector('div[contenteditable="true"][role="textbox"]');
     if (!inputBox) return null;
-
+    const container = inputBox.closest('.lexical-rich-text-input');
     return {
       kind: 'chat',
       inputBox,
-      container: inputBox.closest('.lexical-rich-text-input'),
-      mountParent: inputBox.closest('.lexical-rich-text-input')?.parentNode,
-      beforeNode: inputBox.closest('.lexical-rich-text-input')?.nextSibling
+      container,
+      mountParent: container?.parentNode || footer,
+      beforeNode: container?.nextSibling || null
     };
   }
 
@@ -61,16 +61,35 @@
 
   function isChatWindowActiveForInputTranslate(deps = {}) {
     const doc = deps.document || window.document;
-
-    const main = doc.getElementById('main');
-    if (!main) return false;
-
-    return !!getActiveInputTranslateTarget(doc) || !!main.querySelector('.lexical-rich-text-input div[contenteditable="true"]');
+    return !!getActiveInputTranslateTarget(doc);
   }
 
   function createTranslateButton(deps = {}) {
     const doc = deps.document || window.document;
     const createTranslateModal = deps.createTranslateModal;
+
+    const openTranslateModal = async (anchorEl) => {
+      try {
+        const target = getActiveInputTranslateTarget(doc);
+        const inputBox = target?.inputBox;
+        if (!inputBox) return;
+
+        const text = (inputBox.textContent || '').trim();
+        if (typeof createTranslateModal !== 'function') return;
+
+        const modal = await createTranslateModal(text, inputBox, { hideSource: !text });
+        if (!modal) return;
+
+        const host =
+          (anchorEl?.parentElement?.classList?.contains('input-translate-btn') ? anchorEl.parentElement : null) ||
+          getMountedTranslateButton(target) ||
+          anchorEl?.parentElement ||
+          anchorEl;
+        host?.appendChild?.(modal);
+      } catch (e) {
+        // ignore
+      }
+    };
 
     const createTranslateButtonFromView = () => {
       try {
@@ -80,29 +99,7 @@
         return view.createTranslateButton({
           document: doc,
           onClick: async (_event, anchorButton) => {
-            try {
-              const target = getActiveInputTranslateTarget(doc);
-              const inputBox = target?.inputBox;
-              if (!inputBox) return;
-
-              const text = (inputBox.textContent || '').trim();
-
-              if (typeof createTranslateModal !== 'function') return;
-              const modal = await createTranslateModal(text, inputBox, { hideSource: !text });
-              if (!modal) return;
-
-              try {
-                const host =
-                  (anchorButton?.parentElement?.classList?.contains('input-translate-btn')
-                    ? anchorButton.parentElement
-                    : null) || getMountedTranslateButton(target);
-                host && host.appendChild(modal);
-              } catch (e3) {
-                // ignore
-              }
-            } catch (err) {
-              // ignore
-            }
+            await openTranslateModal(anchorButton);
           }
         });
       } catch (e) {
@@ -158,24 +155,7 @@
       }
 
       try {
-        const target = getActiveInputTranslateTarget(doc);
-        const inputBox = target?.inputBox;
-        if (!inputBox) return;
-
-        const text = (inputBox.textContent || '').trim();
-
-        if (typeof createTranslateModal !== 'function') return;
-        const modal = await createTranslateModal(text, inputBox, { hideSource: !text });
-        if (!modal) return;
-
-        try {
-          const host =
-            (button.parentElement?.classList?.contains('input-translate-btn') ? button.parentElement : null) ||
-            button;
-          host.appendChild(modal);
-        } catch (e3) {
-          // ignore
-        }
+        await openTranslateModal(button);
       } catch (err) {
         // ignore
       }

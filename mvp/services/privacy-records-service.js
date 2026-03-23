@@ -271,6 +271,7 @@
 
       return {
         phone,
+        countryData: correction || resolved || null,
         countryLabel: buildCountryLabel(correction || resolved),
         langLabel: lang ? langLabel(lang) : '暂无数据'
       };
@@ -281,7 +282,7 @@
     const current = await getRawStorage();
 
     const payload = {
-      version: '3.2.3',
+      version: '3.2.4',
       exportedAt: new Date().toISOString(),
       weatherCountryCorrections: current.weatherCountryCorrections || {},
       weatherCountryResolved: current.weatherCountryResolved || {},

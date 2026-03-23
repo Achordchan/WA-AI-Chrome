@@ -155,20 +155,181 @@
     return quickChatBtn;
   }
 
+  function resolveActionSlot(buttonEl, scope) {
+    if (!buttonEl) return null;
+
+    let current = buttonEl.parentElement || buttonEl;
+    while (current && current !== scope) {
+      const parent = current.parentElement;
+      if (!parent) break;
+      if (parent.children.length > 1) {
+        return {
+          parent,
+          slot: current
+        };
+      }
+      current = parent;
+    }
+
+    return null;
+  }
+
+  function collectAncestors(element) {
+    const ancestors = [];
+    let current = element;
+    while (current) {
+      ancestors.push(current);
+      current = current.parentElement;
+    }
+    return ancestors;
+  }
+
+  function getDirectChild(container, element) {
+    let current = element;
+    while (current && current.parentElement !== container) {
+      current = current.parentElement;
+    }
+    return current && current.parentElement === container ? current : null;
+  }
+
+  function findSharedActionBar(scope) {
+    try {
+      const newChatBtn =
+        scope?.querySelector?.('button[aria-label="新聊天"]') ||
+        scope?.querySelector?.('button[aria-label="New chat"]') ||
+        document.querySelector('button[aria-label="新聊天"]') ||
+        document.querySelector('button[aria-label="New chat"]');
+      const menuBtn =
+        scope?.querySelector?.('button[aria-label="菜单"]') ||
+        scope?.querySelector?.('button[aria-label="Menu"]') ||
+        document.querySelector('button[aria-label="菜单"]') ||
+        document.querySelector('button[aria-label="Menu"]');
+
+      if (newChatBtn && menuBtn) {
+        const newChatAncestors = collectAncestors(newChatBtn);
+        const menuAncestors = new Set(collectAncestors(menuBtn));
+        for (const ancestor of newChatAncestors) {
+          if (menuAncestors.has(ancestor) && ancestor.children && ancestor.children.length >= 2) {
+            return { bar: ancestor, newChatBtn, menuBtn };
+          }
+        }
+      }
+
+      if (newChatBtn) {
+        return {
+          bar: newChatBtn.parentElement?.parentElement || newChatBtn.parentElement || newChatBtn,
+          newChatBtn,
+          menuBtn
+        };
+      }
+
+      if (menuBtn) {
+        return {
+          bar: menuBtn.parentElement?.parentElement || menuBtn.parentElement || menuBtn,
+          newChatBtn,
+          menuBtn
+        };
+      }
+    } catch (e) {
+      return null;
+    }
+
+    return null;
+  }
+
+  function resolveActionInsertTarget(targetContainer) {
+    if (!targetContainer) return null;
+
+    const scope =
+      (targetContainer.matches && targetContainer.matches('header') ? targetContainer : null) ||
+      targetContainer.querySelector?.('header') ||
+      targetContainer;
+
+    try {
+      const sharedActionBar = findSharedActionBar(scope);
+      const menuBtn = sharedActionBar?.menuBtn || null;
+      const newChatBtn = sharedActionBar?.newChatBtn || null;
+      const sharedBar = sharedActionBar?.bar || null;
+
+      if (sharedBar) {
+        const menuAnchor = menuBtn ? getDirectChild(sharedBar, menuBtn) : null;
+        if (menuAnchor) {
+          return {
+            parent: sharedBar,
+            beforeNode: menuAnchor
+          };
+        }
+
+        const newChatAnchor = newChatBtn ? getDirectChild(sharedBar, newChatBtn) : null;
+        if (newChatAnchor) {
+          return {
+            parent: sharedBar,
+            beforeNode: newChatAnchor.nextSibling || null
+          };
+        }
+      }
+
+      const menuSlot = resolveActionSlot(menuBtn, scope);
+      const newChatSlot = resolveActionSlot(newChatBtn, scope);
+
+      if (menuSlot?.parent && newChatSlot?.parent && menuSlot.parent === newChatSlot.parent) {
+        return {
+          parent: menuSlot.parent,
+          beforeNode: menuSlot.slot
+        };
+      }
+
+      if (menuSlot?.parent) {
+        return {
+          parent: menuSlot.parent,
+          beforeNode: menuSlot.slot
+        };
+      }
+
+      if (newChatSlot?.parent) {
+        const beforeNode = newChatSlot.slot?.nextSibling || null;
+        return {
+          parent: newChatSlot.parent,
+          beforeNode
+        };
+      }
+    } catch (e) {
+      return null;
+    }
+
+    try {
+      if (menuBtn) {
+        const anchor = menuBtn.parentElement || menuBtn;
+        if (anchor?.parentElement) {
+          return {
+            parent: anchor.parentElement,
+            beforeNode: anchor
+          };
+        }
+      }
+      if (newChatBtn) {
+        const anchor = newChatBtn.parentElement || newChatBtn;
+        if (anchor?.parentElement) {
+          return {
+            parent: anchor.parentElement,
+            beforeNode: anchor.nextSibling || null
+          };
+        }
+      }
+    } catch (e) {
+      return null;
+    }
+
+    return null;
+  }
+
   function insertButtonIntoContainer(buttonEl, targetContainer) {
     if (!buttonEl || !targetContainer) return false;
 
     try {
-      const xpathResult = document.evaluate(
-        '//*[@id="app"]/div/div[3]/div/div[3]/header/header/div/span/div/div[1]',
-        document,
-        null,
-        XPathResult.FIRST_ORDERED_NODE_TYPE,
-        null
-      );
-      const targetElement = xpathResult.singleNodeValue;
-      if (targetElement && targetElement.parentNode) {
-        targetElement.parentNode.insertBefore(buttonEl, targetElement);
+      const actionTarget = resolveActionInsertTarget(targetContainer);
+      if (actionTarget?.parent) {
+        actionTarget.parent.insertBefore(buttonEl, actionTarget.beforeNode || null);
         return true;
       }
     } catch (e) {
@@ -176,7 +337,9 @@
     }
 
     try {
-      const titleElement = targetContainer.querySelector('div[title="对话"]');
+      const titleElement =
+        targetContainer.querySelector('div[title="对话"]') ||
+        targetContainer.querySelector('div[title="Chats"]');
       if (titleElement && titleElement.parentNode) {
         const insertBefore = titleElement.nextSibling;
         if (insertBefore) {
@@ -237,6 +400,7 @@
 
   window.WAAP.views.quickChatView = {
     createButton,
+    resolveActionInsertTarget,
     insertButtonIntoContainer,
     renderModal
   };

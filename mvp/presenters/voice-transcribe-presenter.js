@@ -23,6 +23,20 @@
     }
   }
 
+  function resolveVoiceRenderContainer(messageElement) {
+    try {
+      const processing = window.WAAP?.presenters?.messageProcessingPresenter;
+      return (
+        processing?.resolveMessageOwnerElement?.(messageElement) ||
+        resolveVoiceRoot(messageElement) ||
+        messageElement ||
+        null
+      );
+    } catch (e) {
+      return resolveVoiceRoot(messageElement);
+    }
+  }
+
   function getVoiceMessageKey(messageElement) {
     try {
       if (!messageElement) return '';
@@ -334,7 +348,7 @@
       }
       postVoiceRequest(requestId, messageKey);
 
-      let messageContainer = messageElement.closest?.('.message-container');
+      let messageContainer = resolveVoiceRenderContainer(messageElement);
       if (!messageContainer) {
         messageContainer = messageElement.parentElement || messageElement;
         try {
@@ -385,7 +399,7 @@
     } catch (e) {
       try {
         const msg = e?.message || '未知错误';
-        const messageContainer = messageElement?.closest?.('.message-container') || messageElement?.parentElement || messageElement;
+        const messageContainer = resolveVoiceRenderContainer(messageElement) || messageElement?.parentElement || messageElement;
         try {
           window.WAAP?.views?.voiceTranscribeView?.clearTransient?.(messageContainer);
         } catch (e0) {

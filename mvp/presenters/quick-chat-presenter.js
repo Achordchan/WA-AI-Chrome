@@ -15,8 +15,56 @@
     };
   }
 
+  function collectAncestors(element) {
+    const ancestors = [];
+    let current = element;
+    while (current) {
+      ancestors.push(current);
+      current = current.parentElement;
+    }
+    return ancestors;
+  }
+
+  function findSharedActionBar() {
+    const newChatBtn =
+      document.querySelector('button[aria-label="新聊天"]') ||
+      document.querySelector('button[aria-label="New chat"]');
+    const menuBtn =
+      document.querySelector('button[aria-label="菜单"]') ||
+      document.querySelector('button[aria-label="Menu"]');
+
+    if (newChatBtn && menuBtn) {
+      const newChatAncestors = collectAncestors(newChatBtn);
+      const menuAncestors = new Set(collectAncestors(menuBtn));
+      for (const ancestor of newChatAncestors) {
+        try {
+          if (menuAncestors.has(ancestor) && ancestor.children && ancestor.children.length >= 2) {
+            return ancestor;
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+    }
+
+    if (newChatBtn) {
+      return newChatBtn.parentElement?.parentElement || newChatBtn.parentElement || newChatBtn;
+    }
+    if (menuBtn) {
+      return menuBtn.parentElement?.parentElement || menuBtn.parentElement || menuBtn;
+    }
+
+    return null;
+  }
+
   function getTargetContainer() {
+    const actionBar = findSharedActionBar();
+    if (actionBar) {
+      return actionBar;
+    }
+
     const selectors = [
+      'header[data-tab="2"]',
       '.x78zum5.x1okw0bk.x6s0dn4.xh8yej3.x14wi4xw.xexx8yu.x4uap5.x18d9i69.xkhd6sd',
       'div[data-tab="3"]',
       '#side header',
@@ -200,9 +248,8 @@
       };
 
       const applyGate = (data) => {
-        const enabled = data?.quickChatEnabled === true;
-        const unlocked = data?.quickChatUnlocked === true;
-        if (enabled && unlocked) {
+        const enabled = data?.quickChatEnabled !== false;
+        if (enabled) {
           if (!started) {
             stopObserver = start();
             started = true;
@@ -222,7 +269,7 @@
         };
       }
 
-      getSync(['quickChatEnabled', 'quickChatUnlocked']).then((data) => {
+      getSync(['quickChatEnabled']).then((data) => {
         applyGate(data);
       });
 
@@ -231,19 +278,18 @@
         if (chrome?.storage?.onChanged) {
           storageListener = (changes, areaName) => {
             if (areaName !== 'sync') return;
-            if (!changes.quickChatEnabled && !changes.quickChatUnlocked) return;
+            if (!changes.quickChatEnabled) return;
 
-            const enabled = changes.quickChatEnabled ? changes.quickChatEnabled.newValue === true : null;
-            const unlocked = changes.quickChatUnlocked ? changes.quickChatUnlocked.newValue === true : null;
+            const enabled = changes.quickChatEnabled ? changes.quickChatEnabled.newValue !== false : null;
 
-            if (enabled === null || unlocked === null) {
-              getSync(['quickChatEnabled', 'quickChatUnlocked']).then((data) => {
+            if (enabled === null) {
+              getSync(['quickChatEnabled']).then((data) => {
                 applyGate(data);
               });
               return;
             }
 
-            applyGate({ quickChatEnabled: enabled, quickChatUnlocked: unlocked });
+            applyGate({ quickChatEnabled: enabled });
           };
 
           chrome.storage.onChanged.addListener(storageListener);

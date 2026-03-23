@@ -26,10 +26,10 @@
     try {
       if (!container || !(container instanceof Element)) return false;
 
-      if (container.querySelector('.analysis-btn-container.waap-toolbar')) return true;
-
       const header = getHeader(container);
       if (!header) return false;
+
+      if (header.querySelector('.analysis-btn-container.waap-toolbar')) return true;
 
       const view = window.WAAP?.views?.toolbarView;
       if (!view?.createToolbar || !view?.attachToHeader) return false;

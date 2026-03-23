@@ -161,7 +161,12 @@
       `;
 
       addButtonEventListeners(buttonContainer);
-      header.appendChild(buttonContainer);
+      const toolbarView = windowRef.WAAP?.views?.toolbarView;
+      if (toolbarView?.attachToHeader) {
+        toolbarView.attachToHeader(header, buttonContainer);
+      } else {
+        header.appendChild(buttonContainer);
+      }
       return true;
     } catch (error) {
       return handleRetry('error');

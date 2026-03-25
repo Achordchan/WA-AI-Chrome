@@ -582,16 +582,71 @@
     }
   }
 
+  function clearChildren(element) {
+    try {
+      if (!element) return;
+      while (element.firstChild) {
+        element.removeChild(element.firstChild);
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  function createTextElement(documentRef, tagName, className, text) {
+    const el = documentRef.createElement(tagName);
+    if (className) el.className = className;
+    el.textContent = String(text ?? '');
+    return el;
+  }
+
+  function appendWeatherContent(container, weatherData, deps = {}) {
+    try {
+      if (!container) return false;
+      const documentRef = deps.document || window.document;
+      clearChildren(container);
+
+      const icon = createTextElement(documentRef, 'span', 'weather-icon', weatherData?.icon || '');
+      const temperatureValue = Number.isFinite(Number(weatherData?.temperature))
+        ? Math.round(Number(weatherData.temperature))
+        : '--';
+      const temperature = createTextElement(documentRef, 'span', 'temperature', `${temperatureValue}°`);
+      const description = createTextElement(documentRef, 'span', 'weather-desc', weatherData?.description || '');
+
+      container.appendChild(icon);
+      container.appendChild(temperature);
+      container.appendChild(description);
+
+      if (weatherData?.humidity) {
+        container.appendChild(createTextElement(documentRef, 'span', 'humidity', `💧${weatherData.humidity}`));
+      }
+
+      if (weatherData?.windSpeed) {
+        container.appendChild(createTextElement(documentRef, 'span', 'wind', `💨${weatherData.windSpeed}`));
+      }
+
+      if (weatherData?.isDefault) {
+        const indicator = createTextElement(documentRef, 'span', 'default-indicator', '📊');
+        indicator.title = '默认天气数据';
+        container.appendChild(indicator);
+      }
+
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   // 生成天气HTML片段
   function generateWeatherHTML(weatherData) {
-    return `
-      <span class="weather-icon">${weatherData.icon}</span>
-      <span class="temperature">${Math.round(weatherData.temperature)}°</span>
-      <span class="weather-desc">${weatherData.description}</span>
-      ${weatherData.humidity ? `<span class="humidity">💧${weatherData.humidity}</span>` : ''}
-      ${weatherData.windSpeed ? `<span class="wind">💨${weatherData.windSpeed}</span>` : ''}
-      ${weatherData.isDefault ? '<span class="default-indicator" title="默认天气数据">📊</span>' : ''}
-    `;
+    try {
+      const documentRef = window.document;
+      const wrapper = documentRef.createElement('div');
+      appendWeatherContent(wrapper, weatherData, { document: documentRef });
+      return wrapper.innerHTML;
+    } catch (e) {
+      return '';
+    }
   }
 
   // 更新天气显示（用于异步加载完成后更新）
@@ -612,7 +667,7 @@
         return false;
       }
 
-      weatherContainer.innerHTML = generateWeatherHTML(weatherData);
+      appendWeatherContent(weatherContainer, weatherData, { document: documentRef });
 
       weatherContainer.style.opacity = '0';
       weatherContainer.style.transition = 'opacity 0.3s ease-in-out';
@@ -721,11 +776,17 @@
             },
             {
               document: documentRef,
-              generateWeatherHTML: (d) => generateWeatherHTML(d)
+              renderWeatherContent: (target, d) => appendWeatherContent(target, d, { document: documentRef })
             }
           );
         } else {
-          weatherContainer.innerHTML = `<div class="weather-inline"><span class="country-info"><span class="country-name">${countryInfo.name}</span></span></div>`;
+          const inline = documentRef.createElement('div');
+          inline.className = 'weather-inline';
+          const countryInfoEl = documentRef.createElement('span');
+          countryInfoEl.className = 'country-info';
+          countryInfoEl.appendChild(createTextElement(documentRef, 'span', 'country-name', countryInfo.name || ''));
+          inline.appendChild(countryInfoEl);
+          weatherContainer.appendChild(inline);
         }
       } catch (e) {
         // ignore
@@ -811,28 +872,13 @@
               // ignore
             }
 
-            const prevInner = (() => {
-              try {
-                return weatherInfoEl.innerHTML;
-              } catch (e1) {
-                return null;
-              }
-            })();
-
             try {
               const autoRenew = owner.displaySettings && owner.displaySettings.cacheAutoRenew !== false;
               if (autoRenew) {
                 const view = window.WAAP?.views?.weatherInfoView;
                 if (view?.confirmForceRefresh) {
                   const ok = await view.confirmForceRefresh(weatherInfoEl, { document: documentRef });
-                  if (!ok) {
-                    try {
-                      if (typeof prevInner === 'string') weatherInfoEl.innerHTML = prevInner;
-                    } catch (e3) {
-                      // ignore
-                    }
-                    return;
-                  }
+                  if (!ok) return;
                 }
               }
             } catch (e2) {
@@ -974,18 +1020,36 @@
 
       const overlay = documentRef.createElement('div');
       overlay.className = isDarkMode ? 'wa-country-picker-overlay wa-country-picker-dark' : 'wa-country-picker-overlay';
-      overlay.innerHTML = `
-        <div class="wa-country-picker-panel" role="dialog" aria-modal="true">
-          <div class="wa-country-picker-header">
-            <div class="wa-country-picker-title">${title}</div>
-            <button class="wa-country-picker-close" type="button" aria-label="关闭">×</button>
-          </div>
-          <div class="wa-country-picker-search-wrap">
-            <input class="wa-country-picker-search" type="text" placeholder="搜索：中文 / 国家代码 / 拼音首字母" />
-          </div>
-          <div class="wa-country-picker-list" role="listbox"></div>
-        </div>
-      `;
+      const panel = documentRef.createElement('div');
+      panel.className = 'wa-country-picker-panel';
+      panel.setAttribute('role', 'dialog');
+      panel.setAttribute('aria-modal', 'true');
+
+      const header = documentRef.createElement('div');
+      header.className = 'wa-country-picker-header';
+      header.appendChild(createTextElement(documentRef, 'div', 'wa-country-picker-title', title));
+
+      const closeBtnEl = createTextElement(documentRef, 'button', 'wa-country-picker-close', '×');
+      closeBtnEl.type = 'button';
+      closeBtnEl.setAttribute('aria-label', '关闭');
+      header.appendChild(closeBtnEl);
+
+      const searchWrap = documentRef.createElement('div');
+      searchWrap.className = 'wa-country-picker-search-wrap';
+      const inputEl = documentRef.createElement('input');
+      inputEl.className = 'wa-country-picker-search';
+      inputEl.type = 'text';
+      inputEl.placeholder = '搜索：中文 / 国家代码 / 拼音首字母';
+      searchWrap.appendChild(inputEl);
+
+      const listBox = documentRef.createElement('div');
+      listBox.className = 'wa-country-picker-list';
+      listBox.setAttribute('role', 'listbox');
+
+      panel.appendChild(header);
+      panel.appendChild(searchWrap);
+      panel.appendChild(listBox);
+      overlay.appendChild(panel);
 
       const close = () => {
         try {
@@ -1002,13 +1066,6 @@
 
       const input = overlay.querySelector('.wa-country-picker-search');
       const listEl = overlay.querySelector('.wa-country-picker-list');
-      const flagService = window.WAAP?.services?.countryFlagService;
-
-      try {
-        flagService?.ensureStyles?.({ document: documentRef });
-      } catch (e) {
-        // ignore
-      }
 
       const allItems = (Array.isArray(countries) ? countries : [])
         .filter(Boolean)
@@ -1053,7 +1110,7 @@
             : [];
 
           if (!listEl) return;
-          listEl.innerHTML = '';
+          clearChildren(listEl);
 
           const frag = documentRef.createDocumentFragment();
 
@@ -1062,23 +1119,28 @@
             btn.type = 'button';
             btn.className = 'wa-country-picker-item';
             btn.setAttribute('role', 'option');
-            const flagHtml = flagService?.renderFlagHtml
-              ? flagService.renderFlagHtml(
+            const flagWrap = documentRef.createElement('span');
+            flagWrap.className = 'wa-country-picker-flag';
+            const view = window.WAAP?.views?.weatherInfoView;
+            if (view?.createCountryFlagNode) {
+              flagWrap.appendChild(
+                view.createCountryFlagNode(
                   it,
+                  { document: documentRef, chrome: deps.chrome || window.chrome },
                   {
                     shellClassName: 'wa-country-flag-shell',
                     imageClassName: 'wa-country-flag-img',
-                    badgeClassName: 'wa-country-flag-code-badge',
-                    alt: `${it._name || it._code || '国家'}图标`
-                  },
-                  { document: documentRef, chrome: window.chrome }
+                    badgeClassName: 'wa-country-flag-code-badge'
+                  }
                 )
-              : `<span class="wa-country-flag-code-badge">${it._code || '--'}</span>`;
-            btn.innerHTML = `
-              <span class="wa-country-picker-flag">${flagHtml}</span>
-              <span class="wa-country-picker-name">${it._name}</span>
-              <span class="wa-country-picker-code">${it._code}</span>
-            `;
+              );
+            } else {
+              flagWrap.appendChild(createTextElement(documentRef, 'span', 'wa-country-flag-code-badge', it._code || '--'));
+            }
+
+            btn.appendChild(flagWrap);
+            btn.appendChild(createTextElement(documentRef, 'span', 'wa-country-picker-name', it._name));
+            btn.appendChild(createTextElement(documentRef, 'span', 'wa-country-picker-code', it._code));
             btn.addEventListener('click', async () => {
               try {
                 close();

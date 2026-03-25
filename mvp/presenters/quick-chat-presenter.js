@@ -15,6 +15,27 @@
     };
   }
 
+  function scheduleFrame(callback) {
+    try {
+      const raf = window.requestAnimationFrame;
+      if (typeof raf === 'function') {
+        raf(callback);
+        return true;
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    try {
+      Promise.resolve().then(callback);
+      return true;
+    } catch (e) {
+      // ignore
+    }
+
+    return false;
+  }
+
   function collectAncestors(element) {
     const ancestors = [];
     let current = element;
@@ -187,19 +208,6 @@
     }
   }
 
-  let _retryCount = 0;
-  const MAX_RETRIES = 15;
-  const RETRY_INTERVAL = 3000;
-
-  function retryAddButton() {
-    const ok = tryAddButton();
-    if (ok) return;
-
-    if (_retryCount >= MAX_RETRIES) return;
-    _retryCount++;
-    setTimeout(retryAddButton, RETRY_INTERVAL);
-  }
-
   function init() {
     try {
       const storage = window.WAAP?.services?.storageService;
@@ -225,13 +233,39 @@
       };
 
       const start = () => {
-        retryAddButton();
+        let addScheduled = false;
+        let observer = null;
 
-        const observer = new MutationObserver(
+        const runAddButton = () => {
+          addScheduled = false;
+          const ok = tryAddButton();
+          if (ok && observer) {
+            try {
+              observer.disconnect();
+            } catch (e) {
+              // ignore
+            }
+            observer = null;
+          }
+        };
+
+        const scheduleAddButton = () => {
+          if (document.querySelector('.quick-chat-btn')) return;
+          if (addScheduled) return;
+          addScheduled = true;
+
+          if (!scheduleFrame(runAddButton)) {
+            runAddButton();
+          }
+        };
+
+        scheduleAddButton();
+
+        observer = new MutationObserver(
           throttle((mutations) => {
             for (const mutation of mutations) {
               if (mutation.addedNodes?.length && !document.querySelector('.quick-chat-btn')) {
-                retryAddButton();
+                scheduleAddButton();
                 break;
               }
             }
@@ -244,7 +278,15 @@
           attributes: true
         });
 
-        return () => observer.disconnect();
+        return () => {
+          addScheduled = false;
+          try {
+            observer?.disconnect();
+          } catch (e) {
+            // ignore
+          }
+          observer = null;
+        };
       };
 
       const applyGate = (data) => {

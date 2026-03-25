@@ -15,10 +15,7 @@
       let lastCheckAt = 0;
       let observer = null;
       let domHandler = null;
-      let pollTimer = null;
-      let pollCount = 0;
-      const maxPollCount = 60;
-      const pollIntervalMs = 800;
+      let pendingCheckTimer = null;
 
       const cleanup = () => {
         try {
@@ -36,11 +33,11 @@
         domHandler = null;
 
         try {
-          if (pollTimer) clearInterval(pollTimer);
+          if (pendingCheckTimer) clearTimeout(pendingCheckTimer);
         } catch (e) {
           // ignore
         }
-        pollTimer = null;
+        pendingCheckTimer = null;
       };
 
       const maybeAutoInitialize = () => {
@@ -70,18 +67,27 @@
         }
       };
 
+      const scheduleCheck = (delayMs = 0) => {
+        try {
+          if (pendingCheckTimer) clearTimeout(pendingCheckTimer);
+        } catch (e) {
+          // ignore
+        }
+
+        pendingCheckTimer = setTimeout(() => {
+          pendingCheckTimer = null;
+          maybeAutoInitialize();
+        }, delayMs);
+      };
+
       try {
         if (document.readyState === 'loading') {
           domHandler = () => {
-            setTimeout(() => {
-              maybeAutoInitialize();
-            }, 500);
+            scheduleCheck(120);
           };
           document.addEventListener('DOMContentLoaded', domHandler);
         } else {
-          setTimeout(() => {
-            maybeAutoInitialize();
-          }, 500);
+          scheduleCheck(0);
         }
       } catch (e) {
         // ignore
@@ -89,29 +95,9 @@
 
       try {
         observer = new MutationObserver(() => {
-          maybeAutoInitialize();
+          scheduleCheck(80);
         });
-        observer.observe(document.body, { childList: true, subtree: true });
-      } catch (e) {
-        // ignore
-      }
-
-      try {
-        pollTimer = setInterval(() => {
-          try {
-            pollCount += 1;
-            maybeAutoInitialize();
-            const done =
-              started ||
-              (typeof isInitialized === 'function' ? isInitialized() : false) ||
-              (typeof isInitStarted === 'function' ? isInitStarted() : false);
-            if (done || pollCount >= maxPollCount) {
-              cleanup();
-            }
-          } catch (e) {
-            // ignore
-          }
-        }, pollIntervalMs);
+        observer.observe(document.body || document.documentElement, { childList: true, subtree: true });
       } catch (e) {
         // ignore
       }

@@ -215,8 +215,6 @@
             try {
               if (window.WAAP?.presenters?.autoTranslatePresenter?.onChatMaybeSwitched) {
                 window.WAAP.presenters.autoTranslatePresenter.onChatMaybeSwitched();
-              } else if (window.WAAP?.legacy?.autoTranslateQueue?.onChatMaybeSwitched) {
-                window.WAAP.legacy.autoTranslateQueue.onChatMaybeSwitched();
               }
             } catch (e) {
               // ignore

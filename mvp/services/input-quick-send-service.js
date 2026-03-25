@@ -16,6 +16,8 @@
   let inputQuickSendListenerInstalled = false;
   let inputQuickSendLastAt = 0;
   const INPUT_QUICK_SEND_THROTTLE_MS = 900;
+  const QUICK_SEND_GLOW_STYLE_ID = 'waai-input-quick-send-glow-style';
+  const QUICK_SEND_TOAST_STYLE_ID = 'waap-input-translate-styles';
 
   const inputQuickSendStateByInput = new WeakMap();
 
@@ -34,8 +36,128 @@
     return init;
   }
 
+  function ensureQuickSendGlowStyle(deps = {}) {
+    try {
+      const doc = deps.document || window.document;
+      if (!doc?.head) return false;
+      if (doc.getElementById(QUICK_SEND_GLOW_STYLE_ID)) return true;
+
+      const style = doc.createElement('style');
+      style.id = QUICK_SEND_GLOW_STYLE_ID;
+      style.textContent = `
+        .waai-quick-send-glow {
+          animation: waaiQuickSendGlow 0.98s ease-out;
+          will-change: box-shadow, background-color, transform;
+        }
+
+        @keyframes waaiQuickSendGlow {
+          0% {
+            box-shadow: 0 0 0 0 rgba(0, 168, 132, 0);
+            background-color: rgba(0, 168, 132, 0);
+            transform: translateY(0);
+          }
+          18% {
+            box-shadow: 0 0 0 2px rgba(0, 168, 132, 0.22), 0 0 0 8px rgba(0, 168, 132, 0.10);
+            background-color: rgba(0, 168, 132, 0.07);
+            transform: translateY(-1px);
+          }
+          65% {
+            box-shadow: 0 0 0 2px rgba(0, 168, 132, 0.12), 0 0 0 12px rgba(0, 168, 132, 0.03);
+            background-color: rgba(0, 168, 132, 0.03);
+            transform: translateY(0);
+          }
+          100% {
+            box-shadow: 0 0 0 0 rgba(0, 168, 132, 0);
+            background-color: rgba(0, 168, 132, 0);
+            transform: translateY(0);
+          }
+        }
+      `;
+      doc.head.appendChild(style);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function ensureQuickSendToastStyle(deps = {}) {
+    try {
+      const doc = deps.document || window.document;
+      if (!doc?.head) return false;
+      if (doc.getElementById(QUICK_SEND_TOAST_STYLE_ID)) return true;
+
+      const style = doc.createElement('style');
+      style.id = QUICK_SEND_TOAST_STYLE_ID;
+      style.textContent = `
+        .translate-toast {
+          position: fixed;
+          bottom: 24px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: rgba(0, 0, 0, 0.8);
+          color: white;
+          padding: 8px 16px;
+          border-radius: 4px;
+          font-size: 14px;
+          z-index: 999999;
+          animation: toastFade 0.3s ease;
+        }
+
+        .translate-toast-error {
+          background: rgba(220, 38, 38, 0.9);
+        }
+
+        @keyframes toastFade {
+          from {
+            opacity: 0;
+            transform: translate(-50%, 20px);
+          }
+          to {
+            opacity: 1;
+            transform: translate(-50%, 0);
+          }
+        }
+      `;
+      doc.head.appendChild(style);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function resolveQuickSendGlowTarget(inputEl) {
+    try {
+      if (!inputEl || !(inputEl instanceof HTMLElement)) return null;
+
+      const candidates = [
+        inputEl.closest('.lexical-rich-text-input'),
+        inputEl.closest('[data-testid="compose-box"]'),
+        inputEl.closest('footer'),
+        inputEl.parentElement,
+        inputEl
+      ].filter(Boolean);
+
+      for (const el of candidates) {
+        try {
+          if (!(el instanceof HTMLElement)) continue;
+          const rect = el.getBoundingClientRect();
+          if (rect.width > 40 && rect.height > 20) {
+            return el;
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    return inputEl || null;
+  }
+
   function loadInputQuickTranslateSendSetting(deps = {}) {
     try {
+      ensureQuickSendGlowStyle(deps);
       const chromeRef = deps.chrome || window.chrome;
       if (!chromeRef?.storage?.sync) return;
       chromeRef.storage.sync.get(['inputQuickTranslateSend'], (data) => {
@@ -62,6 +184,7 @@
     try {
       const doc = deps?.document || window.document;
       const setTimeoutFn = deps?.setTimeout || window.setTimeout;
+      ensureQuickSendToastStyle({ document: doc });
 
       const toast = doc.createElement('div');
       toast.className = isError ? 'translate-toast translate-toast-error' : 'translate-toast';
@@ -98,6 +221,61 @@
     } catch (e) {
       return false;
     }
+  }
+
+  function getSendActionButton(scopeEl) {
+    try {
+      if (!scopeEl || !scopeEl.querySelectorAll) return null;
+      return (
+        Array.from(scopeEl.querySelectorAll('button, [role="button"]')).find((el) => {
+          try {
+            const label = `${el.getAttribute?.('aria-label') || ''} ${el.getAttribute?.('title') || ''}`.trim();
+            return /发送|send/i.test(label);
+          } catch (e) {
+            return false;
+          }
+        }) || null
+      );
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function getSendScopeForInput(inputEl) {
+    try {
+      if (!inputEl || !(inputEl instanceof HTMLElement)) return null;
+
+      const domSvc = getWhatsappDomService();
+      const main = typeof domSvc?.getMain === 'function' ? domSvc.getMain() : document.getElementById('main');
+      const footer = typeof domSvc?.getMainFooter === 'function' ? domSvc.getMainFooter(main) : null;
+      if (footer?.contains?.(inputEl)) {
+        return footer;
+      }
+
+      return (
+        inputEl.closest('.copyable-area') ||
+        inputEl.closest('[role="dialog"]') ||
+        inputEl.closest('[data-animate-modal-popup="true"]') ||
+        inputEl.parentElement ||
+        null
+      );
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function trySendCurrentInput(inputEl) {
+    try {
+      const scope = getSendScopeForInput(inputEl);
+      const sendButton = getSendActionButton(scope);
+      if (sendButton instanceof HTMLElement) {
+        sendButton.click();
+        return true;
+      }
+    } catch (e) {
+      // ignore
+    }
+    return false;
   }
 
   function isMediaCaptionInput(inputEl) {
@@ -538,13 +716,36 @@
           }
 
           const applied = String(finalText || '').trim();
+          const appliedNorm = normalizeTextForCompare(applied);
+          if (appliedNorm && appliedNorm === sourceAtTranslateNorm) {
+            state.stage = 'idle';
+            state.sourceTextAtTranslate = '';
+            state.appliedText = '';
+            cleanupWaitToast();
+
+            const sent = trySendCurrentInput(inputEl);
+            if (!sent) {
+              showQuickSendToast(deps, '内容无需翻译，但自动发送失败，请再按一次回车', true, 1800);
+            }
+            return;
+          }
+
           const ok = await applyTextToInputBox(deps, inputEl, applied, { allowClipboard: false });
           if (ok) {
             try {
-              const glowTarget = inputEl.closest('.lexical-rich-text-input') || inputEl;
-              glowTarget.classList.add('waai-quick-send-glow');
+              ensureQuickSendGlowStyle(deps);
+              const glowTarget = resolveQuickSendGlowTarget(inputEl);
+              if (glowTarget) {
+                glowTarget.classList.remove('waai-quick-send-glow');
+                try {
+                  void glowTarget.offsetWidth;
+                } catch (e) {
+                  // ignore
+                }
+                glowTarget.classList.add('waai-quick-send-glow');
+              }
               const setTimeoutFn = deps.setTimeout || window.setTimeout;
-              setTimeoutFn(() => glowTarget.classList.remove('waai-quick-send-glow'), 980);
+              setTimeoutFn(() => glowTarget?.classList.remove('waai-quick-send-glow'), 980);
             } catch (e2) {
               // ignore
             }
@@ -609,6 +810,8 @@
 
   function ensureInstalled(deps = {}) {
     try {
+      ensureQuickSendGlowStyle(deps);
+      ensureQuickSendToastStyle(deps);
       loadInputQuickTranslateSendSetting(deps);
 
       try {

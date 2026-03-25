@@ -282,7 +282,7 @@
     const current = await getRawStorage();
 
     const payload = {
-      version: '3.2.4',
+      version: '3.2.5',
       exportedAt: new Date().toISOString(),
       weatherCountryCorrections: current.weatherCountryCorrections || {},
       weatherCountryResolved: current.weatherCountryResolved || {},

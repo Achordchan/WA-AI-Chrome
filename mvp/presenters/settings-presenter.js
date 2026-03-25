@@ -67,6 +67,8 @@
 
       const showToast = deps.showToast || window.showToast;
       const showExtensionInvalidatedError = deps.showExtensionInvalidatedError || window.showExtensionInvalidatedError;
+      const settingsFormService = window.WAAP?.services?.settingsFormService;
+      const adminPresetService = window.WAAP?.services?.settingsAdminPresetService;
       const getTranslationPromptDefaults = () => {
         try {
           const fn = window.getDefaultTranslationPromptTemplates;
@@ -795,7 +797,7 @@
           const langPrefs = await getStoredChatLanguagePreferences();
 
           const payload = {
-            version: '3.2.4',
+            version: '3.2.5',
             exportedAt: new Date().toISOString(),
             weatherCountryCorrections: weatherCorrections || {},
             weatherCountryResolved: weatherResolved || {},
@@ -1278,26 +1280,14 @@
       const translationApiSelect = content.querySelector('#translationApi');
       if (translationApiSelect) {
         translationApiSelect.addEventListener('change', () => {
-          document.querySelectorAll('#translation-settings .api-setting-group').forEach((el) => {
-            el.style.display = 'none';
-          });
-          const selectedService = translationApiSelect.value;
-          const settingsEl = document.getElementById(`${selectedService}-settings`);
-          if (settingsEl) {
-            settingsEl.style.display = 'block';
-          }
+          settingsFormService?.updateTranslationSettingsUI?.(content);
         });
       }
 
       const sttEnabledToggle = content.querySelector('#sttEnabled');
       const sttSettings = content.querySelector('#stt-settings');
       const updateSttSettingsUI = () => {
-        try {
-          const enabled = sttEnabledToggle?.checked === true;
-          if (sttSettings) sttSettings.style.display = enabled ? 'block' : 'none';
-        } catch (e) {
-          // ignore
-        }
+        settingsFormService?.updateSttSettingsUI?.(content);
       };
 
       if (sttEnabledToggle) {
@@ -1308,163 +1298,20 @@
       if (adminPresetBtn) {
         const openAdminPresetDialog = () => {
           try {
-            const existing = document.querySelector('.admin-preset-overlay');
-            if (existing) existing.remove();
-
-            const overlay = document.createElement('div');
-            overlay.className = 'admin-preset-overlay';
-            overlay.innerHTML = `
-          <div class="admin-preset-card" role="dialog" aria-modal="true">
-            <div class="admin-preset-header">
-              <div class="admin-preset-title">管理员预设</div>
-              <button type="button" class="admin-preset-close" aria-label="关闭">×</button>
-            </div>
-            <div class="admin-preset-body">
-              <div class="admin-preset-row">
-                <label class="admin-preset-label">管理员口令</label>
-                <input class="admin-preset-input" type="password" id="adminPresetPass" placeholder="请输入口令">
-              </div>
-              <div class="admin-preset-hint">将自动把“翻译服务”和“AI分析服务”切换到 OpenAI 通用接口，并填充 API Key / URL / 模型。</div>
-            </div>
-            <div class="admin-preset-footer">
-              <button type="button" class="admin-preset-secondary" id="adminPresetCancel">取消</button>
-              <button type="button" class="admin-preset-primary" id="adminPresetApply">应用预设</button>
-            </div>
-          </div>
-        `;
-
-            modal.appendChild(overlay);
-
-            const close = () => {
-              try {
-                overlay.remove();
-              } catch (e) {}
-            };
-
-            const passEl = overlay.querySelector('#adminPresetPass');
-
-            const closeBtn = overlay.querySelector('.admin-preset-close');
-            const cancelBtn = overlay.querySelector('#adminPresetCancel');
-            if (closeBtn) closeBtn.addEventListener('click', close);
-            if (cancelBtn) cancelBtn.addEventListener('click', close);
-            overlay.addEventListener('click', (e) => {
-              if (e.target === overlay) close();
+            const ok = adminPresetService?.openDialog?.({
+              document,
+              modal,
+              showToast
             });
-
-            const applyBtn = overlay.querySelector('#adminPresetApply');
-            if (applyBtn) {
-              applyBtn.addEventListener('click', async () => {
-                try {
-                  const pass = (passEl?.value || '').trim();
-                  if (pass !== 'Achord666') {
-                    try {
-                      if (typeof showToast === 'function') showToast('口令错误', 'error');
-                    } catch (e) {
-                      // ignore
-                    }
-                    if (passEl) passEl.focus();
-                    return;
-                  }
-
-                  const presetApiKey = '6c9033c7e08b403abd6f66f09f146f60.hvyHTj91HZQOzT7E';
-                  const presetApiUrl = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
-                  const presetModel = 'glm-4-flash-250414';
-
-                  const presetSttApiKey = '6c9033c7e08b403abd6f66f09f146f60.hvyHTj91HZQOzT7E';
-                  const presetSttApiUrl = 'https://open.bigmodel.cn/api/paas/v4/audio/transcriptions';
-                  const presetSttModel = 'glm-asr-2512';
-
-                  const translationApiSelect = document.getElementById('translationApi');
-                  if (translationApiSelect) {
-                    translationApiSelect.value = 'siliconflow';
-                    translationApiSelect.dispatchEvent(new Event('change'));
-                  }
-
-                  const apiUrlEl = document.getElementById('siliconflowApiUrl');
-                  if (apiUrlEl) apiUrlEl.value = presetApiUrl;
-
-                  const modelEl = document.getElementById('siliconflowModel');
-                  if (modelEl) modelEl.value = presetModel;
-
-                  const keyEl = document.getElementById('siliconflowApiKey');
-                  if (keyEl) keyEl.value = presetApiKey;
-
-                  const aiEnabledToggle = document.getElementById('aiEnabled');
-                  if (aiEnabledToggle) {
-                    aiEnabledToggle.checked = true;
-                    aiEnabledToggle.dispatchEvent(new Event('change'));
-                  }
-
-                  const aiApiSelect = document.getElementById('aiApi');
-                  if (aiApiSelect) {
-                    aiApiSelect.value = 'siliconflow';
-                    aiApiSelect.dispatchEvent(new Event('change'));
-                  }
-
-                  const apiUrlElAi = document.getElementById('siliconflowApiUrl_ai');
-                  if (apiUrlElAi) apiUrlElAi.value = presetApiUrl;
-
-                  const modelElAi = document.getElementById('siliconflowModel_ai');
-                  if (modelElAi) modelElAi.value = presetModel;
-
-                  const keyElAi = document.getElementById('siliconflowApiKey_ai');
-                  if (keyElAi) keyElAi.value = presetApiKey;
-
-                  try {
-                    const sttEnabledToggle = document.getElementById('sttEnabled');
-                    if (sttEnabledToggle) {
-                      sttEnabledToggle.checked = true;
-                      sttEnabledToggle.dispatchEvent(new Event('change'));
-                    }
-
-                    const sttKeyEl = document.getElementById('sttApiKey');
-                    if (sttKeyEl) sttKeyEl.value = presetSttApiKey;
-
-                    const sttUrlEl = document.getElementById('sttApiUrl');
-                    if (sttUrlEl) sttUrlEl.value = presetSttApiUrl;
-
-                    const sttModelEl = document.getElementById('sttModel');
-                    if (sttModelEl) sttModelEl.value = presetSttModel;
-                  } catch (e) {
-                    try {
-                      if (typeof showToast === 'function') showToast('STT 预设填充失败', 'error');
-                    } catch (e2) {}
-                  }
-
-                  try {
-                    if (typeof showToast === 'function') showToast('已应用管理员预设', 'success');
-                  } catch (e) {
-                    // ignore
-                  }
-
-                  close();
-                } catch (e) {
-                  console.error('应用管理员预设失败:', e);
-                  try {
-                    if (typeof showToast === 'function') showToast('应用管理员预设失败', 'error');
-                  } catch (e2) {
-                    // ignore
-                  }
-                }
-              });
-            }
-
-            if (passEl) {
-              passEl.focus();
-              passEl.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                  const btn = overlay.querySelector('#adminPresetApply');
-                  if (btn) btn.click();
-                }
-              });
-            }
+            if (ok) return;
           } catch (e) {
-            console.error('打开管理员预设弹窗失败:', e);
-            try {
-              if (typeof showToast === 'function') showToast('打开管理员预设弹窗失败', 'error');
-            } catch (e2) {
-              // ignore
-            }
+            // ignore
+          }
+          console.error('打开管理员预设弹窗失败');
+          try {
+            if (typeof showToast === 'function') showToast('打开管理员预设弹窗失败', 'error');
+          } catch (e2) {
+            // ignore
           }
         };
 
@@ -1474,15 +1321,7 @@
       const aiApiSelect = content.querySelector('#aiApi');
       if (aiApiSelect) {
         aiApiSelect.addEventListener('change', () => {
-          document.querySelectorAll('#ai-settings .api-setting-group').forEach((el) => {
-            el.style.display = 'none';
-          });
-
-          const selectedService = aiApiSelect.value;
-          const settingsEl = document.getElementById(`ai-${selectedService}-settings`);
-          if (settingsEl) {
-            settingsEl.style.display = 'block';
-          }
+          settingsFormService?.updateAiSettingsUI?.(content);
         });
       }
 
@@ -1491,23 +1330,7 @@
       const aiSystemRole = content.querySelector('#ai-system-role');
       if (aiEnabledToggle) {
         aiEnabledToggle.addEventListener('change', () => {
-          try {
-            if (aiServiceOptions) aiServiceOptions.style.display = aiEnabledToggle.checked ? 'block' : 'none';
-            if (aiSystemRole) aiSystemRole.style.display = aiEnabledToggle.checked ? 'block' : 'none';
-
-            if (aiEnabledToggle.checked) {
-              const selectedAiService = document.getElementById('aiApi').value;
-              document.querySelectorAll('#ai-settings .api-setting-group').forEach((el) => {
-                el.style.display = 'none';
-              });
-              const aiSettingsEl = document.getElementById(`ai-${selectedAiService}-settings`);
-              if (aiSettingsEl) {
-                aiSettingsEl.style.display = 'block';
-              }
-            }
-          } catch (e) {
-            // ignore
-          }
+          settingsFormService?.updateAiSettingsUI?.(content);
         });
       }
 
@@ -1524,51 +1347,11 @@
       const weatherAutoRenewEvictDaysInput = content.querySelector('#weatherAutoRenewEvictDays');
 
       const updateWeatherOptionsUI = () => {
-        try {
-          const enabled = weatherEnabledToggle?.checked === true;
-          if (weatherOptions) weatherOptions.style.display = enabled ? 'block' : 'none';
-          if (weatherShowWeatherToggle) weatherShowWeatherToggle.disabled = !enabled;
-          if (weatherShowTimeToggle) weatherShowTimeToggle.disabled = !enabled;
-          if (weatherCachePresetSelect) weatherCachePresetSelect.disabled = !enabled;
-          if (weatherCacheMinutesInput) weatherCacheMinutesInput.disabled = !enabled;
-          if (weatherCacheAutoRenewToggle) weatherCacheAutoRenewToggle.disabled = !enabled;
-          if (weatherAutoRenewEvictDaysInput) weatherAutoRenewEvictDaysInput.disabled = !enabled;
-          if (weatherCacheCustomWrap) {
-            if (!enabled) {
-              weatherCacheCustomWrap.style.display = 'none';
-            } else {
-              const shouldShowCustom = (weatherCachePresetSelect?.value || '') === 'custom';
-              weatherCacheCustomWrap.style.display = shouldShowCustom ? 'block' : 'none';
-            }
-          }
-        } catch (e) {
-          // ignore
-        }
+        settingsFormService?.updateWeatherOptionsUI?.(content);
       };
 
       const applyWeatherCacheUi = (minutes) => {
-        try {
-          const presets = new Set(['5', '15', '30', '60', '180', '1440']);
-          let m = parseInt(String(minutes ?? ''), 10);
-          if (!Number.isFinite(m) || m <= 0) m = 60;
-          if (m > 10080) m = 10080;
-          const mStr = String(m);
-
-          if (weatherCachePresetSelect) {
-            weatherCachePresetSelect.value = presets.has(mStr) ? mStr : 'custom';
-          }
-
-          if (weatherCacheMinutesInput) {
-            weatherCacheMinutesInput.value = mStr;
-          }
-
-          if (weatherCacheCustomWrap) {
-            const shouldShowCustom = (weatherCachePresetSelect?.value || '') === 'custom';
-            weatherCacheCustomWrap.style.display = shouldShowCustom ? 'block' : 'none';
-          }
-        } catch (e) {
-          // ignore
-        }
+        settingsFormService?.applyWeatherCacheUi?.(content, minutes);
       };
 
       try {
@@ -1657,104 +1440,7 @@
 
       function saveSettings() {
         try {
-          const presetValue = document.getElementById('weatherCachePreset')?.value;
-          const customValue = document.getElementById('weatherCacheMinutes')?.value;
-
-          let weatherCacheMinutes = 60;
-          if (presetValue && presetValue !== 'custom') {
-            const presetMinutes = parseInt(String(presetValue || ''), 10);
-            if (Number.isFinite(presetMinutes) && presetMinutes > 0) {
-              weatherCacheMinutes = presetMinutes;
-            }
-          } else {
-            const parsed = parseInt(String(customValue || ''), 10);
-            if (Number.isFinite(parsed) && parsed > 0) {
-              weatherCacheMinutes = parsed;
-            }
-          }
-
-          if (!Number.isFinite(weatherCacheMinutes) || weatherCacheMinutes <= 0) {
-            weatherCacheMinutes = 60;
-          }
-          if (weatherCacheMinutes > 10080) weatherCacheMinutes = 10080;
-
-          const formData = {
-            translationApi: document.getElementById('translationApi').value,
-            targetLanguage: document.getElementById('targetLanguage').value,
-            sttEnabled: document.getElementById('sttEnabled')?.checked === true,
-            sttApi: 'openai',
-            sttApiKey: (() => {
-              try {
-                return document.getElementById('sttApiKey')?.value || '';
-              } catch (e) {
-                return '';
-              }
-            })(),
-            sttApiUrl: (() => {
-              try {
-                return document.getElementById('sttApiUrl')?.value || '';
-              } catch (e) {
-                return '';
-              }
-            })(),
-            sttModel: (() => {
-              try {
-                return document.getElementById('sttModel')?.value || '';
-              } catch (e) {
-                return '';
-              }
-            })(),
-            autoTranslateNewMessages: document.getElementById('autoTranslateNewMessages').checked,
-            inputQuickTranslateSend: document.getElementById('inputQuickTranslateSend')?.checked === true,
-            aiEnabled: document.getElementById('aiEnabled').checked,
-            quickChatEnabled: document.getElementById('quickChatEnabled')?.checked === true,
-            weatherEnabled: document.getElementById('weatherEnabled')?.checked !== false,
-            weatherShowWeather: document.getElementById('weatherShowWeather')?.checked !== false,
-            weatherShowTime: document.getElementById('weatherShowTime')?.checked !== false,
-            weatherCacheMinutes,
-            weatherCacheAutoRenew: document.getElementById('weatherCacheAutoRenew')?.checked !== false,
-            weatherAutoRenewEvictDays: (() => {
-              try {
-                const raw = document.getElementById('weatherAutoRenewEvictDays')?.value;
-                let d = parseInt(String(raw ?? ''), 10);
-                if (!Number.isFinite(d) || d < 0) d = 10;
-                if (d > 365) d = 365;
-                return d;
-              } catch (e) {
-                return 10;
-              }
-            })(),
-            translationPromptTemplate: document.getElementById('translationPromptTemplate')?.value || '',
-            translationReasoningPromptTemplate: document.getElementById('translationReasoningPromptTemplate')?.value || ''
-          };
-
-          if (formData.translationApi === 'siliconflow') {
-            formData.siliconflowApiKey = document.getElementById('siliconflowApiKey').value;
-            formData.siliconflowApiUrl = document.getElementById('siliconflowApiUrl').value;
-            formData.siliconflowModel = document.getElementById('siliconflowModel').value;
-
-            const temperatureSlider = document.getElementById('openaiTemperature');
-            if (temperatureSlider) {
-              formData.openaiTemperature = parseFloat(temperatureSlider.value);
-            }
-
-            const reasoningEnabled = document.getElementById('openaiReasoningEnabled');
-            if (reasoningEnabled) {
-              formData.openaiReasoningEnabled = reasoningEnabled.checked;
-            }
-          }
-
-          if (formData.aiEnabled) {
-            // 仅保留 OpenAI 通用接口（siliconflow）
-            formData.aiApi = 'siliconflow';
-            formData.aiTargetLanguage = document.getElementById('aiTargetLanguage').value;
-
-            formData.siliconflowApiKey_ai = document.getElementById('siliconflowApiKey_ai').value;
-            formData.siliconflowApiUrl_ai = document.getElementById('siliconflowApiUrl_ai').value;
-            formData.siliconflowModel_ai = document.getElementById('siliconflowModel_ai').value;
-
-            formData.systemRole = document.getElementById('systemRole').value;
-          }
+          const formData = settingsFormService?.collectFormData?.(content) || {};
 
           chrome.storage.sync.set(formData, () => {
             if (chrome.runtime.lastError) {
@@ -1811,37 +1497,7 @@
       function loadSettings() {
         try {
           chrome.storage.sync.get(
-            [
-              'translationApi',
-              'targetLanguage',
-              'sttEnabled',
-              'sttApiKey',
-              'sttApiUrl',
-              'sttModel',
-              'autoTranslateNewMessages',
-              'inputQuickTranslateSend',
-              'aiEnabled',
-              'aiApi',
-              'aiTargetLanguage',
-              'siliconflowApiKey',
-              'siliconflowApiUrl',
-              'siliconflowModel',
-              'openaiTemperature',
-              'openaiReasoningEnabled',
-              'translationPromptTemplate',
-              'translationReasoningPromptTemplate',
-              'siliconflowApiKey_ai',
-              'siliconflowApiUrl_ai',
-              'siliconflowModel_ai',
-              'systemRole',
-              'quickChatEnabled',
-              'weatherEnabled',
-              'weatherShowWeather',
-              'weatherShowTime',
-              'weatherCacheMinutes',
-              'weatherCacheAutoRenew',
-              'weatherAutoRenewEvictDays'
-            ],
+            settingsFormService?.getStorageKeys?.() || [],
             (data) => {
               if (chrome.runtime.lastError) {
                 console.error('获取设置时出错:', chrome.runtime.lastError);
@@ -1855,231 +1511,9 @@
                 return;
               }
 
-              if (data.translationApi) {
-                const allowedTranslationApi = data.translationApi === 'siliconflow' ? 'siliconflow' : 'google';
-                document.getElementById('translationApi').value = allowedTranslationApi;
-
-                document.querySelectorAll('#translation-settings .api-setting-group').forEach((el) => {
-                  el.style.display = 'none';
-                });
-
-                const settingsEl = document.getElementById(`${allowedTranslationApi}-settings`);
-                if (settingsEl) {
-                  settingsEl.style.display = 'block';
-                }
-              } else {
-                const defaultService = document.getElementById('translationApi').value;
-                const defaultSettingsEl = document.getElementById(`${defaultService}-settings`);
-                if (defaultSettingsEl) {
-                  defaultSettingsEl.style.display = 'block';
-                }
-              }
-
-              if (data.targetLanguage) {
-                document.getElementById('targetLanguage').value = data.targetLanguage;
-              }
-
-              try {
-                const sttEnabledToggle = document.getElementById('sttEnabled');
-                const enabled = data.sttEnabled === true;
-                if (sttEnabledToggle) {
-                  sttEnabledToggle.checked = enabled;
-                }
-
-                const sttSettings = document.getElementById('stt-settings');
-                if (sttSettings) sttSettings.style.display = enabled ? 'block' : 'none';
-
-                const key = String(data.sttApiKey || '');
-                const url = String(data.sttApiUrl || '');
-                const model = String(data.sttModel || '');
-
-                const elKey = document.getElementById('sttApiKey');
-                if (elKey) elKey.value = key;
-                const elUrl = document.getElementById('sttApiUrl');
-                if (elUrl) elUrl.value = url;
-                const elModel = document.getElementById('sttModel');
-                if (elModel) elModel.value = model;
-              } catch (e) {
-                // ignore
-              }
-
-              const autoTranslateToggle = document.getElementById('autoTranslateNewMessages');
-              if (autoTranslateToggle) {
-                autoTranslateToggle.checked = data.autoTranslateNewMessages === true;
-              }
-
-              const quickSendToggle = document.getElementById('inputQuickTranslateSend');
-              if (quickSendToggle) {
-                quickSendToggle.checked = data.inputQuickTranslateSend === true;
-              }
-
-              try {
-                const quickChatToggle = document.getElementById('quickChatEnabled');
-                if (quickChatToggle) {
-                  quickChatToggle.checked = data.quickChatEnabled !== false;
-                }
-              } catch (e) {
-                // ignore
-              }
-
-              const aiEnabledCheckbox = document.getElementById('aiEnabled');
-              if (aiEnabledCheckbox) {
-                aiEnabledCheckbox.checked = data.aiEnabled === true;
-
-                const aiServiceOptions = document.getElementById('ai-service-options');
-                const aiSystemRole = document.getElementById('ai-system-role');
-
-                if (aiServiceOptions) {
-                  aiServiceOptions.style.display = data.aiEnabled === true ? 'block' : 'none';
-                }
-
-                if (aiSystemRole) {
-                  aiSystemRole.style.display = data.aiEnabled === true ? 'block' : 'none';
-                }
-              }
-
-              if (data.aiApi) {
-                const aiApiSelect = document.getElementById('aiApi');
-                if (aiApiSelect) {
-                  aiApiSelect.value = 'siliconflow';
-
-                  document.querySelectorAll('#ai-settings .api-setting-group').forEach((el) => {
-                    el.style.display = 'none';
-                  });
-
-                  const aiSettingsEl = document.getElementById('ai-siliconflow-settings');
-                  if (aiSettingsEl && data.aiEnabled === true) {
-                    aiSettingsEl.style.display = 'block';
-                  }
-                }
-              } else {
-                if (data.aiEnabled === true) {
-                  const defaultAiService = document.getElementById('aiApi').value;
-                  const defaultAiSettingsEl = document.getElementById(`ai-${defaultAiService}-settings`);
-                  if (defaultAiSettingsEl) {
-                    defaultAiSettingsEl.style.display = 'block';
-                  }
-                }
-              }
-
-              if (data.aiTargetLanguage) {
-                const aiTargetLang = document.getElementById('aiTargetLanguage');
-                if (aiTargetLang) {
-                  aiTargetLang.value = data.aiTargetLanguage;
-                }
-              }
-
-              if (data.siliconflowApiKey) {
-                document.getElementById('siliconflowApiKey').value = data.siliconflowApiKey;
-              }
-
-              if (data.siliconflowApiUrl) {
-                document.getElementById('siliconflowApiUrl').value = data.siliconflowApiUrl;
-              }
-
-              if (data.siliconflowModel) {
-                document.getElementById('siliconflowModel').value = data.siliconflowModel;
-              }
-
-              const temperatureSlider = document.getElementById('openaiTemperature');
-              const temperatureValue = document.getElementById('openaiTemperatureValue');
-              if (temperatureSlider && data.openaiTemperature !== undefined) {
-                temperatureSlider.value = data.openaiTemperature;
-                if (temperatureValue) {
-                  temperatureValue.textContent = data.openaiTemperature;
-                }
-              }
-
-              const reasoningEnabled = document.getElementById('openaiReasoningEnabled');
-              if (reasoningEnabled && data.openaiReasoningEnabled !== undefined) {
-                reasoningEnabled.checked = data.openaiReasoningEnabled;
-              }
-
-              try {
-                const defaults = getTranslationPromptDefaults();
-                if (translationPromptTemplateEl) {
-                  translationPromptTemplateEl.value = String(data.translationPromptTemplate || defaults.normal || '');
-                }
-                if (translationReasoningPromptTemplateEl) {
-                  translationReasoningPromptTemplateEl.value = String(
-                    data.translationReasoningPromptTemplate || defaults.reasoning || ''
-                  );
-                }
-              } catch (e) {
-                // ignore
-              }
-
-              if (data.siliconflowApiKey_ai) {
-                document.getElementById('siliconflowApiKey_ai').value = data.siliconflowApiKey_ai;
-              } else if (data.siliconflowApiKey) {
-                document.getElementById('siliconflowApiKey_ai').value = data.siliconflowApiKey;
-              }
-
-              if (data.siliconflowApiUrl_ai) {
-                document.getElementById('siliconflowApiUrl_ai').value = data.siliconflowApiUrl_ai;
-              } else if (data.siliconflowApiUrl) {
-                document.getElementById('siliconflowApiUrl_ai').value = data.siliconflowApiUrl;
-              } else {
-                document.getElementById('siliconflowApiUrl_ai').value = 'https://api.openai.com/v1/chat/completions';
-              }
-
-              if (data.siliconflowModel_ai) {
-                document.getElementById('siliconflowModel_ai').value = data.siliconflowModel_ai;
-              } else if (data.siliconflowModel) {
-                document.getElementById('siliconflowModel_ai').value = data.siliconflowModel;
-              } else {
-                document.getElementById('siliconflowModel_ai').value = 'gpt-5.4-codex';
-              }
-
-              if (data.systemRole) {
-                document.getElementById('systemRole').value = data.systemRole;
-              }
-
-              const translationApiSelect = document.getElementById('translationApi');
-              if (translationApiSelect) {
-                translationApiSelect.dispatchEvent(new Event('change'));
-              }
-
-              try {
-                const enabled = data.weatherEnabled !== false;
-                const showWeather = data.weatherShowWeather !== false;
-                const showTime = data.weatherShowTime !== false;
-                const cacheAutoRenew = data.weatherCacheAutoRenew !== false;
-                let evictDays = parseInt(String(data.weatherAutoRenewEvictDays ?? ''), 10);
-                if (!Number.isFinite(evictDays) || evictDays < 0) evictDays = 10;
-                if (evictDays > 365) evictDays = 365;
-                let cacheMinutes = parseInt(String(data.weatherCacheMinutes ?? ''), 10);
-                if (!Number.isFinite(cacheMinutes) || cacheMinutes <= 0) cacheMinutes = 60;
-                if (cacheMinutes > 10080) cacheMinutes = 10080;
-
-                const weatherEnabledEl = document.getElementById('weatherEnabled');
-                if (weatherEnabledEl) weatherEnabledEl.checked = enabled;
-
-                const weatherShowWeatherEl = document.getElementById('weatherShowWeather');
-                if (weatherShowWeatherEl) weatherShowWeatherEl.checked = showWeather;
-
-                const weatherShowTimeEl = document.getElementById('weatherShowTime');
-                if (weatherShowTimeEl) weatherShowTimeEl.checked = showTime;
-
-                const weatherCacheAutoRenewEl = document.getElementById('weatherCacheAutoRenew');
-                if (weatherCacheAutoRenewEl) weatherCacheAutoRenewEl.checked = cacheAutoRenew;
-
-                const weatherAutoRenewEvictDaysEl = document.getElementById('weatherAutoRenewEvictDays');
-                if (weatherAutoRenewEvictDaysEl) weatherAutoRenewEvictDaysEl.value = String(evictDays);
-
-                applyWeatherCacheUi(cacheMinutes);
-
-                updateWeatherOptionsUI();
-              } catch (e) {
-                // ignore
-              }
-
-              if (data.aiEnabled === true) {
-                const aiApiSelect = document.getElementById('aiApi');
-                if (aiApiSelect) {
-                  aiApiSelect.dispatchEvent(new Event('change'));
-                }
-              }
+              settingsFormService?.applyStoredSettings?.(content, data || {}, {
+                getTranslationPromptDefaults
+              });
 
               settingsDirty = false;
               setTimeout(() => {

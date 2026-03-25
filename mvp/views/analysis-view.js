@@ -26,22 +26,72 @@
     }
   }
 
-  function escapeHtml(text) {
-    const s = String(text ?? '');
-    return s
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
+  function clearChildren(element) {
+    try {
+      if (!element) return;
+      while (element.firstChild) {
+        element.removeChild(element.firstChild);
+      }
+    } catch (e) {
+      // ignore
+    }
   }
 
-  function encodeDataAttr(value) {
+  function createTextElement(tagName, className, text) {
+    const el = document.createElement(tagName);
+    if (className) el.className = className;
+    el.textContent = String(text ?? '');
+    return el;
+  }
+
+  function createMessageItem(message) {
     try {
-      return encodeURIComponent(String(value ?? ''));
+      if (!message || !message.text) return null;
+
+      const item = document.createElement('div');
+      const isMe = message.isMe === true;
+      const senderRaw = message.sender || (isMe ? '我方' : '对方');
+      const timeRaw = message.time || '';
+      const textRaw = message.text || '';
+
+      item.className = `chat-message ${isMe ? 'me' : 'other'}`;
+
+      const label = document.createElement('label');
+      label.className = 'message-select';
+
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = true;
+      checkbox.dataset.sender = String(senderRaw);
+      checkbox.dataset.text = String(textRaw);
+      checkbox.dataset.time = String(timeRaw);
+      label.appendChild(checkbox);
+
+      const content = document.createElement('div');
+      content.className = 'message-content';
+
+      const header = document.createElement('div');
+      header.className = 'message-header';
+      header.appendChild(createTextElement('span', `message-sender ${isMe ? 'sender-me' : 'sender-other'}`, senderRaw));
+      header.appendChild(createTextElement('span', 'message-time', timeRaw));
+
+      const text = createTextElement('div', 'message-text', textRaw);
+
+      content.appendChild(header);
+      content.appendChild(text);
+      item.appendChild(label);
+      item.appendChild(content);
+      return item;
     } catch (e) {
-      return '';
+      return null;
     }
+  }
+
+  function createAnalysisSection(title) {
+    const section = document.createElement('div');
+    section.className = 'analysis-section';
+    section.appendChild(createTextElement('h4', '', title));
+    return section;
   }
 
   function renderPicker(container, messages, handlers = {}) {
@@ -82,33 +132,8 @@
 
     if (list) {
       safeMessages.forEach((m) => {
-        if (!m || !m.text) return;
-        const item = document.createElement('div');
-        const isMe = m.isMe === true;
-        item.className = `chat-message ${isMe ? 'me' : 'other'}`;
-        const senderRaw = m.sender || (isMe ? '我方' : '对方');
-        const timeRaw = m.time || '';
-        const textRaw = m.text;
-        const sender = escapeHtml(senderRaw);
-        const time = escapeHtml(timeRaw);
-        const text = escapeHtml(textRaw);
-        const senderEncoded = encodeDataAttr(senderRaw);
-        const timeEncoded = encodeDataAttr(timeRaw);
-        const textEncoded = encodeDataAttr(textRaw);
-
-        item.innerHTML = `
-          <label class="message-select">
-            <input type="checkbox" data-sender="${senderEncoded}" data-text="${textEncoded}" data-time="${timeEncoded}" checked>
-          </label>
-          <div class="message-content">
-            <div class="message-header">
-              <span class="message-sender ${isMe ? 'sender-me' : 'sender-other'}">${sender}</span>
-              <span class="message-time">${time}</span>
-            </div>
-            <div class="message-text">${text}</div>
-          </div>
-        `;
-        list.appendChild(item);
+        const item = createMessageItem(m);
+        if (item) list.appendChild(item);
       });
     }
 
@@ -225,69 +250,76 @@
           <h3>AI 对话分析</h3>
           <button class="close-btn">×</button>
         </div>
-        <div class="analysis-body">
-          <div class="analysis-section">
-            <h4>对话氛围</h4>
-            <div class="analysis-mood">${parsedAnalysis?.mood || '未能识别'}</div>
-          </div>
-
-          <div class="analysis-section">
-            <h4>主要话题</h4>
-            <div class="analysis-topics">
-              ${(parsedAnalysis?.topics?.length || 0) > 0
-                ? parsedAnalysis.topics
-                    .map(
-                      (topic) => `
-                        <div class="topic-item">${topic}</div>
-                      `
-                    )
-                    .join('')
-                : '<div class="topic-item">未能识别</div>'}
-            </div>
-          </div>
-
-          <div class="analysis-section">
-            <h4>双方态度</h4>
-            <div class="analysis-attitudes">
-              <div class="attitude-item">
-                <span class="attitude-label">我方态度：</span>
-                <span class="attitude-value">${parsedAnalysis?.attitudes?.me || '未能识别'}</span>
-              </div>
-              <div class="attitude-item">
-                <span class="attitude-label">对方态度：</span>
-                <span class="attitude-value">${parsedAnalysis?.attitudes?.other || '未能识别'}</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="analysis-section">
-            <h4>建议回复方式</h4>
-            <div class="analysis-suggestions">
-              ${(parsedAnalysis?.suggestions?.length || 0) > 0
-                ? parsedAnalysis.suggestions
-                    .map(
-                      (suggestion) => `
-                        <div class="suggestion-item">
-                          <div class="suggestion-text">${suggestion}</div>
-                        </div>
-                      `
-                    )
-                    .join('')
-                : '<div class="suggestion-item">未提供建议</div>'}
-            </div>
-          </div>
-
-          ${parsedAnalysis?.suggestedReply
-            ? `
-              <div class="suggested-reply">
-                <h4>建议回复示例</h4>
-                <div class="reply-text">"${parsedAnalysis.suggestedReply}"</div>
-              </div>
-            `
-            : ''}
-        </div>
+        <div class="analysis-body"></div>
       </div>
     `;
+
+    const body = panel.querySelector('.analysis-body');
+    if (body) {
+      clearChildren(body);
+
+      const moodSection = createAnalysisSection('对话氛围');
+      moodSection.appendChild(createTextElement('div', 'analysis-mood', parsedAnalysis?.mood || '未能识别'));
+      body.appendChild(moodSection);
+
+      const topicsSection = createAnalysisSection('主要话题');
+      const topicsWrap = document.createElement('div');
+      topicsWrap.className = 'analysis-topics';
+      const topics = Array.isArray(parsedAnalysis?.topics) ? parsedAnalysis.topics : [];
+      if (topics.length > 0) {
+        topics.forEach((topic) => {
+          topicsWrap.appendChild(createTextElement('div', 'topic-item', topic));
+        });
+      } else {
+        topicsWrap.appendChild(createTextElement('div', 'topic-item', '未能识别'));
+      }
+      topicsSection.appendChild(topicsWrap);
+      body.appendChild(topicsSection);
+
+      const attitudesSection = createAnalysisSection('双方态度');
+      const attitudesWrap = document.createElement('div');
+      attitudesWrap.className = 'analysis-attitudes';
+
+      const meItem = document.createElement('div');
+      meItem.className = 'attitude-item';
+      meItem.appendChild(createTextElement('span', 'attitude-label', '我方态度：'));
+      meItem.appendChild(createTextElement('span', 'attitude-value', parsedAnalysis?.attitudes?.me || '未能识别'));
+
+      const otherItem = document.createElement('div');
+      otherItem.className = 'attitude-item';
+      otherItem.appendChild(createTextElement('span', 'attitude-label', '对方态度：'));
+      otherItem.appendChild(createTextElement('span', 'attitude-value', parsedAnalysis?.attitudes?.other || '未能识别'));
+
+      attitudesWrap.appendChild(meItem);
+      attitudesWrap.appendChild(otherItem);
+      attitudesSection.appendChild(attitudesWrap);
+      body.appendChild(attitudesSection);
+
+      const suggestionsSection = createAnalysisSection('建议回复方式');
+      const suggestionsWrap = document.createElement('div');
+      suggestionsWrap.className = 'analysis-suggestions';
+      const suggestions = Array.isArray(parsedAnalysis?.suggestions) ? parsedAnalysis.suggestions : [];
+      if (suggestions.length > 0) {
+        suggestions.forEach((suggestion) => {
+          const item = document.createElement('div');
+          item.className = 'suggestion-item';
+          item.appendChild(createTextElement('div', 'suggestion-text', suggestion));
+          suggestionsWrap.appendChild(item);
+        });
+      } else {
+        suggestionsWrap.appendChild(createTextElement('div', 'suggestion-item', '未提供建议'));
+      }
+      suggestionsSection.appendChild(suggestionsWrap);
+      body.appendChild(suggestionsSection);
+
+      if (parsedAnalysis?.suggestedReply) {
+        const replySection = document.createElement('div');
+        replySection.className = 'suggested-reply';
+        replySection.appendChild(createTextElement('h4', '', '建议回复示例'));
+        replySection.appendChild(createTextElement('div', 'reply-text', `"${parsedAnalysis.suggestedReply}"`));
+        body.appendChild(replySection);
+      }
+    }
 
     try {
       panel.querySelector('.close-btn')?.addEventListener('click', () => {
@@ -304,10 +336,15 @@
 
     panel.innerHTML = `
       <div class="analysis-error">
-        <span>分析失败: ${message}</span>
+        <span class="analysis-error-text"></span>
         <button class="close-btn">×</button>
       </div>
     `;
+
+    const errorText = panel.querySelector('.analysis-error-text');
+    if (errorText) {
+      errorText.textContent = `分析失败: ${message || '未知错误'}`;
+    }
 
     try {
       panel.querySelector('.close-btn')?.addEventListener('click', () => {

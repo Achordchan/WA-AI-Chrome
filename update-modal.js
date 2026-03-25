@@ -5,7 +5,7 @@ function showUpdateModal() {
       <div class="update-modal-content">
         <div class="update-modal-header">
                 <h3>WhatsApp Assistant Pro+ 更新说明</h3>
-      <span class="version">V3.2.4</span>
+      <span class="version">V3.2.5</span>
           <button class="modal-close">×</button>
         </div>
         <div class="update-modal-body">
@@ -14,31 +14,31 @@ function showUpdateModal() {
            
             <h4>本次更新</h4>
             <ul>
-              <li><strong>语音消息转写</strong> - 设置中开启并填写API信息后在语音气泡上新增“听”按钮，一键转写语音内容</li>
-              <li><strong>转写结果内一键翻译</strong> - 转写结果区域新增“译”按钮，可直接继续翻译</li>
-              <li><strong>媒体预览说明翻译</strong> - 图片/视频发送前的说明输入框支持翻译按钮与回车快捷翻译</li>
-              <li><strong>快速对话免费开放</strong> - 快速对话功能正式开放，默认启用</li>
-              <li><strong>STT 获取方式</strong> - 需自行获取语音转写服务，建议使用智谱 AI</li>
+              <li><strong>主链收口</strong> - MVP 成为唯一正式主链，运行路径更清晰</li>
+              <li><strong>媒体预览说明翻译恢复</strong> - 图片/视频发送前的说明输入框重新支持翻译按钮与回车快捷翻译</li>
+              <li><strong>同文直发恢复</strong> - 翻译结果与原文一致时，回车会直接发送，不再多按一次</li>
+              <li><strong>翻译反馈体验恢复</strong> - 回车快捷翻译重新显示“正在翻译中”提示与绿色包裹动效</li>
+              <li><strong>设置模块拆分</strong> - 设置表单与管理员预设逻辑拆到独立 service，便于后续维护</li>
             </ul>
           </div>
           <div class="update-section">
-            <h4>翻译与分析</h4>
+            <h4>稳定性与安全</h4>
             <ul>
-              <li>修复输入框翻译按钮、回车快捷翻译在 WhatsApp 最新 DOM 下的挂载与触发问题</li>
-              <li>修复媒体预览说明输入框中翻译弹窗与按钮定位异常的问题</li>
-              <li>修复顶部工具栏、消息“译 / 听”按钮错位的问题</li>
-              <li>修复部分场景下信息提示不消失导致布局异常的问题</li>
-              <li>修复语音翻译 Token 数显示为 N/A 的问题</li>
+              <li>分析面板、天气展示、错误提示中的动态内容改为安全渲染，降低注入风险</li>
+              <li>语音 blob 捕获桥接增加类型白名单、字段校验、尺寸限制与缓存清理</li>
+              <li>语音转写等待、自动初始化、号码提取与输入框安装改为事件驱动，不再依赖关键轮询</li>
+              <li>适配 WhatsApp 最新 DOM，修复顶部工具栏、消息按钮、输入框按钮挂载错位问题</li>
+              <li>修复天气/国家/时间显示错位，避免污染联系人标题文本</li>
             </ul>
           </div>
           <div class="update-section">
-            <h4>天气与号码识别（重要）</h4>
+            <h4>功能细节修复</h4>
             <ul>
-              <li><strong>天气/时间显示可自定义</strong> - 可单独开启/关闭天气与当地时间显示</li>
-              <li><strong>号码获取更稳定</strong> - 已适配 WhatsApp 最新 DOM，修复“未检测到联系人号码”</li>
-              <li><strong>顶部显示更稳</strong> - 修复国家/天气/时间显示错位，并避免污染联系人标题文本</li>
-              <li><strong>SVG 国旗兼容</strong> - 顶部国家显示与国家选择器改为本地 SVG，兼容 Windows emoji 显示问题</li>
-              <li><strong>防误判 + 缓存</strong> - 避免把 WhatsApp 内部 ID 误当手机号；成功获取后会缓存，减少重复弹出与干扰</li>
+              <li>普通聊天输入框与媒体说明输入框都支持翻译按钮与回车快捷翻译</li>
+              <li>翻译按钮重新与表情区对齐，避免跑到顶部工具栏或出现高低不齐</li>
+              <li>天气/号码识别链路在新 DOM 下更稳定，减少“未检测到联系人号码”的误报</li>
+              <li>顶部天气条、国家显示、时间显示在切换聊天与刷新后更稳定</li>
+              <li>保留管理员预设与内置 Key 的现有策略，不影响原有使用习惯</li>
             </ul>
           </div>
           <div class="update-section">
@@ -213,9 +213,9 @@ async function checkAndShowUpdateLog() {
   try {
     const currentVersion = (() => {
       try {
-        return chrome && chrome.runtime && chrome.runtime.getManifest ? (chrome.runtime.getManifest().version || '3.2.4') : '3.2.4';
+        return chrome && chrome.runtime && chrome.runtime.getManifest ? (chrome.runtime.getManifest().version || '3.2.5') : '3.2.5';
       } catch (e) {
-        return '3.2.4';
+        return '3.2.5';
       }
     })(); // 当前版本号
     const data = await chrome.storage.local.get(['lastShownVersion']);

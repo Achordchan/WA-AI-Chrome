@@ -1,134 +1,308 @@
-// 检查插件状态的函数
-async function checkPluginStatus(retryCount = 0, maxRetries = 3) {
-  const statusArea = document.getElementById('statusArea');
-  const reloadBtn = document.getElementById('reloadBtn');
-  
+const WHATSAPP_TAB_QUERY = { url: '*://web.whatsapp.com/*' };
+const STATUS_REFRESH_DEBOUNCE_MS = 120;
+
+let statusRefreshTimer = null;
+let statusListenersInstalled = false;
+let latestStatusRequestId = 0;
+
+function getStatusElements() {
+  return {
+    statusArea: document.getElementById('statusArea'),
+    reloadBtn: document.getElementById('reloadBtn')
+  };
+}
+
+function renderStatus({ className, icon, title, detail, showReload }) {
+  const { statusArea, reloadBtn } = getStatusElements();
   if (!statusArea || !reloadBtn) return;
 
-  try {
-    // 检查 WhatsApp 标签页
-    const tabs = await chrome.tabs.query({url: "*://web.whatsapp.com/*"});
-    
-    if (tabs.length === 0) {
-      throw new Error('请先打开 WhatsApp Web 页面');
-    }
+  statusArea.className = `status-area ${className}`;
+  statusArea.textContent = '';
 
-    try {
-      // 检查是否已进入聊天窗口
-      const chatWindowExists = await chrome.tabs.sendMessage(tabs[0].id, {
-        type: 'CHECK_CHAT_WINDOW'
-      });
+  const iconEl = document.createElement('div');
+  iconEl.className = 'status-icon';
+  iconEl.textContent = String(icon || '');
 
-      if (!chatWindowExists || !chatWindowExists.exists) {
-        // 如果未进入聊天窗口，显示等待提示
-        statusArea.className = 'status-area status-waiting';
-        statusArea.innerHTML = `
-          <div class="status-icon">💬</div>
-          <div class="status-text">
-            <div>请先进入任意聊天窗口</div>
-            <div class="status-detail">插件将在聊天窗口中启用</div>
-          </div>
-        `;
-        reloadBtn.classList.add('hidden');
-        return;
-      }
+  const textWrap = document.createElement('div');
+  textWrap.className = 'status-text';
 
-      // 检查按钮是否已加载
-      const buttonsLoaded = await chrome.tabs.sendMessage(tabs[0].id, {
-        type: 'CHECK_BUTTONS'
-      });
+  const titleEl = document.createElement('div');
+  titleEl.textContent = String(title || '');
 
-      if (buttonsLoaded && buttonsLoaded.success) {
-        // 按钮加载成功，显示成功状态
-        statusArea.className = 'status-area status-success';
-        statusArea.innerHTML = `
-          <div class="status-icon">✓</div>
-          <div class="status-text">
-            <div>插件已成功加载</div>
-            <div class="status-detail">功能已就绪</div>
-          </div>
-        `;
-        reloadBtn.classList.add('hidden');
-      } else {
-        throw new Error('功能按钮未完全加载');
-      }
+  const detailEl = document.createElement('div');
+  detailEl.className = 'status-detail';
+  detailEl.textContent = String(detail || '');
 
-    } catch (error) {
-      // 如果还有重试次数，则等待后重试
-      if (retryCount < maxRetries) {
-        console.debug(`Retrying... (${retryCount + 1}/${maxRetries})`);
-        statusArea.innerHTML = `
-          <div class="status-icon">⟳</div>
-          <div class="status-text">
-            <div>正在重试连接...</div>
-            <div class="status-detail">第 ${retryCount + 1} 次尝试</div>
-          </div>
-        `;
-        
-        // 等待 1 秒后重试
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        return checkPluginStatus(retryCount + 1, maxRetries);
-      }
-      
-      throw error;
-    }
+  textWrap.appendChild(titleEl);
+  textWrap.appendChild(detailEl);
+  statusArea.appendChild(iconEl);
+  statusArea.appendChild(textWrap);
 
-  } catch (error) {
-    console.error('Plugin status check failed:', error);
-    
-    if (statusArea) {
-      statusArea.className = 'status-area status-error';
-      statusArea.innerHTML = `
-        <div class="status-icon">!</div>
-        <div class="status-text">
-          <div>${error.message}</div>
-          <div class="status-detail">请尝试重新加载插件</div>
-        </div>
-      `;
-    }
-    
-    if (reloadBtn) {
-      reloadBtn.classList.remove('hidden');
-    }
+  if (showReload) {
+    reloadBtn.classList.remove('hidden');
+  } else {
+    reloadBtn.classList.add('hidden');
   }
 }
 
-// 初始化事件监听器
-document.addEventListener('DOMContentLoaded', async () => {
-  // 首先检查插件状态
-  await checkPluginStatus();
+async function queryWhatsappTab() {
+  const tabs = await chrome.tabs.query(WHATSAPP_TAB_QUERY);
+  return tabs && tabs.length > 0 ? tabs[0] : null;
+}
 
-  // 加载保存的 API Key
-  chrome.storage.sync.get(['apiKey'], (data) => {
-    const apiKeyInput = document.getElementById('apiKey');
-    if(apiKeyInput) {
-      apiKeyInput.value = data.apiKey || '';
+function sendMessageToTab(tabId, payload) {
+  return new Promise((resolve, reject) => {
+    try {
+      chrome.tabs.sendMessage(tabId, payload, (response) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message || '页面通信失败'));
+          return;
+        }
+        resolve(response);
+      });
+    } catch (error) {
+      reject(error);
     }
   });
+}
 
-  // 保存 API Key 设置
+function isTransientPageConnectionError(error) {
+  const message = String(error?.message || error || '');
+  return (
+    message.includes('Receiving end does not exist') ||
+    message.includes('Could not establish connection') ||
+    message.includes('The message port closed before a response was received')
+  );
+}
+
+async function collectPluginStatus(tab) {
+  if (!tab) {
+    return {
+      className: 'status-error',
+      icon: '!',
+      title: '请先打开 WhatsApp Web 页面',
+      detail: '未检测到可用标签页',
+      showReload: false
+    };
+  }
+
+  let chatWindowExists = false;
+  try {
+    const chatWindowResponse = await sendMessageToTab(tab.id, {
+      type: 'CHECK_CHAT_WINDOW'
+    });
+    chatWindowExists = !!chatWindowResponse?.exists;
+  } catch (error) {
+    if (String(tab.status || '') !== 'complete' || isTransientPageConnectionError(error)) {
+      return {
+        className: 'status-waiting',
+        icon: '⟳',
+        title: '正在连接 WhatsApp 页面...',
+        detail: '页面加载完成后会自动恢复',
+        showReload: false
+      };
+    }
+    throw error;
+  }
+
+  if (!chatWindowExists) {
+    return {
+      className: 'status-waiting',
+      icon: '💬',
+      title: '请先进入任意聊天窗口',
+      detail: '插件将在聊天窗口中启用',
+      showReload: false
+    };
+  }
+
+  try {
+    const buttonsLoaded = await sendMessageToTab(tab.id, {
+      type: 'CHECK_BUTTONS'
+    });
+
+    if (buttonsLoaded && buttonsLoaded.success) {
+      return {
+        className: 'status-success',
+        icon: '✓',
+        title: '插件已成功加载',
+        detail: '功能已就绪',
+        showReload: false
+      };
+    }
+
+    return {
+      className: 'status-waiting',
+      icon: '⟳',
+      title: '正在恢复插件功能...',
+      detail: '检测到聊天窗口，功能加载后会自动恢复',
+      showReload: false
+    };
+  } catch (error) {
+    if (isTransientPageConnectionError(error)) {
+      return {
+        className: 'status-waiting',
+        icon: '⟳',
+        title: '正在恢复插件功能...',
+        detail: '页面脚本连通后会自动恢复',
+        showReload: false
+      };
+    }
+    throw error;
+  }
+}
+
+async function checkPluginStatus() {
+  const requestId = ++latestStatusRequestId;
+
+  try {
+    const tab = await queryWhatsappTab();
+    const snapshot = await collectPluginStatus(tab);
+    if (requestId !== latestStatusRequestId) return snapshot;
+    renderStatus(snapshot);
+    return snapshot;
+  } catch (error) {
+    if (requestId !== latestStatusRequestId) return null;
+    renderStatus({
+      className: 'status-error',
+      icon: '!',
+      title: error?.message || '插件状态检测失败',
+      detail: '请尝试重新加载插件',
+      showReload: true
+    });
+    return null;
+  }
+}
+
+function scheduleStatusRefresh(delayMs = STATUS_REFRESH_DEBOUNCE_MS) {
+  try {
+    if (statusRefreshTimer) clearTimeout(statusRefreshTimer);
+  } catch (e) {
+    // ignore
+  }
+
+  statusRefreshTimer = setTimeout(() => {
+    statusRefreshTimer = null;
+    void checkPluginStatus();
+  }, delayMs);
+}
+
+function syncApiKeyInput(value) {
   const apiKeyInput = document.getElementById('apiKey');
-  if(apiKeyInput) {
+  if (!apiKeyInput) return;
+  apiKeyInput.value = value || '';
+}
+
+function isWhatsappTabInfo(tab, changeInfo) {
+  const tabUrl = String(tab?.url || '');
+  const changedUrl = String(changeInfo?.url || '');
+  return tabUrl.includes('web.whatsapp.com') || changedUrl.includes('web.whatsapp.com');
+}
+
+function installPopupStatusListeners() {
+  if (statusListenersInstalled) return;
+  statusListenersInstalled = true;
+
+  chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (!isWhatsappTabInfo(tab, changeInfo)) return;
+
+    if (changeInfo.status === 'loading') {
+      renderStatus({
+        className: 'status-waiting',
+        icon: '⟳',
+        title: '正在刷新 WhatsApp 页面...',
+        detail: '页面恢复后会自动检测插件状态',
+        showReload: false
+      });
+    }
+
+    scheduleStatusRefresh(changeInfo.status === 'complete' ? 80 : STATUS_REFRESH_DEBOUNCE_MS);
+  });
+
+  chrome.tabs.onActivated.addListener(() => {
+    scheduleStatusRefresh(80);
+  });
+
+  chrome.tabs.onRemoved.addListener(() => {
+    scheduleStatusRefresh(0);
+  });
+
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== 'sync') return;
+    if (Object.prototype.hasOwnProperty.call(changes, 'apiKey')) {
+      syncApiKeyInput(changes.apiKey?.newValue || '');
+    }
+  });
+}
+
+async function waitForTabComplete(tabId, timeoutMs = 15000) {
+  const currentTab = await chrome.tabs.get(tabId);
+  if (String(currentTab?.status || '') === 'complete') return true;
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    let timeoutId = null;
+
+    const cleanup = () => {
+      try {
+        chrome.tabs.onUpdated.removeListener(handleUpdated);
+      } catch (e) {
+        // ignore
+      }
+      try {
+        if (timeoutId) clearTimeout(timeoutId);
+      } catch (e) {
+        // ignore
+      }
+      timeoutId = null;
+    };
+
+    const finish = (handler, value) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      handler(value);
+    };
+
+    const handleUpdated = (updatedTabId, changeInfo) => {
+      if (updatedTabId !== tabId) return;
+      if (changeInfo.status === 'complete') {
+        finish(resolve, true);
+      }
+    };
+
+    chrome.tabs.onUpdated.addListener(handleUpdated);
+    timeoutId = setTimeout(() => {
+      finish(reject, new Error('页面加载超时'));
+    }, timeoutMs);
+  });
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  installPopupStatusListeners();
+  scheduleStatusRefresh(0);
+
+  chrome.storage.sync.get(['apiKey'], (data) => {
+    syncApiKeyInput(data.apiKey || '');
+  });
+
+  const apiKeyInput = document.getElementById('apiKey');
+  if (apiKeyInput) {
     apiKeyInput.addEventListener('change', (e) => {
       chrome.storage.sync.set({ apiKey: e.target.value });
     });
   }
 
-  // 重新加载按钮点击事件
   const reloadBtn = document.getElementById('reloadBtn');
-  if(reloadBtn) {
+  if (reloadBtn) {
     reloadBtn.addEventListener('click', async () => {
       await reloadPlugin();
     });
   }
 
-  // 添加更新日志按钮点击事件
   document.getElementById('viewUpdateLog')?.addEventListener('click', async () => {
-    // 获取当前标签页
-    const tabs = await chrome.tabs.query({url: "*://web.whatsapp.com/*"});
-    if (tabs.length > 0) {
-      // 在 WhatsApp 页面中显示更新日志
-      chrome.tabs.sendMessage(tabs[0].id, {
+    const tab = await queryWhatsappTab();
+    if (tab) {
+      chrome.tabs.sendMessage(tab.id, {
         type: 'SHOW_UPDATE_LOG'
       });
     } else {
@@ -137,42 +311,40 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 });
 
-// 重新加载插件
 async function reloadPlugin() {
   const reloadBtn = document.getElementById('reloadBtn');
   if (!reloadBtn) return;
 
   try {
-    // 禁用按钮,显示加载状态
     reloadBtn.disabled = true;
     reloadBtn.textContent = '正在重新加载...';
-    
-    // 重新加载当前 WhatsApp 标签页
-    const tabs = await chrome.tabs.query({url: "*://web.whatsapp.com/*"});
-    if (tabs.length > 0) {
-      await chrome.tabs.reload(tabs[0].id);
-      // 等待页面加载完成
-      setTimeout(async () => {
-        await checkPluginStatus();
-        reloadBtn.disabled = false;
-        reloadBtn.textContent = '重新加载插件';
-      }, 2000);
-    } else {
+
+    const tab = await queryWhatsappTab();
+    if (!tab) {
       throw new Error('未找到 WhatsApp 页面');
     }
+
+    renderStatus({
+      className: 'status-waiting',
+      icon: '⟳',
+      title: '正在重新加载 WhatsApp 页面...',
+      detail: '加载完成后会自动检测插件状态',
+      showReload: false
+    });
+
+    await chrome.tabs.reload(tab.id);
+    scheduleStatusRefresh(0);
+    await waitForTabComplete(tab.id);
+    await checkPluginStatus();
   } catch (error) {
-    console.error('重新加载失败:', error);
-    const statusArea = document.getElementById('statusArea');
-    if (statusArea) {
-      statusArea.className = 'status-area status-error';
-      statusArea.innerHTML = `
-        <div class="status-icon">!</div>
-        <div class="status-text">
-          <div>重新加载失败: ${error.message}</div>
-          <div class="status-detail">请刷新 WhatsApp 页面后重试</div>
-        </div>
-      `;
-    }
+    renderStatus({
+      className: 'status-error',
+      icon: '!',
+      title: `重新加载失败: ${error?.message || '未知错误'}`,
+      detail: '请刷新 WhatsApp 页面后重试',
+      showReload: true
+    });
+  } finally {
     reloadBtn.disabled = false;
     reloadBtn.textContent = '重新加载插件';
   }

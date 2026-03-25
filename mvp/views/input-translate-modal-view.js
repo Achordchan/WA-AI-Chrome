@@ -249,23 +249,10 @@
       const langMatchesQuery = deps.langMatchesQuery;
       const getQuickSendState = deps.getQuickSendState;
 
-      const toastFallback = window.WAAP?.legacy?.inputTranslateToastFallback;
       const toast = (message, type = 'info', durationMs = 1200) => {
         try {
-          if (type === 'success' && typeof window.showToast === 'function') {
-            window.showToast(message, 'success', durationMs);
-            return;
-          }
-        } catch (e) {
-          // ignore
-        }
-
-        try {
-          if (toastFallback?.showToast) {
-            toastFallback.showToast(message, type, durationMs, {
-              document: doc,
-              setTimeout: setTimeoutFn
-            });
+          if (typeof window.showToast === 'function') {
+            window.showToast(message, type, durationMs);
             return;
           }
         } catch (e) {
@@ -284,17 +271,6 @@
       };
 
       const toastError = (message, code) => {
-        try {
-          if (toastFallback?.showTranslationError) {
-            toastFallback.showTranslationError(message, code, {
-              document: doc,
-              setTimeout: setTimeoutFn
-            });
-            return;
-          }
-        } catch (e) {
-          // ignore
-        }
         toast(code ? `${message} (${code})` : message, 'error', 3000);
       };
 

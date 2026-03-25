@@ -474,13 +474,84 @@
     }
   }
 
+  function waitForSidebarPhoneByObserver(owner, deps = {}, options = {}) {
+    try {
+      const documentRef = deps.document || window.document;
+      const MutationObserverRef = deps.MutationObserver || window.MutationObserver;
+      const setTimeoutRef = deps.setTimeout || window.setTimeout;
+      const timeoutMs = Number.isFinite(options.timeoutMs) ? options.timeoutMs : 1800;
+      if (!documentRef || typeof setTimeoutRef !== 'function') return Promise.resolve(null);
+
+      return new Promise((resolve) => {
+        let done = false;
+        let observer = null;
+        let timeoutId = null;
+
+        const cleanup = () => {
+          try {
+            if (observer) observer.disconnect();
+          } catch (e) {
+            // ignore
+          }
+          observer = null;
+
+          try {
+            if (timeoutId) clearTimeout(timeoutId);
+          } catch (e) {
+            // ignore
+          }
+          timeoutId = null;
+        };
+
+        const finish = (value) => {
+          if (done) return;
+          done = true;
+          cleanup();
+          resolve(value || null);
+        };
+
+        const tryResolve = () => {
+          try {
+            const phone = tryExtractPhoneFromContactInfoSidebar(owner, { ...deps, document: documentRef });
+            if (phone) finish(phone);
+          } catch (e) {
+            // ignore
+          }
+        };
+
+        timeoutId = setTimeoutRef(() => {
+          finish(null);
+        }, timeoutMs);
+
+        if (typeof MutationObserverRef === 'function') {
+          try {
+            observer = new MutationObserverRef(() => {
+              tryResolve();
+            });
+            observer.observe(documentRef.body || documentRef.documentElement, {
+              childList: true,
+              subtree: true,
+              characterData: true,
+              attributes: true
+            });
+          } catch (e) {
+            observer = null;
+          }
+        }
+
+        tryResolve();
+      });
+    } catch (e) {
+      return Promise.resolve(null);
+    }
+  }
+
   function scheduleAutoOpenSidebarAndExtractPhone(owner, deps = {}) {
     try {
       if (!owner || typeof owner.isChatWindowActive !== 'function') return false;
       if (!owner.isChatWindowActive()) return false;
 
       const documentRef = deps.document || window.document;
-      const XPathResultRef = deps.XPathResult || window.XPathResult;
       const setTimeoutRef = deps.setTimeout || window.setTimeout;
       const showToast = deps.showToast || window.showToast;
       if (!documentRef || typeof setTimeoutRef !== 'function') return false;
@@ -600,9 +671,18 @@
         return false;
       };
 
-      const poll = (attempt = 0) => {
+      if (!alreadyOpen) {
+        clickOpen();
+      }
+
+      void (async () => {
         try {
-          const fromSidebar = tryExtractPhoneFromContactInfoSidebar(owner, { ...deps, document: documentRef });
+          const fromSidebar = await waitForSidebarPhoneByObserver(owner, {
+            ...deps,
+            document: documentRef,
+            setTimeout: setTimeoutRef
+          });
+
           if (fromSidebar) {
             try {
               const chatKeyNow = getActiveChatKey(owner);
@@ -631,34 +711,23 @@
             }
 
             owner._waapPhoneSidebarFallbackRunning = false;
-            debugLog('success', chatKeyNow || getActiveChatKey(owner));
+            debugLog('success', getActiveChatKey(owner));
             return;
           }
 
-          if (attempt >= 8) {
-            cleanupToast();
-            try {
-              if (!alreadyOpen) clickClose();
-            } catch (e) {
-              // ignore
-            }
-            owner._waapPhoneSidebarFallbackRunning = false;
-            debugLog('fail: timeout', chatKey);
-            return;
+          cleanupToast();
+          try {
+            if (!alreadyOpen) clickClose();
+          } catch (e) {
+            // ignore
           }
-
-          setTimeoutRef(() => poll(attempt + 1), 180);
+          owner._waapPhoneSidebarFallbackRunning = false;
+          debugLog('fail: timeout', chatKey);
         } catch (e) {
           cleanupToast();
           owner._waapPhoneSidebarFallbackRunning = false;
         }
-      };
-
-      if (!alreadyOpen) {
-        clickOpen();
-      }
-
-      setTimeoutRef(() => poll(0), 180);
+      })();
       return true;
     } catch (e) {
       try {

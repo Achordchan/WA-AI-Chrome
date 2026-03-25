@@ -12,6 +12,97 @@
 
   let flagEmojiSupported = null;
 
+  function escapeHtml(value) {
+    return String(value || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function clearChildren(element) {
+    try {
+      if (!element) return;
+      while (element.firstChild) {
+        element.removeChild(element.firstChild);
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  function createTextElement(documentRef, tagName, className, text) {
+    const el = documentRef.createElement(tagName);
+    if (className) el.className = className;
+    el.textContent = String(text ?? '');
+    return el;
+  }
+
+  function createCountryFlagNode(countryInfo, deps = {}, options = {}) {
+    const documentRef = deps.document || window.document;
+    const flagService = window.WAAP?.services?.countryFlagService;
+
+    try {
+      flagService?.ensureStyles?.({ document: documentRef });
+    } catch (e) {
+      // ignore
+    }
+
+    const shell = documentRef.createElement('span');
+    shell.className = options.shellClassName || 'wa-country-flag-shell';
+
+    try {
+      const rawCode = flagService?.normalizeCountryCode
+        ? flagService.normalizeCountryCode(countryInfo)
+        : String(countryInfo?.country || '').trim().toUpperCase().replace(/[^A-Z]/g, '').slice(0, 2);
+      const code = rawCode || '';
+      const flagUrl = flagService?.getFlagUrl ? flagService.getFlagUrl(code, deps) : '';
+
+      if (flagUrl) {
+        const img = documentRef.createElement('img');
+        img.className = options.imageClassName || 'wa-country-flag-img';
+        img.src = flagUrl;
+        img.alt = `${countryInfo?.name || countryInfo?.country || '国家'}图标`;
+        img.loading = 'lazy';
+        img.decoding = 'async';
+        img.referrerPolicy = 'no-referrer';
+        shell.appendChild(img);
+        return shell;
+      }
+
+      const badge = documentRef.createElement('span');
+      badge.className = options.badgeClassName || 'wa-country-flag-code-badge';
+      badge.textContent = code || '--';
+      shell.appendChild(badge);
+      return shell;
+    } catch (e) {
+      const badge = documentRef.createElement('span');
+      badge.className = options.badgeClassName || 'wa-country-flag-code-badge';
+      badge.textContent = '--';
+      shell.appendChild(badge);
+      return shell;
+    }
+  }
+
+  function appendWeatherLoading(container, deps = {}) {
+    try {
+      if (!container) return false;
+      const documentRef = deps.document || window.document;
+      clearChildren(container);
+      const spinner = documentRef.createElement('span');
+      spinner.className = 'wa-weather-inline-spinner';
+      spinner.setAttribute('aria-label', 'loading');
+      const text = createTextElement(documentRef, 'span', 'weather-desc', '刷新中...');
+      text.style.marginLeft = '6px';
+      container.appendChild(spinner);
+      container.appendChild(text);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   function isFlagEmojiSupported(deps = {}) {
     try {
       if (flagEmojiSupported === true) return true;
@@ -59,24 +150,17 @@
 
   function renderCountryFlag(countryInfo, deps = {}) {
     try {
-      const flagService = window.WAAP?.services?.countryFlagService;
-      if (flagService?.renderFlagHtml) {
-        return flagService.renderFlagHtml(
-          countryInfo,
-          {
-            shellClassName: 'wa-country-flag-shell',
-            imageClassName: 'wa-country-flag-img',
-            badgeClassName: 'country-flag-badge',
-            alt: `${countryInfo?.name || countryInfo?.country || '国家'}图标`
-          },
-          deps
-        );
-      }
-      const code = countryInfo && countryInfo.country ? String(countryInfo.country).toUpperCase() : '';
-      const safeCode = code.replace(/[^A-Z0-9_]/g, '').slice(0, 10);
-      return `<span class="country-flag-badge">${safeCode || '--'}</span>`;
+      return createCountryFlagNode(
+        countryInfo,
+        deps,
+        {
+          shellClassName: 'wa-country-flag-shell',
+          imageClassName: 'wa-country-flag-img',
+          badgeClassName: 'country-flag-badge'
+        }
+      ).outerHTML;
     } catch (e) {
-      return `<span class="country-flag-badge">--</span>`;
+      return `<span class="country-flag-badge">${escapeHtml('--')}</span>`;
     }
   }
 
@@ -690,8 +774,7 @@
       const el = container.querySelector('#weather-data-container');
       if (!el) return false;
       ensureStyles({ document: documentRef });
-      el.innerHTML = '<span class="wa-weather-inline-spinner" aria-label="loading"></span><span class="weather-desc" style="margin-left:6px;">刷新中...</span>';
-      return true;
+      return appendWeatherLoading(el, { document: documentRef });
     } catch (e) {
       return false;
     }
@@ -725,13 +808,28 @@
         bubble.className = isDarkMode
           ? 'wa-weather-confirm-bubble wa-weather-confirm-bubble-dark'
           : 'wa-weather-confirm-bubble';
-        bubble.innerHTML = `
-          <div class="wa-weather-confirm-bubble-title">${title}</div>
-          <div class="wa-weather-confirm-bubble-actions">
-            <button type="button" class="wa-weather-confirm-btn" data-act="cancel">取消</button>
-            <button type="button" class="wa-weather-confirm-btn wa-weather-confirm-btn-primary" data-act="ok">${okText}</button>
-          </div>
-        `;
+
+        const titleEl = createTextElement(documentRef, 'div', 'wa-weather-confirm-bubble-title', title);
+        const actions = documentRef.createElement('div');
+        actions.className = 'wa-weather-confirm-bubble-actions';
+
+        const cancelBtn = createTextElement(documentRef, 'button', 'wa-weather-confirm-btn', '取消');
+        cancelBtn.type = 'button';
+        cancelBtn.setAttribute('data-act', 'cancel');
+
+        const okBtn = createTextElement(
+          documentRef,
+          'button',
+          'wa-weather-confirm-btn wa-weather-confirm-btn-primary',
+          okText
+        );
+        okBtn.type = 'button';
+        okBtn.setAttribute('data-act', 'ok');
+
+        actions.appendChild(cancelBtn);
+        actions.appendChild(okBtn);
+        bubble.appendChild(titleEl);
+        bubble.appendChild(actions);
 
         const cleanup = (val) => {
           try {
@@ -818,7 +916,8 @@
     try {
       if (!container) return false;
 
-      const generateWeatherHTML = typeof deps.generateWeatherHTML === 'function' ? deps.generateWeatherHTML : null;
+      const documentRef = deps.document || window.document;
+      const renderWeatherContent = typeof deps.renderWeatherContent === 'function' ? deps.renderWeatherContent : null;
 
       const showWeather = options.showWeather !== false;
       const showTime = options.showTime !== false;
@@ -829,38 +928,66 @@
       ensureStyles(deps);
       ensureFlagRenderMode(deps);
 
-      const weatherHtml = showWeather
-        ? (weatherData && generateWeatherHTML
-            ? generateWeatherHTML(weatherData)
-            : '<span class="weather-loading">🌤️ 加载中...</span>')
-        : '';
+      clearChildren(container);
 
-      const timeHtml = (showTime && timeData)
-        ? `
-        <span class="time-info">
-          <span class="time-label">当地时间：</span>
-          <span class="local-time" data-timezone="${timeData.timezone}">${timeData.time}</span>
-        </span>
-        `
-        : '';
+      const inline = documentRef.createElement('div');
+      inline.className = 'weather-inline';
 
-      container.innerHTML = `
-      <div class="weather-inline">
-        <span class="country-info">
-          <span class="country-flag">${renderCountryFlag(countryInfo, deps)}</span>
-          <span class="country-name">${countryInfo.name}</span>
-        </span>
-        ${showWeather ? `
-        <span class="weather-info" id="weather-data-container">
-          ${weatherHtml}
-        </span>
-        ` : ''}
-        ${timeHtml}
-        ${needsConfirmation ? '<span class="status-indicator needs-confirmation" title="需要确认">?</span>' : ''}
-        ${isAutoDetected ? '<span class="status-indicator auto-detected" title="智能识别">🤖</span>' : ''}
-        ${isUserCorrected ? '<span class="status-indicator user-corrected" title="用户修正">✓</span>' : ''}
-      </div>
-      `;
+      const countryInfoEl = documentRef.createElement('span');
+      countryInfoEl.className = 'country-info';
+
+      const flagWrap = documentRef.createElement('span');
+      flagWrap.className = 'country-flag';
+      flagWrap.appendChild(createCountryFlagNode(countryInfo, deps, {
+        shellClassName: 'wa-country-flag-shell',
+        imageClassName: 'wa-country-flag-img',
+        badgeClassName: 'country-flag-badge'
+      }));
+      countryInfoEl.appendChild(flagWrap);
+      countryInfoEl.appendChild(createTextElement(documentRef, 'span', 'country-name', countryInfo?.name || ''));
+      inline.appendChild(countryInfoEl);
+
+      if (showWeather) {
+        const weatherInfoEl = documentRef.createElement('span');
+        weatherInfoEl.className = 'weather-info';
+        weatherInfoEl.id = 'weather-data-container';
+        if (weatherData && renderWeatherContent) {
+          renderWeatherContent(weatherInfoEl, weatherData);
+        } else {
+          weatherInfoEl.appendChild(createTextElement(documentRef, 'span', 'weather-loading', '🌤️ 加载中...'));
+        }
+        inline.appendChild(weatherInfoEl);
+      }
+
+      if (showTime && timeData) {
+        const timeInfoEl = documentRef.createElement('span');
+        timeInfoEl.className = 'time-info';
+        timeInfoEl.appendChild(createTextElement(documentRef, 'span', 'time-label', '当地时间：'));
+        const localTimeEl = createTextElement(documentRef, 'span', 'local-time', timeData.time || '');
+        localTimeEl.setAttribute('data-timezone', String(timeData.timezone || ''));
+        timeInfoEl.appendChild(localTimeEl);
+        inline.appendChild(timeInfoEl);
+      }
+
+      if (needsConfirmation) {
+        const indicator = createTextElement(documentRef, 'span', 'status-indicator needs-confirmation', '?');
+        indicator.title = '需要确认';
+        inline.appendChild(indicator);
+      }
+
+      if (isAutoDetected) {
+        const indicator = createTextElement(documentRef, 'span', 'status-indicator auto-detected', '🤖');
+        indicator.title = '智能识别';
+        inline.appendChild(indicator);
+      }
+
+      if (isUserCorrected) {
+        const indicator = createTextElement(documentRef, 'span', 'status-indicator user-corrected', '✓');
+        indicator.title = '用户修正';
+        inline.appendChild(indicator);
+      }
+
+      container.appendChild(inline);
 
       return true;
     } catch (e) {
@@ -873,6 +1000,7 @@
     ensureFlagRenderMode,
     isFlagEmojiSupported,
     renderCountryFlag,
+    createCountryFlagNode,
     renderWeather,
     setWeatherLoading,
     confirmForceRefresh,

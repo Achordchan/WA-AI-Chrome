@@ -167,7 +167,7 @@
       const retryDelayMs = Number.isFinite(options.retryDelayMs) ? Math.max(0, parseInt(String(options.retryDelayMs), 10)) : 700;
       const maxRetryDelayMs = Number.isFinite(options.maxRetryDelayMs) ? Math.max(0, parseInt(String(options.maxRetryDelayMs), 10)) : 6000;
 
-      const baseUrls = ['https://wttr.in', 'http://wttr.in'];
+      const baseUrls = ['https://wttr.in'];
       const candidateUrls = baseUrls.map((base) => `${base}/${query}?format=j1&lang=zh`);
 
       let lastError = null;

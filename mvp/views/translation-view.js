@@ -167,27 +167,56 @@
       pop.className = 'translation-meta-popover';
       pop.setAttribute('role', 'dialog');
 
-      pop.innerHTML = `
-        <div class="translation-meta-popover-card">
-          <div class="translation-meta-popover-title">
-            <span class="translation-meta-popover-check" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-1.1 13.4-3.3-3.3 1.4-1.4 1.9 1.9 4.6-4.6 1.4 1.4-6 6Z"/></svg>
-            </span>
-            <span>AI 请求已完成</span>
-          </div>
-          <div class="translation-meta-popover-body">
-            <div class="translation-meta-row"><div class="translation-meta-label">模型</div><div class="translation-meta-value">${model}</div></div>
-            <div class="translation-meta-row"><div class="translation-meta-label">运行时间</div><div class="translation-meta-value">${latencyText}</div></div>
-            <div class="translation-meta-row"><div class="translation-meta-label">预计消耗</div><div class="translation-meta-value">Token 数：${tokenText}</div></div>
-          </div>
-          <div class="translation-meta-popover-actions">
-            <button type="button" class="translation-meta-retry" aria-label="重新翻译">
-              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.75 6h-2.1A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L14 10h6V4l-2.35 2.35Z"/></svg>
-              <span>重新翻译</span>
-            </button>
-          </div>
-        </div>
-      `;
+      const card = document.createElement('div');
+      card.className = 'translation-meta-popover-card';
+
+      const titleWrap = document.createElement('div');
+      titleWrap.className = 'translation-meta-popover-title';
+      const check = document.createElement('span');
+      check.className = 'translation-meta-popover-check';
+      check.setAttribute('aria-hidden', 'true');
+      check.innerHTML =
+        '<svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-1.1 13.4-3.3-3.3 1.4-1.4 1.9 1.9 4.6-4.6 1.4 1.4-6 6Z"/></svg>';
+      const titleText = document.createElement('span');
+      titleText.textContent = 'AI 请求已完成';
+      titleWrap.appendChild(check);
+      titleWrap.appendChild(titleText);
+
+      const body = document.createElement('div');
+      body.className = 'translation-meta-popover-body';
+
+      const appendRow = (label, value) => {
+        const row = document.createElement('div');
+        row.className = 'translation-meta-row';
+        const labelEl = document.createElement('div');
+        labelEl.className = 'translation-meta-label';
+        labelEl.textContent = label;
+        const valueEl = document.createElement('div');
+        valueEl.className = 'translation-meta-value';
+        valueEl.textContent = value;
+        row.appendChild(labelEl);
+        row.appendChild(valueEl);
+        body.appendChild(row);
+      };
+
+      appendRow('模型', model);
+      appendRow('运行时间', latencyText);
+      appendRow('预计消耗', `Token 数：${tokenText}`);
+
+      const actions = document.createElement('div');
+      actions.className = 'translation-meta-popover-actions';
+      const retryBtn = document.createElement('button');
+      retryBtn.type = 'button';
+      retryBtn.className = 'translation-meta-retry';
+      retryBtn.setAttribute('aria-label', '重新翻译');
+      retryBtn.innerHTML =
+        '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.75 6h-2.1A6 6 0 1 1 12 6c1.66 0 3.14.69 4.22 1.78L14 10h6V4l-2.35 2.35Z"/></svg><span>重新翻译</span>';
+      actions.appendChild(retryBtn);
+
+      card.appendChild(titleWrap);
+      card.appendChild(body);
+      card.appendChild(actions);
+      pop.appendChild(card);
 
       return pop;
     } catch (e) {

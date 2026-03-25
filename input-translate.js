@@ -194,16 +194,6 @@ function initializeInputTranslate() {
   };
 }
 
-// 输入框翻译的通用样式由 legacy 模块统一注入（避免本文件过大）
-try {
-  const stylesFallback = window.WAAP?.legacy?.inputTranslateStylesFallback;
-  if (stylesFallback?.ensureStyles) {
-    stylesFallback.ensureStyles({ document: window.document });
-  }
-} catch (e) {
-  // ignore
-}
-
 // 修改 modalTranslation 方法
 async function modalTranslation(text, targetLang, type = 'normal') {
   try {
@@ -299,27 +289,16 @@ async function createTranslateModal(text, inputBox, options = {}) {
     // ignore
   }
 
-  try {
-    const fallback = window.WAAP?.legacy?.inputTranslateModalFallback;
-    if (fallback?.createTranslateModal) {
-      return await fallback.createTranslateModal(text, inputBox, options, buildTranslateModalDeps());
-    }
-  } catch (e2) {
-    // ignore
-  }
-
   return null;
 }
 
 // 添加错误显示函数
 function showTranslationError(message, code) {
   try {
-    const fallback = window.WAAP?.legacy?.inputTranslateToastFallback;
-    if (fallback?.showTranslationError) {
-      return fallback.showTranslationError(message, code, {
-        document: window.document,
-        setTimeout: window.setTimeout
-      });
+    const text = code ? `${message} (${code})` : message;
+    if (typeof window.showToast === 'function') {
+      window.showToast(text, 'error', 3000);
+      return;
     }
   } catch (e) {
     // ignore
@@ -327,8 +306,7 @@ function showTranslationError(message, code) {
 
   // 极小兜底：避免 UI 缺失时完全无反馈
   try {
-    const text = code ? `${message} (${code})` : message;
-    console.error(text);
+    console.error(code ? `${message} (${code})` : message);
   } catch (e) {
     // ignore
   }

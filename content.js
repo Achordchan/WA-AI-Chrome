@@ -113,14 +113,7 @@ function showTranslateConfirmDialog(messageContainer) {
     // ignore
   }
 
-  try {
-    const fallback = window.WAAP?.legacy?.translateConfirmDialogFallback;
-    if (fallback?.showTranslateConfirmDialog) {
-      fallback.showTranslateConfirmDialog(messageContainer, buildDeps({ translateAllMessages }));
-    }
-  } catch (e2) {
-    // ignore
-  }
+  showModuleLoadFailedFallback('批量翻译');
 }
 
 function isAutoTranslateEnabled() {
@@ -138,8 +131,7 @@ function applyAutoTranslateEnabled(enabled) {
     const orch = window.WAAP?.services?.settingsStateOrchestrator;
     if (orch?.applyAutoTranslateSideEffects) {
       orch.applyAutoTranslateSideEffects(state.autoTranslateNewMessagesEnabled, {
-        autoTranslatePresenter: window.WAAP?.presenters?.autoTranslatePresenter,
-        autoTranslateQueue: window.WAAP?.legacy?.autoTranslateQueue
+        autoTranslatePresenter: window.WAAP?.presenters?.autoTranslatePresenter
       });
       return;
     }
@@ -149,13 +141,6 @@ function applyAutoTranslateEnabled(enabled) {
   try {
     if (window.WAAP?.presenters?.autoTranslatePresenter?.setEnabled) {
       window.WAAP.presenters.autoTranslatePresenter.setEnabled(state.autoTranslateNewMessagesEnabled);
-    }
-  } catch (e) {
-    // ignore
-  }
-  try {
-    if (window.WAAP?.legacy?.autoTranslateQueue?.setEnabled) {
-      window.WAAP.legacy.autoTranslateQueue.setEnabled(state.autoTranslateNewMessagesEnabled);
     }
   } catch (e) {
     // ignore
@@ -282,7 +267,6 @@ function installSettingsSyncService() {
         settingsSyncService: window.WAAP?.services?.settingsSyncService,
         settingsSyncFallback: window.WAAP?.legacy?.settingsSyncFallback,
         autoTranslatePresenter: window.WAAP?.presenters?.autoTranslatePresenter,
-        autoTranslateQueue: window.WAAP?.legacy?.autoTranslateQueue,
         onStateChanged: (enabled) => {
           getContentState().autoTranslateNewMessagesEnabled = enabled === true;
         },
@@ -337,9 +321,6 @@ function scheduleAutoTranslateOnChatEnter() {
     if (window.WAAP?.presenters?.autoTranslatePresenter?.scheduleOnChatEnter) {
       return window.WAAP.presenters.autoTranslatePresenter.scheduleOnChatEnter();
     }
-    if (window.WAAP?.legacy?.autoTranslateQueue?.scheduleOnChatEnter) {
-      return window.WAAP.legacy.autoTranslateQueue.scheduleOnChatEnter();
-    }
   } catch (e) {
     // ignore
   }
@@ -350,9 +331,6 @@ function maybeAutoTranslateNewMessage(messageElement, deps = {}) {
   try {
     if (window.WAAP?.presenters?.autoTranslatePresenter?.maybeAutoTranslateNewMessage) {
       return window.WAAP.presenters.autoTranslatePresenter.maybeAutoTranslateNewMessage(messageElement, deps);
-    }
-    if (window.WAAP?.legacy?.autoTranslateQueue?.maybeAutoTranslateNewMessage) {
-      return window.WAAP.legacy.autoTranslateQueue.maybeAutoTranslateNewMessage(messageElement, deps);
     }
   } catch (e) {
     // ignore
@@ -391,13 +369,6 @@ function getAutoTranslateState() {
   } catch (e) {
     // ignore
   }
-  try {
-    if (window.WAAP?.legacy?.autoTranslateQueue?.getState) {
-      return window.WAAP.legacy.autoTranslateQueue.getState();
-    }
-  } catch (e) {
-    // ignore
-  }
   return {
     enabled: isAutoTranslateEnabled(),
     queueLength: -1,
@@ -409,25 +380,10 @@ function getAutoTranslateState() {
   try {
     const presenter = window.WAAP?.presenters?.weatherIntegrationPresenter;
     if (presenter?.integrate) {
-      const ok = presenter.integrate(options, {
+      return presenter.integrate(options, {
         WeatherInfo: window.WeatherInfo,
         whatsappDomService: window.WAAP?.services?.whatsappDomService,
         isEnabled: () => getContentState().weatherInfoEnabled
-      });
-      if (ok) return true;
-    }
-  } catch (e) {
-    // ignore
-  }
-
-  try {
-    const fallback = window.WAAP?.legacy?.weatherIntegrationFallback;
-    if (fallback?.integrate) {
-      return fallback.integrate(options, {
-        WeatherInfo: window.WeatherInfo,
-        whatsappDomService: window.WAAP?.services?.whatsappDomService,
-        isEnabled: () => getContentState().weatherInfoEnabled,
-        document: window.document
       });
     }
   } catch (e) {
@@ -510,59 +466,20 @@ async function initialize() {
         setTimeout: window.setTimeout
       });
 
-      if (result?.ok) {
-        return;
-      }
+      return result?.ok === true;
     }
   } catch (e) {
     // ignore
   }
 
-  return legacyInitialize();
-}
-
-async function legacyInitialize() {
-  let st = null;
-
   try {
-    st = getContentState();
-    const fallback = window.WAAP?.legacy?.initializeFallback;
-    if (fallback?.legacyInitialize) {
-      await fallback.legacyInitialize({
-        isInitialized: () => st.contentScriptInitialized,
-        isInitStarted: () => st.contentScriptInitStarted,
-        markInitStarted: () => {
-          st.contentScriptInitStarted = true;
-        },
-        markInitialized: () => {
-          st.contentScriptInitialized = true;
-        },
-        markInitFailed: () => {
-          st.contentScriptInitStarted = false;
-        },
-        updatePluginStatus,
-        checkAndShowUpdateLog: window.checkAndShowUpdateLog,
-        injectStyles,
-        observeMessages,
-        initializeInputTranslate: window.initializeInputTranslate,
-        WeatherInfo: window.WeatherInfo
-      });
-      return;
-    }
+    getContentState().contentScriptInitStarted = false;
   } catch (e) {
     // ignore
   }
 
-  // 内联兜底（极端情况下 legacy 文件未加载时）
-  try {
-    if (st) {
-      st.contentScriptInitStarted = false;
-    } else {
-      getContentState().contentScriptInitStarted = false;
-    }
-  } catch (e3) {
-    // ignore
-  }
+  showModuleLoadFailedFallback('内容初始化');
+  return false;
 }
 
 // 将初始化函数暴露到window对象
@@ -637,23 +554,13 @@ if (!autoInitHandle) {
 
 // 页面加载完成后，自动尝试集成天气信息
 try {
-  if (!window.WAAP?.presenters?.contentOrchestratorPresenter?.initialize) {
-    const presenter = window.WAAP?.presenters?.weatherIntegrationPresenter;
-    if (presenter?.setupAutoIntegrate) {
-      presenter.setupAutoIntegrate({
-        document: window.document,
-        setTimeout: window.setTimeout,
-        integrateWeatherInfo
-      });
-    } else {
-      setTimeout(() => {
-        try {
-          integrateWeatherInfo();
-        } catch (e) {
-          // ignore
-        }
-      }, 2500);
-    }
+  const presenter = window.WAAP?.presenters?.weatherIntegrationPresenter;
+  if (presenter?.setupAutoIntegrate) {
+    presenter.setupAutoIntegrate({
+      document: window.document,
+      setTimeout: window.setTimeout,
+      integrateWeatherInfo
+    });
   }
 } catch (e) {
   // ignore
@@ -683,36 +590,14 @@ async function translateText(text) {
     }
   }
 
-  return await legacyTranslateText(text);
-}
-
-async function legacyTranslateText(text) {
-  try {
-    const fallback = window.WAAP?.legacy?.translateTextFallback;
-    if (fallback?.legacyTranslateText) {
-      return await fallback.legacyTranslateText(text, {
-        getTranslationSettings: window.getTranslationSettings,
-        getTranslationService: window.getTranslationService,
-        ApiServices: window.ApiServices,
-        showToast,
-        setTimeout: window.setTimeout
-      });
-    }
-  } catch (e) {
-    // ignore
-  }
-
-  // 内联兜底：极端情况下 legacy 文件未加载时
   showModuleLoadFailedFallback('翻译');
-
   return '';
 }
 
-// 修改添加翻译按钮的函数
 function addTranslateButton(messageElement) {
   try {
     if (window.WAAP?.presenters?.messageProcessingPresenter?.addTranslateButton) {
-      const ok = window.WAAP.presenters.messageProcessingPresenter.addTranslateButton(messageElement, {
+      return window.WAAP.presenters.messageProcessingPresenter.addTranslateButton(messageElement, {
         translateText,
         getMessageTextRoot,
         collectTextContent,
@@ -720,43 +605,18 @@ function addTranslateButton(messageElement) {
         maybeScrollChatToBottom,
         translateMessage
       });
-      if (ok) return;
     }
   } catch (e) {
     // ignore
   }
 
-  return legacyAddTranslateButton(messageElement);
+  return false;
 }
 
-function legacyAddTranslateButton(messageElement) {
-  try {
-    const fallback = window.WAAP?.legacy?.addTranslateButtonFallback;
-    if (fallback?.legacyAddTranslateButton) {
-      const ok = fallback.legacyAddTranslateButton(messageElement, {
-        document: window.document,
-        translateText,
-        getMessageTextRoot,
-        collectTextContent,
-        typeWriter,
-        maybeScrollChatToBottom,
-        translateMessage
-      });
-      if (ok) return;
-    }
-  } catch (e) {
-    // ignore
-  }
-
-  // 内联兜底：极端情况下 legacy 文件未加载时
-  return;
-}
-
-// 修改消息处理函数
 function processMessage(message) {
   try {
     if (window.WAAP?.presenters?.messageProcessingPresenter?.processMessage) {
-      const ok = window.WAAP.presenters.messageProcessingPresenter.processMessage(message, {
+      return window.WAAP.presenters.messageProcessingPresenter.processMessage(message, {
         addTranslateButton,
         chrome: window.chrome,
         showToast: window.showToast,
@@ -768,23 +628,6 @@ function processMessage(message) {
         translateMessage,
         isSttEnabled
       });
-      if (ok) return;
-    }
-  } catch (e) {
-    // ignore
-  }
-
-  return legacyProcessMessage(message);
-}
-
-function legacyProcessMessage(message) {
-  try {
-    const fallback = window.WAAP?.legacy?.processMessageFallback;
-    if (fallback?.legacyProcessMessage) {
-      const ok = fallback.legacyProcessMessage(message, {
-        addTranslateButton
-      });
-      if (ok) return true;
     }
   } catch (e) {
     // ignore
@@ -875,11 +718,10 @@ function maybeScrollChatToBottom(messageContainer) {
   }
 }
 
-// 更新翻译消息的函数
 async function translateMessage(messageElement) {
   try {
     if (window.WAAP?.presenters?.translateMessagePresenter?.translateMessage) {
-      const ok = await window.WAAP.presenters.translateMessagePresenter.translateMessage(messageElement, {
+      return await window.WAAP.presenters.translateMessagePresenter.translateMessage(messageElement, {
         translateText,
         getMessageTextRoot,
         collectTextContent,
@@ -889,41 +731,15 @@ async function translateMessage(messageElement) {
         getChatScrollContainer,
         isNearBottom
       });
-      if (ok) return;
     }
   } catch (e) {
     // ignore
   }
 
-  return await legacyTranslateMessage(messageElement);
-}
-
-async function legacyTranslateMessage(messageElement) {
-  try {
-    const fallback = window.WAAP?.legacy?.translateMessageFallback;
-    if (fallback?.legacyTranslateMessage) {
-      return await fallback.legacyTranslateMessage(messageElement, {
-        document: window.document,
-        translateText,
-        getMessageTextRoot,
-        collectTextContent,
-        typeWriter,
-        displayTranslationResult,
-        maybeScrollChatToBottom,
-        getChatScrollContainer,
-        isNearBottom,
-        setTimeout: window.setTimeout
-      });
-    }
-  } catch (e) {
-    // ignore
-  }
-
-  // 极端兜底：legacy 文件没加载时，尽量不影响主流程
   showModuleLoadFailedFallback('翻译');
+  return false;
 }
 
-// 打字机效果函数
 function typeWriter(element, text, speed = 10, callback) {
   try {
     const svc = window.WAAP?.services?.translationRenderService;
@@ -935,38 +751,15 @@ function typeWriter(element, text, speed = 10, callback) {
   } catch (e) {
     // ignore
   }
-  try {
-    const fallback = window.WAAP?.legacy?.typeWriterFallback;
-    if (fallback?.legacyTypeWriter) {
-      return fallback.legacyTypeWriter(element, text, speed, callback, {
-        setTimeout: window.setTimeout
-      });
-    }
-  } catch (e2) {
-    // ignore
-  }
-  return legacyTypeWriter(element, text, speed, callback);
-}
 
-function legacyTypeWriter(element, text, speed = 10, callback) {
   try {
-    const fallback = window.WAAP?.legacy?.typeWriterFallback;
-    if (fallback?.legacyTypeWriter) {
-      return fallback.legacyTypeWriter(element, text, speed, callback, {
-        setTimeout: window.setTimeout
-      });
+    if (element) {
+      element.textContent = String(text || '');
+    }
+    if (typeof callback === 'function') {
+      callback();
     }
   } catch (e) {
-    // ignore
-  }
-
-  // 极端情况下 legacy 文件也不可用：退回最简单的直接赋值
-  try {
-    const fallback = window.WAAP?.legacy?.typeWriterFallback;
-    if (fallback?.directAssignFallback) {
-      return fallback.directAssignFallback(element, text, callback);
-    }
-  } catch (e2) {
     // ignore
   }
 
@@ -976,7 +769,6 @@ function legacyTypeWriter(element, text, speed = 10, callback) {
   };
 }
 
-// 显示翻译结果
 function displayTranslationResult(container, translationText, isDarkMode, renderDeps = {}) {
   try {
     const svc = window.WAAP?.services?.translationRenderService;
@@ -991,38 +783,19 @@ function displayTranslationResult(container, translationText, isDarkMode, render
   } catch (e) {
     // ignore
   }
-  return legacyDisplayTranslationResult(container, translationText, isDarkMode);
-}
 
-function legacyDisplayTranslationResult(container, translationText, isDarkMode) {
   try {
-    const fallback = window.WAAP?.legacy?.displayTranslationResultFallback;
-    if (fallback?.legacyDisplayTranslationResult) {
-      const ok = fallback.legacyDisplayTranslationResult(container, translationText, isDarkMode, {
-        document: window.document,
-        maybeScrollChatToBottom
-      });
-      if (ok) return;
-    }
+    if (!container) return;
+    const el = document.createElement('div');
+    el.className = 'translation-content';
+    el.textContent = String(translationText || '');
+    container.appendChild(el);
+    maybeScrollChatToBottom(container);
   } catch (e) {
     // ignore
   }
-
-  // 极端兜底：legacy 文件没加载时，尽量不影响主流程
-  try {
-    const fallback = window.WAAP?.legacy?.displayTranslationResultFallback;
-    if (fallback?.minimalAppendFallback) {
-      fallback.minimalAppendFallback(container, translationText, {
-        document: window.document,
-        maybeScrollChatToBottom
-      });
-    }
-  } catch (e2) {
-    // ignore
-  }
 }
 
-// 收集文本内容的辅助函数
 function collectTextContent(element) {
   try {
     if (window.WAAP?.services?.messageTextService?.collectTextContent) {
@@ -1032,32 +805,17 @@ function collectTextContent(element) {
     // ignore
   }
 
-  return legacyCollectTextContent(element);
-}
-
-function legacyCollectTextContent(element) {
   if (!element) return '';
-
-  // 极端兜底：如果 MVP messageTextService 没加载，就返回一个尽量“接近正文”的纯文本。
-  // 注意：正常情况下 collectTextContent 会先走 window.WAAP.services.messageTextService.collectTextContent。
   try {
-    const fallback = window.WAAP?.legacy?.messageTextFallback;
-    if (fallback?.legacyCollectTextContent) {
-      return fallback.legacyCollectTextContent(element, {
-        document: window.document
-      });
-    }
+    return String(element.textContent || '').trim();
   } catch (e) {
     return '';
   }
-
-  return '';
 }
 
 // ...
 
-// 修改 handleRetry 函数
-function addAnalysisButton(messageContainer, retryCount = 0, maxRetries = 5) {
+function addAnalysisButton(messageContainer) {
   try {
     if (messageContainer?.querySelector && messageContainer.querySelector('.analysis-btn-container')) {
       return true;
@@ -1068,7 +826,7 @@ function addAnalysisButton(messageContainer, retryCount = 0, maxRetries = 5) {
 
   try {
     if (window.WAAP?.presenters?.toolbarPresenter?.ensureToolbar) {
-      const ok = window.WAAP.presenters.toolbarPresenter.ensureToolbar(messageContainer, {
+      return window.WAAP.presenters.toolbarPresenter.ensureToolbar(messageContainer, {
         showSettingsModal,
         showTranslateConfirmDialog,
         translateAllMessages,
@@ -1079,32 +837,6 @@ function addAnalysisButton(messageContainer, retryCount = 0, maxRetries = 5) {
         getMessageTextRoot,
         collectTextContent
       });
-      if (ok) return true;
-    }
-  } catch (e) {
-    // ignore
-  }
-
-  try {
-    const orch = window.WAAP?.legacy?.toolbarOrchestrator;
-    if (orch?.ensureToolbar) {
-      return orch.ensureToolbar(
-        messageContainer,
-        retryCount,
-        maxRetries,
-        buildDeps({
-          showSettingsModal,
-          showTranslateConfirmDialog,
-          translateAllMessages,
-          analyzeConversation,
-          checkAiEnabled,
-          getAiService: window.getAiService,
-          ApiServices: window.ApiServices,
-          getMessageTextRoot,
-          collectTextContent,
-          toolbarView: window.WAAP?.views?.toolbarView
-        })
-      );
     }
   } catch (e) {
     // ignore
@@ -1113,7 +845,6 @@ function addAnalysisButton(messageContainer, retryCount = 0, maxRetries = 5) {
   return false;
 }
 
-// 修改观察消息的函数
 function observeMessages() {
   try {
     if (window.WAAP?.presenters?.messageObserverPresenter?.observeMessages) {
@@ -1133,29 +864,6 @@ function observeMessages() {
     // ignore
   }
 
-  return legacyObserveMessages();
-}
-
-function legacyObserveMessages() {
-  try {
-    const orch = window.WAAP?.legacy?.observerOrchestrator;
-    if (orch?.observeMessages) {
-      return orch.observeMessages(
-        buildDeps({
-          integrateWeatherInfo,
-          addAnalysisButton,
-          processMessage,
-          getMessageTextRoot,
-          collectTextContent,
-          maybeAutoTranslateNewMessage,
-          isAutoTranslateEnabled,
-          scheduleAutoTranslateOnChatEnter
-        })
-      );
-    }
-  } catch (e) {
-    // ignore
-  }
   return () => {};
 }
 
@@ -1170,81 +878,6 @@ function injectStyles() {
   } catch (e) {
     // ignore
   }
-}
-
-// 添加一个处理过的消息ID集合（优先使用 legacy-dom-utils 里的同一个 Set，避免跨模块重复）
-const processedMessages = (() => {
-  try {
-    const set = window.WAAP?.legacy?.domUtils?.processedMessages;
-    if (set && typeof set.add === 'function' && typeof set.has === 'function') return set;
-  } catch (e) {
-    // ignore
-  }
-  return new Set();
-})();
-
-// 添加一个函数来检查元素是否在视口中
-function isInViewport(element) {
-  try {
-    const fn = window.WAAP?.legacy?.domUtils?.isInViewport;
-    if (typeof fn === 'function') return fn(element, { window });
-  } catch (e) {
-    // ignore
-  }
-
-  // 内联兜底
-  return true;
-}
-
-// 添加节流函数
-function throttle(func, limit) {
-  try {
-    const fn = window.WAAP?.legacy?.domUtils?.throttle;
-    if (typeof fn === 'function') return fn(func, limit, { setTimeout, clearTimeout });
-  } catch (e) {
-    // ignore
-  }
-
-  // 内联兜底
-  return typeof func === 'function' ? func : () => {};
-}
-
-// 修改观察器逻辑
-function observeInputArea() {
-  try {
-    const presenter = window.WAAP?.presenters?.inputObserverPresenter;
-    if (presenter?.observeInputArea) {
-      const cleanup = presenter.observeInputArea({
-        addInputTranslateButton: window.addInputTranslateButton,
-        addInputTranslator: window.addInputTranslator,
-        document: window.document,
-        MutationObserver: window.MutationObserver,
-        setTimeout: window.setTimeout,
-        getAppContainer: () => document.querySelector('#app')
-      });
-      return cleanup;
-    }
-  } catch (e) {
-    // ignore
-  }
-  return legacyObserveInputArea();
-}
-
-function legacyObserveInputArea() {
-  try {
-    const orch = window.WAAP?.legacy?.observerOrchestrator;
-    if (orch?.observeInputArea) {
-      return orch.observeInputArea(
-        buildDeps({
-          addInputTranslateButton: window.addInputTranslateButton,
-          addInputTranslator: window.addInputTranslator
-        })
-      );
-    }
-  } catch (e) {
-    // ignore
-  }
-  return () => {};
 }
 
 // 添加分析按钮到消息容器
@@ -1266,81 +899,32 @@ async function translateAllMessages(messageContainer) {
     // ignore
   }
 
-  await legacyTranslateAllMessages(messageContainer);
-}
-
-async function legacyTranslateAllMessages(messageContainer) {
-  try {
-    const orch = window.WAAP?.legacy?.featureOrchestrator;
-    if (orch?.legacyTranslateAllMessages) {
-      return await orch.legacyTranslateAllMessages(
-        messageContainer,
-        buildDeps({
-          showToast,
-          ApiServices: window.ApiServices,
-          getMessageTextRoot,
-          collectTextContent,
-          noticeService: window.WAAP?.services?.contentFallbackNoticeService
-        })
-      );
-    }
-  } catch (e) {
-    // ignore
-  }
-
-  // 内联兜底（极端情况下 legacy 文件未加载时，至少给用户提示）
   showModuleLoadFailedFallback('批量翻译');
+  return false;
 }
 
 // 分析对话内容
 async function analyzeConversation(messageContainer) {
   try {
-    try {
-      if (window.WAAP?.presenters?.analysisPresenter?.open) {
-        await window.WAAP.presenters.analysisPresenter.open(messageContainer, {
-          checkAiEnabled,
-          showSettingsModal,
-          getAiService: window.getAiService,
-          ApiServices: window.ApiServices,
-          getMessageTextRoot,
-          collectTextContent
-        });
-        return;
-      }
-    } catch (e2) {
-      // ignore
+    if (window.WAAP?.presenters?.analysisPresenter?.open) {
+      await window.WAAP.presenters.analysisPresenter.open(messageContainer, {
+        checkAiEnabled,
+        showSettingsModal,
+        getAiService: window.getAiService,
+        ApiServices: window.ApiServices,
+        getMessageTextRoot,
+        collectTextContent
+      });
+      return true;
     }
   } catch (error) {
     console.error('Analysis error:', error);
     showAnalysisError(messageContainer, error.message);
+    return false;
   }
 
-  try {
-    const orch = window.WAAP?.legacy?.featureOrchestrator;
-    if (orch?.legacyAnalyzeConversation) {
-      const ok = await orch.legacyAnalyzeConversation(
-        messageContainer,
-        buildDeps({
-          checkAiEnabled,
-          showSettingsModal,
-          getAiService: window.getAiService,
-          ApiServices: window.ApiServices,
-          getMessageTextRoot,
-          collectTextContent,
-          showAnalysisResult,
-          showAnalysisError,
-          showToast,
-          noticeService: window.WAAP?.services?.contentFallbackNoticeService
-        })
-      );
-      if (ok) return;
-    }
-  } catch (e3) {
-    // ignore
-  }
-
-  // 内联兜底（极端情况下 legacy 文件未加载时，至少给用户提示）
   showModuleLoadFailedFallback('AI 分析');
+  return false;
 }
 
 // 添加检查AI功能是否启用的函数
@@ -1358,7 +942,6 @@ async function checkAiEnabled() {
   return false;
 }
 
-// 修改 showAnalysisResult / showAnalysisError：改为 MVP 薄封装，避免 content.js 过大
 function showAnalysisResult(container, analysis) {
   try {
     const presenter = window.WAAP?.presenters?.analysisPresenter;
@@ -1368,16 +951,14 @@ function showAnalysisResult(container, analysis) {
   }
 
   try {
-    const orch = window.WAAP?.legacy?.analysisRenderOrchestrator;
-    if (orch?.showAnalysisResult?.(container, analysis, buildDeps({ document: window.document }))) return;
+    const panel = document.createElement('div');
+    panel.className = 'analysis-panel';
+    const pre = document.createElement('pre');
+    pre.className = 'analysis-text';
+    pre.textContent = typeof analysis === 'string' ? analysis : JSON.stringify(analysis, null, 2);
+    panel.appendChild(pre);
+    container?.appendChild?.(panel);
   } catch (e) {
-    // ignore
-  }
-
-  // 极端兜底：orchestrator 未加载时，尽量降级展示
-  try {
-    window.WAAP?.legacy?.analysisPanelFallback?.showAnalysisResult?.(container, analysis, { document: window.document });
-  } catch (e2) {
     // ignore
   }
 }
@@ -1391,16 +972,11 @@ function showAnalysisError(container, message) {
   }
 
   try {
-    const orch = window.WAAP?.legacy?.analysisRenderOrchestrator;
-    if (orch?.showAnalysisError?.(container, message, buildDeps({ document: window.document }))) return;
+    const panel = document.createElement('div');
+    panel.className = 'analysis-panel analysis-error';
+    panel.textContent = `分析失败：${message || '未知错误'}`;
+    container?.appendChild?.(panel);
   } catch (e) {
-    // ignore
-  }
-
-  // 极端兜底：orchestrator 未加载时，尽量降级展示
-  try {
-    window.WAAP?.legacy?.analysisPanelFallback?.showAnalysisError?.(container, message, { document: window.document });
-  } catch (e2) {
     // ignore
   }
 }
@@ -1409,25 +985,40 @@ function showAnalysisError(container, message) {
 function showSettingsModal() {
   try {
     const st = getContentState();
-    const orchestrator = window.WAAP?.legacy?.settingsModalOrchestrator;
-    if (orchestrator?.showSettingsModal) {
-      return orchestrator.showSettingsModal({
-        settingsPresenter: window.WAAP?.presenters?.settingsPresenter,
-        autoTranslatePresenter: window.WAAP?.presenters?.autoTranslatePresenter,
-        WeatherInfo: window.WeatherInfo,
-        integrateWeatherInfo,
-        scheduleAutoTranslateOnChatEnter,
+    const presenter = window.WAAP?.presenters?.settingsPresenter;
+    if (presenter?.open) {
+      return presenter.open({
         showToast,
         showExtensionInvalidatedError,
-        legacyShowSettingsModal,
-        onAutoTranslateChanged: (enabled) => {
-          st.autoTranslateNewMessagesEnabled = enabled === true;
-        },
-        onWeatherEnabledChanged: (enabled) => {
-          st.weatherInfoEnabled = enabled === true;
-        },
-        onSttEnabledChanged: (enabled) => {
-          applySttEnabled(enabled);
+        onSaved: (formData) => {
+          try {
+            st.autoTranslateNewMessagesEnabled = formData?.autoTranslateNewMessages === true;
+            st.weatherInfoEnabled = formData?.weatherEnabled !== false;
+            applySttEnabled(formData?.sttEnabled === true);
+          } catch (e) {
+            // ignore
+          }
+
+          try {
+            if (window.WAAP?.presenters?.autoTranslatePresenter?.setEnabled) {
+              window.WAAP.presenters.autoTranslatePresenter.setEnabled(st.autoTranslateNewMessagesEnabled);
+            }
+            if (st.autoTranslateNewMessagesEnabled) {
+              scheduleAutoTranslateOnChatEnter();
+            }
+          } catch (e) {
+            // ignore
+          }
+
+          try {
+            if (!st.weatherInfoEnabled) {
+              window.WeatherInfo?.hideWeatherInfo?.();
+            } else {
+              integrateWeatherInfo({ force: true });
+            }
+          } catch (e) {
+            // ignore
+          }
         }
       });
     }
@@ -1435,7 +1026,8 @@ function showSettingsModal() {
     // ignore
   }
 
-  return legacyShowSettingsModal();
+  showModuleLoadFailedFallback('设置');
+  return false;
 }
 
 

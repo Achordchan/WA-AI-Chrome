@@ -21,14 +21,6 @@
       // ignore
     }
 
-    try {
-      if (deps.autoTranslateQueue?.setEnabled) {
-        deps.autoTranslateQueue.setEnabled(v);
-      }
-    } catch (e) {
-      // ignore
-    }
-
     return true;
   }
 

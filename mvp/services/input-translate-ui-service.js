@@ -13,6 +13,7 @@
 
   let installed = false;
   let cleanupFn = null;
+  let delayedInstallTimer = null;
 
   const INPUT_TRANSLATE_THROTTLE_MS = 800;
   let lastInputTranslateAttemptAt = 0;
@@ -164,43 +165,52 @@
     return button;
   }
 
-  function handleRetry(deps, reason, retryCount, maxRetries) {
+  function cancelDelayedInstallTask() {
+    try {
+      if (delayedInstallTimer) clearTimeout(delayedInstallTimer);
+    } catch (e) {
+      // ignore
+    }
+    delayedInstallTimer = null;
+  }
+
+  function scheduleDelayedInstallTask(deps = {}, delayMs = 160) {
     const doc = deps.document || window.document;
     const setTimeoutFn = deps.setTimeout || window.setTimeout;
 
-    if (!isChatWindowActiveForInputTranslate({ document: doc })) {
-      return false;
-    }
+    if (!doc || typeof setTimeoutFn !== 'function') return false;
+    if (!isChatWindowActiveForInputTranslate({ document: doc })) return false;
 
-    if (retryCount < maxRetries) {
-      setTimeoutFn(() => {
-        addInputTranslateButton(deps, retryCount + 1, maxRetries);
-      }, 1000 * (retryCount + 1));
-      return false;
-    }
-
-    return false;
+    cancelDelayedInstallTask();
+    delayedInstallTimer = setTimeoutFn(() => {
+      delayedInstallTimer = null;
+      addInputTranslateButton({ ...deps, force: true });
+    }, delayMs);
+    return true;
   }
 
-  function addInputTranslateButton(deps = {}, retryCount = 0, maxRetries = 5) {
+  function addInputTranslateButton(deps = {}) {
     const doc = deps.document || window.document;
+    const force = deps.force === true;
 
     if (!isChatWindowActiveForInputTranslate({ document: doc })) {
+      cancelDelayedInstallTask();
       return false;
     }
 
     const nowMs = Date.now();
-    if (nowMs - lastInputTranslateAttemptAt < INPUT_TRANSLATE_THROTTLE_MS && retryCount === 0) {
+    if (!force && nowMs - lastInputTranslateAttemptAt < INPUT_TRANSLATE_THROTTLE_MS) {
       return false;
     }
     lastInputTranslateAttemptAt = nowMs;
 
     const target = getActiveInputTranslateTarget(doc);
     if (!target?.inputBox || !target?.container || !target?.mountParent) {
-      return handleRetry(deps, 'input box', retryCount, maxRetries);
+      return scheduleDelayedInstallTask(deps, 220);
     }
 
     if (getMountedTranslateButton(target)) {
+      cancelDelayedInstallTask();
       return true;
     }
 
@@ -212,13 +222,14 @@
       const anchorHost = doc.createElement('div');
       anchorHost.className = 'input-translate-btn';
       anchorHost.dataset.waaiTarget = target.kind;
-      anchorHost.style.cssText = 'position: relative; display: flex; align-items: center; overflow: visible;';
+      anchorHost.style.cssText = 'position: relative; display: flex; align-items: center; justify-content: center; align-self: center; height: 100%; overflow: visible;';
       anchorHost.appendChild(translateBtn);
 
       target.mountParent.insertBefore(anchorHost, target.beforeNode || null);
+      cancelDelayedInstallTask();
       return true;
     } catch (error) {
-      return handleRetry(deps, 'error', retryCount, maxRetries);
+      return scheduleDelayedInstallTask(deps, 260);
     }
   }
 
@@ -230,30 +241,33 @@
     const MutationObserverRef = deps.MutationObserver || window.MutationObserver;
 
     try {
+      if (typeof MutationObserverRef !== 'function') {
+        cleanupFn = () => {
+          cancelDelayedInstallTask();
+        };
+        return cleanupFn;
+      }
+
       const observer = new MutationObserverRef((mutations) => {
         for (const mutation of mutations) {
           if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-            if (!isChatWindowActiveForInputTranslate({ document: doc })) {
-              continue;
-            }
-            if (addInputTranslateButton({
+            scheduleDelayedInstallTask({
               document: doc,
               setTimeout: deps.setTimeout || window.setTimeout,
               createTranslateModal: deps.createTranslateModal
-            })) {
-              break;
-            }
+            }, 120);
+            break;
           }
         }
       });
 
-      observer.observe(doc.body, { childList: true, subtree: true });
+      observer.observe(doc.body || doc.documentElement, { childList: true, subtree: true });
 
-      addInputTranslateButton({
+      scheduleDelayedInstallTask({
         document: doc,
         setTimeout: deps.setTimeout || window.setTimeout,
         createTranslateModal: deps.createTranslateModal
-      });
+      }, 0);
 
       cleanupFn = () => {
         try {
@@ -261,10 +275,12 @@
         } catch (e) {
           // ignore
         }
+        cancelDelayedInstallTask();
       };
 
       return cleanupFn;
     } catch (e) {
+      cancelDelayedInstallTask();
       cleanupFn = () => {};
       return cleanupFn;
     }

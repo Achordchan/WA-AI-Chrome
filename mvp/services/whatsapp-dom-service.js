@@ -43,6 +43,49 @@
     }
   }
 
+  function findNearestActionButton(scopeEl, anchorEl, matcher) {
+    try {
+      if (!scopeEl?.querySelectorAll || !anchorEl || typeof matcher !== 'function') return null;
+
+      const anchorRect = anchorEl.getBoundingClientRect();
+      const anchorCenterY = anchorRect.top + anchorRect.height / 2;
+      const anchorRight = anchorRect.right;
+
+      let best = null;
+      let bestScore = Infinity;
+
+      scopeEl.querySelectorAll('button, [role="button"]').forEach((el) => {
+        try {
+          if (!matcher(el)) return;
+
+          const rect = el.getBoundingClientRect();
+          const centerY = rect.top + rect.height / 2;
+          const centerX = rect.left + rect.width / 2;
+          const verticalGap = Math.abs(centerY - anchorCenterY);
+
+          // 只接受和输入框基本同一条操作带上的按钮，避免误命中顶部工具栏
+          if (verticalGap > Math.max(36, anchorRect.height * 1.2)) return;
+
+          const horizontalGap = centerX >= anchorRight
+            ? centerX - anchorRight
+            : Math.abs(centerX - anchorRight) + 200;
+          const score = verticalGap * 10 + horizontalGap;
+
+          if (score < bestScore) {
+            best = el;
+            bestScore = score;
+          }
+        } catch (e) {
+          // ignore
+        }
+      });
+
+      return best;
+    } catch (e) {
+      return null;
+    }
+  }
+
   function hasSendAction(scopeEl) {
     return !!findActionButton(scopeEl, isSendButtonLike);
   }
@@ -146,25 +189,37 @@
   function getMediaCaptionInputTarget(mainEl) {
     try {
       const main = mainEl || getMain();
-      if (!main) return null;
       const footer = getMainFooter(main);
-      const inputs = main.querySelectorAll('div[contenteditable="true"][role="textbox"]');
+      const inputs = document.querySelectorAll('div[contenteditable="true"][role="textbox"], div[contenteditable="true"]');
       for (const inputBox of inputs) {
+        if (!(inputBox instanceof HTMLElement)) continue;
         if (footer && footer.contains(inputBox)) continue;
+        if (!document.contains(inputBox)) continue;
 
         const ariaLabel = getTextboxAriaLabel(inputBox);
-        const scope = inputBox.closest('.copyable-area') || inputBox.parentElement || inputBox.closest('div');
+        const scope =
+          inputBox.closest('.copyable-area') ||
+          inputBox.closest('[role="dialog"]') ||
+          inputBox.closest('[data-animate-modal-popup="true"]') ||
+          inputBox.parentElement ||
+          inputBox.closest('div');
         if (!scope || !hasSendAction(scope)) continue;
         if (ariaLabel && !MEDIA_CAPTION_LABEL_RE.test(ariaLabel)) continue;
 
         const container = inputBox.closest('.lexical-rich-text-input');
-        const emojiButton = findActionButton(scope, isEmojiButtonLike);
+        const emojiButton = findNearestActionButton(scope, inputBox, isEmojiButtonLike);
+        const mountParent =
+          emojiButton?.parentNode ||
+          container?.parentNode ||
+          inputBox.parentElement ||
+          inputBox.closest('[data-tab]') ||
+          scope;
         return {
           kind: 'preview',
           inputBox,
           container,
-          mountParent: emojiButton?.parentNode || container?.parentNode || scope,
-          beforeNode: emojiButton || container?.nextSibling || null,
+          mountParent,
+          beforeNode: emojiButton || container?.nextSibling || inputBox.nextSibling || null,
           scope
         };
       }

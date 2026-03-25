@@ -163,11 +163,6 @@
               weatherIntegrationPresenter: !!presenters.weatherIntegrationPresenter,
               autoInitPresenter: !!presenters.autoInitPresenter
             },
-            legacy: {
-              initializeFallback: !!legacy.initializeFallback,
-              observerOrchestrator: !!legacy.observerOrchestrator,
-              translateTextFallback: !!legacy.translateTextFallback
-            },
             weather: {
               hasWeatherInfo: typeof w.WeatherInfo !== 'undefined' && !!w.WeatherInfo
             }

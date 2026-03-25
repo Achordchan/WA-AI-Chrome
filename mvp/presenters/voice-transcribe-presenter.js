@@ -9,6 +9,9 @@
 
   if (window.WAAP.presenters.voiceTranscribePresenter) return;
 
+  const VOICE_CAPTURE_EVENT_NAME = 'waap:voice-capture';
+  const MAX_AUDIO_BLOB_SIZE = 30 * 1024 * 1024;
+
   function resolveVoiceRoot(messageElement) {
     try {
       return (
@@ -80,6 +83,172 @@
     } catch (e) {
       // ignore
     }
+  }
+
+  function getVoiceState() {
+    try {
+      return window.WAAP?.state?.voice || null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function isBlobInstance(value) {
+    try {
+      return typeof Blob !== 'undefined' && value instanceof Blob;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function getCachedAudioBlob(requestId, messageKey, blobUrl) {
+    try {
+      const st = getVoiceState();
+      if (!st) return null;
+
+      const byRequestId = requestId ? st.audioBlobByRequestId?.[requestId] : null;
+      if (isBlobInstance(byRequestId)) return byRequestId;
+
+      const byMessageKey = messageKey ? st.audioBlobByMessageKey?.[messageKey] : null;
+      if (isBlobInstance(byMessageKey)) return byMessageKey;
+
+      const urls = [
+        blobUrl,
+        requestId ? st.blobUrlByRequestId?.[requestId] : null,
+        messageKey ? st.blobUrlByMessageKey?.[messageKey] : null,
+        requestId ? st.playedSrcByRequestId?.[requestId] : null,
+        messageKey ? st.playedSrcByMessageKey?.[messageKey] : null
+      ].filter((value, index, arr) => typeof value === 'string' && value.startsWith('blob:') && arr.indexOf(value) === index);
+
+      for (const url of urls) {
+        const byUrl = st.audioBlobByUrl?.[url] || null;
+        if (isBlobInstance(byUrl)) return byUrl;
+      }
+    } catch (e) {
+      return null;
+    }
+    return null;
+  }
+
+  async function fetchBlobFromUrl(blobUrl) {
+    try {
+      if (!blobUrl || typeof blobUrl !== 'string' || !blobUrl.startsWith('blob:')) return null;
+      const res = await fetch(blobUrl);
+      const blob = await res.blob();
+      if (!isBlobInstance(blob)) return null;
+      if (typeof blob.size === 'number' && blob.size > MAX_AUDIO_BLOB_SIZE) {
+        throw new Error('语音文件过大，暂不支持转写');
+      }
+      return blob;
+    } catch (e) {
+      if (e && e.message === '语音文件过大，暂不支持转写') throw e;
+      return null;
+    }
+  }
+
+  function waitForCapturedAudioBlob(hint = {}) {
+    const requestId = String(hint?.requestId || '').trim();
+    const messageKey = String(hint?.messageKey || '').trim();
+    const timeoutMs = Number.isFinite(hint?.timeoutMs) ? hint.timeoutMs : 9000;
+
+    return new Promise((resolve) => {
+      let settled = false;
+      let timer = null;
+      let handleCaptureEvent = null;
+
+      const cleanup = () => {
+        try {
+          if (timer) clearTimeout(timer);
+        } catch (e) {
+          // ignore
+        }
+        timer = null;
+        try {
+          if (handleCaptureEvent) {
+            window.removeEventListener(VOICE_CAPTURE_EVENT_NAME, handleCaptureEvent);
+          }
+        } catch (e) {
+          // ignore
+        }
+      };
+
+      const finish = (value) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve(value || null);
+      };
+
+      const matches = (detail) => {
+        try {
+          if (!detail || typeof detail !== 'object') return false;
+          if (requestId) return String(detail.requestId || '') === requestId;
+          if (messageKey) return String(detail.messageKey || '') === messageKey;
+        } catch (e) {
+          return false;
+        }
+        return false;
+      };
+
+      const tryResolveFromState = (blobUrl) => {
+        const cached = getCachedAudioBlob(requestId, messageKey, blobUrl);
+        if (cached) {
+          finish({
+            blob: cached,
+            blobUrl: blobUrl || null,
+            status: 'blob-ready'
+          });
+          return true;
+        }
+        return false;
+      };
+
+      handleCaptureEvent = (event) => {
+        try {
+          const detail = event?.detail;
+          if (!matches(detail)) return;
+
+          if (detail?.status === 'blob-rejected') {
+            finish({
+              rejected: true,
+              reason: detail.reason || 'blob_rejected',
+              size: detail.size || null,
+              blobUrl: detail.blobUrl || null,
+              status: detail.status
+            });
+            return;
+          }
+
+          if (tryResolveFromState(detail?.blobUrl || detail?.src || null)) return;
+
+          if (detail?.status === 'blob-error') {
+            finish({
+              rejected: true,
+              reason: detail.reason || 'blob_error',
+              blobUrl: detail.blobUrl || null,
+              status: detail.status
+            });
+          }
+        } catch (e) {
+          // ignore
+        }
+      };
+
+      if (tryResolveFromState()) return;
+
+      try {
+        window.addEventListener(VOICE_CAPTURE_EVENT_NAME, handleCaptureEvent);
+      } catch (e) {
+        finish(null);
+        return;
+      }
+
+      if (tryResolveFromState()) return;
+
+      timer = setTimeout(() => {
+        finish(null);
+      }, timeoutMs);
+    });
   }
 
   function findAudioBlobUrlForMessage(messageElement) {
@@ -227,14 +396,10 @@
 
     const messageKey = deps?.messageKey || '';
     const requestId = deps?.requestId || '';
+    const waitTimeoutMs = Number.isFinite(deps?.waitTimeoutMs) ? deps.waitTimeoutMs : 9000;
 
-    try {
-      const st = window.WAAP?.state?.voice;
-      const b0 = requestId ? st?.audioBlobByRequestId?.[requestId] : null;
-      if (b0 && typeof Blob !== 'undefined' && b0 instanceof Blob) return b0;
-    } catch (e) {
-      // ignore
-    }
+    const directCachedBlob = getCachedAudioBlob(requestId, messageKey);
+    if (directCachedBlob) return directCachedBlob;
 
     let playBtn = null;
     try {
@@ -249,6 +414,20 @@
     }
 
     const since = Date.now();
+    const directBlobUrl = findAudioBlobUrlForMessage(messageElement);
+
+    if (directBlobUrl) {
+      const cachedByUrl = getCachedAudioBlob(requestId, messageKey, directBlobUrl);
+      if (cachedByUrl) return cachedByUrl;
+      const directBlob = await fetchBlobFromUrl(directBlobUrl);
+      if (directBlob) return directBlob;
+    }
+
+    const waitForCapture = waitForCapturedAudioBlob({
+      requestId,
+      messageKey,
+      timeoutMs: waitTimeoutMs
+    });
 
     try {
       if (playBtn) {
@@ -278,30 +457,50 @@
       // ignore
     }
 
-    const maxWaitMs = 9000;
-    const stepMs = 200;
-    const start = Date.now();
+    const captured = await waitForCapture;
+    if (captured?.blob && isBlobInstance(captured.blob)) {
+      return captured.blob;
+    }
 
-    while (Date.now() - start < maxWaitMs) {
+    if (captured?.rejected && captured.reason === 'blob_too_large') {
+      throw new Error('语音文件过大，暂不支持转写');
+    }
+
+    const cachedAfterEvent = getCachedAudioBlob(requestId, messageKey);
+    if (cachedAfterEvent) return cachedAfterEvent;
+
+    const playedUrl = (() => {
       try {
-        const st = window.WAAP?.state?.voice;
-        if (st) {
-          const b0 = requestId ? st?.audioBlobByRequestId?.[requestId] : null;
-          if (b0 && typeof Blob !== 'undefined' && b0 instanceof Blob) return b0;
-
-          if (requestId && st.playedSrcByRequestId && typeof st.playedSrcByRequestId === 'object') {
-            const s = st.playedSrcByRequestId[requestId];
-            if (s && typeof s === 'string' && s.startsWith('blob:')) {
-              const b2 = st?.audioBlobByUrl?.[s] || null;
-              if (b2 && typeof Blob !== 'undefined' && b2 instanceof Blob) return b2;
-            }
-          }
-        }
+        const st = getVoiceState();
+        return (
+          (requestId ? st?.playedSrcByRequestId?.[requestId] : null) ||
+          (messageKey ? st?.playedSrcByMessageKey?.[messageKey] : null) ||
+          (requestId ? st?.blobUrlByRequestId?.[requestId] : null) ||
+          (messageKey ? st?.blobUrlByMessageKey?.[messageKey] : null) ||
+          null
+        );
       } catch (e) {
-        // ignore
+        return null;
       }
+    })();
 
-      await new Promise((r) => setTimeout(r, stepMs));
+    if (playedUrl) {
+      const blobFromPlayedUrl = getCachedAudioBlob(requestId, messageKey, playedUrl);
+      if (blobFromPlayedUrl) return blobFromPlayedUrl;
+      const fetchedPlayedBlob = await fetchBlobFromUrl(playedUrl);
+      if (fetchedPlayedBlob) return fetchedPlayedBlob;
+    }
+
+    const recentObjUrl = await tryResolveAudioFromRecentObjUrls(since, { requestId, messageKey });
+    if (recentObjUrl) {
+      const recentBlob = getCachedAudioBlob(requestId, messageKey, recentObjUrl) || (await fetchBlobFromUrl(recentObjUrl));
+      if (recentBlob) return recentBlob;
+    }
+
+    const recentCaptured = findRecentCapturedBlobUrl(since);
+    if (recentCaptured) {
+      const recentCapturedBlob = getCachedAudioBlob(requestId, messageKey, recentCaptured) || (await fetchBlobFromUrl(recentCaptured));
+      if (recentCapturedBlob) return recentCapturedBlob;
     }
 
     return null;

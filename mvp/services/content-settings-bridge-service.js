@@ -1,6 +1,6 @@
 /*
 用途：为 content.js 提供“设置弹窗相关”的桥接层。
-说明：目前只封装 closeSettingsModal：优先使用 legacy closeSettingsModalFallback；否则做极小 DOM 兜底移除。
+说明：目前只封装 closeSettingsModal，直接做最小 DOM 清理，避免 content.js 挂太多细节。
 作者：Achord
 */
 
@@ -12,33 +12,15 @@
 
   function closeSettingsModal(deps = {}) {
     try {
-      const fallback = window.WAAP?.legacy?.closeSettingsModalFallback;
-      if (fallback?.closeSettingsModal) {
-        const ok = fallback.closeSettingsModal({
-          document: deps.document || window.document,
-          setTimeout: deps.setTimeout || window.setTimeout
-        });
-        if (ok) return true;
-      }
-    } catch (e) {
-      // ignore
-    }
-
-    try {
       const documentRef = deps.document || window.document;
-
-      try {
-        const modal = documentRef.getElementById('settings-modal');
-        if (modal) {
-          try {
-            modal.classList.remove('closing');
-          } catch (e) {
-            // ignore
-          }
-          modal.remove?.();
+      const modal = documentRef.getElementById('settings-modal');
+      if (modal) {
+        try {
+          modal.classList.remove('closing');
+        } catch (e) {
+          // ignore
         }
-      } catch (e) {
-        // ignore
+        modal.remove?.();
       }
 
       // 保护性清理：极端情况下 admin 预设遮罩可能残留，导致页面像“卡死”一样无法点击
@@ -56,7 +38,7 @@
       }
 
       return true;
-    } catch (e2) {
+    } catch (e) {
       return false;
     }
   }

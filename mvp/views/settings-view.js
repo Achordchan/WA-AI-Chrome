@@ -255,11 +255,171 @@
       margin-bottom: 8px;
     }
 
+    .api-setting-group.waap-api-focus {
+      border-radius: 8px;
+      animation: waapApiFocusPulse 1.2s ease-out;
+    }
+
+    @keyframes waapApiFocusPulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(0, 168, 132, 0);
+        background: rgba(0, 168, 132, 0);
+      }
+      24% {
+        box-shadow: 0 0 0 2px rgba(0, 168, 132, 0.32), 0 0 0 8px rgba(0, 168, 132, 0.10);
+        background: rgba(0, 168, 132, 0.06);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(0, 168, 132, 0);
+        background: rgba(0, 168, 132, 0);
+      }
+    }
+
     .api-notice {
       color: #444;
       font-size: 14px;
       margin: 0;
       padding: 8px 0;
+    }
+
+    .openai-guide-button {
+      display: inline;
+      margin-left: 4px;
+      border: 0;
+      padding: 0;
+      color: #00a884;
+      background: transparent;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      vertical-align: baseline;
+    }
+
+    .openai-guide-button:hover {
+      color: #008f72;
+      text-decoration: underline;
+    }
+
+    .api-guide-modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 2147483647;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 28px;
+      background: rgba(17, 27, 33, 0.72);
+      box-sizing: border-box;
+    }
+
+    .api-guide-modal-card {
+      position: relative;
+      width: min(920px, 96vw);
+      max-height: 94vh;
+      padding: 16px;
+      border-radius: 18px;
+      background: #ffffff;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.32);
+      overflow: auto;
+    }
+
+    .api-guide-modal-close {
+      position: sticky;
+      top: 0;
+      float: right;
+      z-index: 1;
+      width: 34px;
+      height: 34px;
+      border: 0;
+      border-radius: 999px;
+      color: #ffffff;
+      background: rgba(17, 27, 33, 0.82);
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .api-guide-modal-img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: 12px;
+      background: #f7f5ee;
+    }
+
+    .translation-test-badge {
+      display: inline-flex;
+      align-items: center;
+      margin-left: 8px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #111b21;
+      background: #f0f2f5;
+      border: 1px solid #d1d7db;
+      vertical-align: middle;
+    }
+
+    .translation-test-badge.is-success {
+      color: #0b6b4f;
+      background: rgba(0, 168, 132, 0.10);
+      border-color: rgba(0, 168, 132, 0.28);
+    }
+
+    .translation-test-badge.is-empty {
+      color: #667781;
+      background: #f0f2f5;
+      border-color: #d1d7db;
+      font-weight: 500;
+    }
+
+    .translation-test-controller {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+      padding: 10px 12px;
+      border: 1px solid #d1d7db;
+      border-radius: 10px;
+      background: #ffffff;
+    }
+
+    .translation-test-button {
+      border: 0;
+      border-radius: 8px;
+      padding: 8px 14px;
+      color: #ffffff;
+      background: #00a884;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .translation-test-button:disabled {
+      background: #9bb8b0;
+      cursor: not-allowed;
+    }
+
+    .translation-test-status {
+      color: #667781;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .translation-test-status.is-success {
+      color: #0b6b4f;
+      font-weight: 600;
+    }
+
+    .translation-test-status.is-error {
+      color: #c62828;
+      font-weight: 600;
+    }
+
+    .translation-test-status.is-testing {
+      color: #174ea6;
+      font-weight: 600;
     }
 
     /* 输入框样式 */
@@ -324,24 +484,34 @@
     }
 
     /* 下拉菜单样式 */
-    select {
+    .settings-content select {
       width: 100%;
       padding: 10px 12px;
       border: 1px solid #bbb;
       border-radius: 6px;
       font-size: 14px;
-      background-color: white;
+      background-color: #fff !important;
       cursor: pointer;
       appearance: none;
+      -webkit-appearance: none;
       background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' width='18' height='18' fill='%23555'%3e%3cpath d='M7 10l5 5 5-5z'/%3e%3c/svg%3e");
       background-repeat: no-repeat;
       background-position: right 12px center;
-      color: #000;
+      color: #111b21 !important;
+      -webkit-text-fill-color: #111b21 !important;
       box-sizing: border-box;
       max-width: 100%;
+      color-scheme: light;
+      opacity: 1 !important;
     }
 
-    select:focus {
+    .settings-content select option {
+      background-color: #fff;
+      color: #111b21;
+      -webkit-text-fill-color: #111b21;
+    }
+
+    .settings-content select:focus {
       outline: none;
       border-color: #4caf50;
       box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
@@ -958,6 +1128,7 @@
           <select id="translationApi">
             <option value="google">Google 翻译</option>
             <option value="siliconflow">OpenAI通用接口</option>
+            <option value="deepl">DeepL 翻译</option>
           </select>
         </div>
 
@@ -965,41 +1136,31 @@
           <button type="button" class="admin-preset-btn" id="adminPresetBtn">使用管理员预设API接口</button>
         </div>
         
-        <!-- 目标语言选择 -->
-        <div class="target-language" style="margin-top: 12px;">
-          <label for="targetLanguage">目标语言</label>
-          <select id="targetLanguage">
-            <option value="zh-CN">中文</option>
-            <option value="en">英文</option>
-          </select>
-        </div>
-
-        <div class="settings-section" style="margin-top: 16px;">
-          <h4>自动翻译</h4>
-          <div class="toggle-switch-container">
-            <label for="autoTranslateNewMessages" class="toggle-label">自动翻译新消息</label>
-            <label class="toggle-switch">
-              <input type="checkbox" id="autoTranslateNewMessages" class="toggle-input">
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-          <p style="margin-top: 6px; font-size: 12px; color: #666;">开启后，你和对方新发送的消息会自动翻译一次（仅新增消息，不会批量翻译历史记录）。</p>
-
-          <div class="toggle-switch-container" style="margin-top: 12px;">
-            <label for="inputQuickTranslateSend" class="toggle-label">输入框快捷翻译发送</label>
-            <label class="toggle-switch">
-              <input type="checkbox" id="inputQuickTranslateSend" class="toggle-input">
-              <span class="toggle-slider"></span>
-            </label>
-          </div>
-          <p style="margin-top: 6px; font-size: 12px; color: #666;">开启后：按回车会先把输入内容快速翻译并自动替换到输入框，翻译完成后你再按一次回车即可发送（Shift+Enter 换行不受影响）。请先在聊天窗口里点击输入框翻译按钮设置目标语言，我们会按联系人（手机号）把你的选择保存到本地。</p>
-        </div>
-        
         <!-- 翻译服务API设置 - 根据选择的服务动态显示 -->
         <div class="api-settings" id="translation-settings" style="margin-top: 16px;">
           <!-- Google翻译设置 - 无需API -->
           <div class="api-setting-group" id="google-settings" style="display: none;">
             <p class="api-notice">Google翻译无需API密钥</p>
+          </div>
+
+          <!-- DeepL翻译设置 -->
+          <div class="api-setting-group" id="deepl-settings" style="display: none;">
+            <div class="api-key-input">
+              <label>DeepL API Key <span id="deeplVerificationBadge" class="translation-test-badge is-empty" style="display: none;"></span></label>
+              <div class="api-key-wrapper">
+                <input type="password" id="deeplApiKey" autocomplete="new-password" autocapitalize="off" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true">
+                <button class="toggle-visibility" data-for="deeplApiKey">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                    <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34-3-3-1.34-3-3-3z"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <p class="api-notice" style="margin-top: 8px; font-size: 12px; color: #666;">申请方法：登录 DeepL 开发者平台创建 API Key。<a href="https://www.deepl.com/pro-api" target="_blank" rel="noopener noreferrer">打开 DeepL API 申请页面</a></p>
+            <div class="translation-test-controller" id="deeplTranslationTest">
+              <button type="button" class="translation-test-button" id="testDeepLTranslation">测试翻译</button>
+              <span class="translation-test-status is-pending" id="deeplTestStatus">未验证，保存前请先测试</span>
+            </div>
           </div>
           
           <!-- OpenAI翻译设置 -->
@@ -1034,7 +1195,11 @@
                 <input type="text" id="siliconflowModel" placeholder="gpt-5.4-codex">
               </div>
             </div>
-            <p class="api-notice" style="margin-top: 8px; font-size: 12px; color: #666;">提示：任何兼容OpenAI接口的服务都可以使用，注意添加完整后缀，例如/v1/xxxxx，如硅基流动、智谱、Azure OpenAI、Claude API等</p>
+            <p class="api-notice" style="margin-top: 8px; font-size: 12px; color: #666;">提示：任何兼容OpenAI接口的服务都可以使用，注意添加完整后缀。<button type="button" class="openai-guide-button" id="openOpenAIApiGuide">查看教程</button></p>
+            <div class="translation-test-controller" id="openaiTranslationTest">
+              <button type="button" class="translation-test-button" id="testOpenAITranslation">测试翻译</button>
+              <span class="translation-test-status is-pending" id="openaiTestStatus">未验证，保存前请先测试</span>
+            </div>
             <div class="advanced-settings-toggle" style="margin-top: 12px; cursor: pointer;">
               <span style="display: flex; align-items: center;">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="margin-right: 5px;" class="advanced-settings-icon">
@@ -1060,34 +1225,63 @@
                     <input type="checkbox" id="openaiReasoningEnabled" class="toggle-input">
                     <span class="toggle-slider"></span>
                   </label>
-                </div>
-                <p style="margin-top: 6px; font-size: 12px; color: #666;">启用后，翻译将显示模型的思考过程</p>
-              </div>
-            </div>
+	                </div>
+	                <p style="margin-top: 6px; font-size: 12px; color: #666;">启用后，翻译将显示模型的思考过程</p>
+	              </div>
 
-            <div class="settings-section" style="margin-top: 16px;">
-              <h4>AI Prompt</h4>
-              <div class="prompt-input">
-                <label for="translationPromptTemplate">普通模式提示词</label>
-                <textarea id="translationPromptTemplate" rows="5" placeholder="设置普通翻译模式下发送给 AI 的系统提示词"></textarea>
-                <div class="prompt-actions">
-                  <button type="button" class="privacy-row-btn" id="resetTranslationPromptTemplate">恢复默认</button>
-                </div>
-              </div>
-              <div class="prompt-input">
-                <label for="translationReasoningPromptTemplate">推理模式提示词</label>
-                <textarea id="translationReasoningPromptTemplate" rows="7" placeholder="设置推理翻译模式下发送给 AI 的系统提示词"></textarea>
-                <div class="prompt-actions">
-                  <button type="button" class="privacy-row-btn" id="resetTranslationReasoningPromptTemplate">恢复默认</button>
-                  <button type="button" class="privacy-row-btn" id="resetAllTranslationPromptTemplates">全部恢复默认</button>
-                </div>
-              </div>
-              <div class="prompt-hint">变量名：<code>{{targetLanguageName}}</code>。普通模式和推理模式分别生效；留空时会自动回退到内置默认提示词。</div>
-            </div>
-            
-            
+	              <div class="settings-section" style="margin-top: 16px;">
+	                <h4>AI Prompt</h4>
+	                <div class="prompt-input">
+	                  <label for="translationPromptTemplate">普通模式提示词</label>
+	                  <textarea id="translationPromptTemplate" rows="5" placeholder="设置普通翻译模式下发送给 AI 的系统提示词"></textarea>
+	                  <div class="prompt-actions">
+	                    <button type="button" class="privacy-row-btn" id="resetTranslationPromptTemplate">恢复默认</button>
+	                  </div>
+	                </div>
+	                <div class="prompt-input">
+	                  <label for="translationReasoningPromptTemplate">推理模式提示词</label>
+	                  <textarea id="translationReasoningPromptTemplate" rows="7" placeholder="设置推理翻译模式下发送给 AI 的系统提示词"></textarea>
+	                  <div class="prompt-actions">
+	                    <button type="button" class="privacy-row-btn" id="resetTranslationReasoningPromptTemplate">恢复默认</button>
+	                    <button type="button" class="privacy-row-btn" id="resetAllTranslationPromptTemplates">全部恢复默认</button>
+	                  </div>
+	                </div>
+	                <div class="prompt-hint">变量名：<code>{{targetLanguageName}}</code>。普通模式和推理模式分别生效；留空时会自动回退到内置默认提示词。</div>
+	              </div>
+	            </div>
+	            
+	            
+	          </div>
+        </div>
+
+        <!-- 目标语言选择 -->
+        <div class="target-language" style="margin-top: 16px;">
+          <label for="targetLanguage">目标语言</label>
+          <select id="targetLanguage">
+            <option value="zh-CN">中文</option>
+            <option value="en">英文</option>
+          </select>
+        </div>
+
+        <div class="settings-section" style="margin-top: 16px;">
+          <h4>自动翻译</h4>
+          <div class="toggle-switch-container">
+            <label for="autoTranslateNewMessages" class="toggle-label">自动翻译新消息</label>
+            <label class="toggle-switch">
+              <input type="checkbox" id="autoTranslateNewMessages" class="toggle-input">
+              <span class="toggle-slider"></span>
+            </label>
           </div>
-          
+          <p style="margin-top: 6px; font-size: 12px; color: #666;">开启后，你和对方新发送的消息会自动翻译一次（仅新增消息，不会批量翻译历史记录）。</p>
+
+          <div class="toggle-switch-container" style="margin-top: 12px;">
+            <label for="inputQuickTranslateSend" class="toggle-label">输入框快捷翻译发送</label>
+            <label class="toggle-switch">
+              <input type="checkbox" id="inputQuickTranslateSend" class="toggle-input">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <p style="margin-top: 6px; font-size: 12px; color: #666;">开启后：按回车会先把输入内容快速翻译并自动替换到输入框，翻译完成后你再按一次回车即可发送（Shift+Enter 换行不受影响）。请先在聊天窗口里点击输入框翻译按钮设置目标语言，我们会按联系人（手机号）把你的选择保存到本地。</p>
         </div>
       </div>
 
@@ -1129,7 +1323,7 @@
           </div>
 
           <p class="api-notice" style="margin-top: 6px; font-size: 12px; color: #666;">提示：URL 与模型需与你的服务商匹配。</p>
-          <p class="api-notice" style="margin-top: 8px; font-size: 12px; color: #666;">限制：文件 ≤ 25MB，音频时长 ≤ 30 秒。</p>
+          <p class="api-notice" style="margin-top: 8px; font-size: 12px; color: #666;">限制：上传文件需符合服务商接口大小限制，常见上限为 25MB。</p>
         </div>
       </div>
 

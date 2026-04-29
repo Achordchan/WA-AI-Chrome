@@ -61,6 +61,14 @@
         }
       };
 
+      const isDeepLUnsupportedTargetError = (err) => {
+        try {
+          return err?.code === 'DEEPL_UNSUPPORTED_TARGET_LANG';
+        } catch (e) {
+          return false;
+        }
+      };
+
       if (typeof getTranslationSettings !== 'function') {
         throw new Error('Translation settings function not found');
       }
@@ -145,6 +153,34 @@
             translation = await ApiServices.translation.google(text, 'auto', targetLang);
           }
         }
+      } else if (service === 'deepl') {
+        try {
+          if (!apiKey) {
+            translation = await ApiServices.translation.google(text, 'auto', targetLang);
+          } else {
+            translation = await ApiServices.translation.deepl(text, apiKey, targetLang, {
+              source: 'single-message-translation'
+            });
+          }
+        } catch (deeplError) {
+          const errStatus = getErrStatus(deeplError);
+          const errMsg = String(deeplError?.message || '');
+
+          if (isDeepLUnsupportedTargetError(deeplError)) {
+            safeToast('DeepL 暂不支持该目标语言，已自动改用 Google 翻译', 'info', 3200);
+            translation = await ApiServices.translation.google(text, 'auto', targetLang);
+          } else if (deeplError?.code === 'DEEPL_AUTH_ERROR' || errStatus === 403) {
+            safeToast('DeepL 鉴权失败，已为你打开设置：请检查 API Key 是否正确', 'error', 5200);
+            safeOpenSettings();
+            throw makeAuthError(errStatus, 'DeepL翻译');
+          } else if (errStatus === 456 || errStatus === 429) {
+            safeToast(errMsg || 'DeepL 当前不可用，请稍后再试或切换 Google 翻译', 'error', 4200);
+            throw deeplError;
+          } else {
+            safeToast('DeepL 翻译失败，已自动回退到 Google 翻译', 'info', 3200);
+            translation = await ApiServices.translation.google(text, 'auto', targetLang);
+          }
+        }
       } else {
         translation = await ApiServices.translation.google(text, 'auto', targetLang);
       }
@@ -155,6 +191,9 @@
         const msg = String(error?.message || '');
         if (msg.includes('API Key')) {
           return '翻译失败: 翻译服务需要设置有效的API密钥';
+        }
+        if (msg.includes('DeepL')) {
+          return `翻译失败: ${msg}`;
         }
       } catch (e) {
         // ignore

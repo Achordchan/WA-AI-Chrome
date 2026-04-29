@@ -224,19 +224,12 @@
     safeToast('正在提取语音并转写…', 'info', 1800);
 
     const audioBlob = isBlob(input) ? input : await fetchBlobFromBlobUrl(input);
-    const { wavBlob, durationSec } = await decodeToWav(audioBlob);
+    const { wavBlob } = await decodeToWav(audioBlob);
 
     const maxBytes = 25 * 1024 * 1024;
     if (wavBlob?.size && wavBlob.size > maxBytes) {
       const err = new Error('语音转写失败：音频文件过大（需 ≤ 25MB）');
       err.code = 'STT_FILE_TOO_LARGE';
-      err.waapUserVisible = true;
-      throw err;
-    }
-
-    if (typeof durationSec === 'number' && durationSec > 30.2) {
-      const err = new Error('语音转写失败：音频时长过长（需 ≤ 30 秒）');
-      err.code = 'STT_DURATION_TOO_LONG';
       err.waapUserVisible = true;
       throw err;
     }

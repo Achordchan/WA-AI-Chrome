@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "WhatsApp Assistant Pro+",
-  "version": "3.2.5",
+  "version": "3.2.6",
   "description": "AI + Translate WhatsApp messages | WhatsApp消息翻译助手 | Achord | Email:achordchan@gmail.com",
   "permissions": [
     "storage",
@@ -15,7 +15,7 @@
     "https://*/*"
   ],
   "web_accessible_resources": [{
-    "resources": ["add.html", "PrivacyPolicy.html", "LICENSE", "images/flags/*"],
+    "resources": ["add.html", "PrivacyPolicy.html", "LICENSE", "images/flags/*", "images/tutorials/*"],
     "matches": ["*://*.whatsapp.com/*"]
   }],
   "action": {
@@ -47,6 +47,7 @@
         "mvp/services/settings-sync-service.js",
         "mvp/services/settings-state-orchestrator.js",
         "mvp/services/settings-form-service.js",
+        "mvp/services/settings-translation-test-service.js",
         "mvp/services/settings-admin-preset-service.js",
         "mvp/services/whatsapp-dom-service.js",
         "mvp/services/content-state-service.js",

@@ -81,6 +81,59 @@ function getLanguageNameZh(code) {
   return map[code] || '英文';
 }
 
+function normalizeDeepLTargetLang(lang) {
+  const raw = String(lang || '').trim();
+  const lower = raw.toLowerCase();
+  const map = {
+    zh: 'ZH-HANS',
+    'zh-cn': 'ZH-HANS',
+    'zh-hans': 'ZH-HANS',
+    'zh-tw': 'ZH-HANT',
+    'zh-hant': 'ZH-HANT',
+    en: 'EN-US',
+    'en-us': 'EN-US',
+    'en-gb': 'EN-GB',
+    pt: 'PT-PT',
+    'pt-pt': 'PT-PT',
+    'pt-br': 'PT-BR',
+    no: 'NB',
+    nb: 'NB',
+    ar: 'AR',
+    bg: 'BG',
+    cs: 'CS',
+    da: 'DA',
+    de: 'DE',
+    el: 'EL',
+    es: 'ES',
+    et: 'ET',
+    fi: 'FI',
+    fr: 'FR',
+    hu: 'HU',
+    id: 'ID',
+    it: 'IT',
+    ja: 'JA',
+    ko: 'KO',
+    lt: 'LT',
+    lv: 'LV',
+    nl: 'NL',
+    pl: 'PL',
+    ro: 'RO',
+    ru: 'RU',
+    sk: 'SK',
+    sl: 'SL',
+    sv: 'SV',
+    tr: 'TR',
+    uk: 'UK'
+  };
+  const target = map[lower] || map[(lower.split('-')[0] || '').trim()];
+  if (!target) {
+    const err = new Error('DeepL 暂不支持该目标语言');
+    err.code = 'DEEPL_UNSUPPORTED_TARGET_LANG';
+    throw err;
+  }
+  return target;
+}
+
 function resolveSuggestedReplyLang(options = {}) {
   try {
     const optLang = options.suggestedReplyLang || options.replyLang || options.lang;
@@ -151,6 +204,34 @@ window.ApiServices = {
       }
       
       return response.translation;
+    },
+
+    deepl: async (text, apiKey, targetLang = 'zh', debugContext = {}) => {
+      if (!text || !apiKey) {
+        throw new Error('DeepL 翻译参数不完整：请检查文本和 API Key 设置');
+      }
+
+      const target = normalizeDeepLTargetLang(targetLang);
+      const response = await chrome.runtime.sendMessage({
+        type: 'TRANSLATE_DEEPL',
+        text,
+        apiKey,
+        targetLang: target,
+        source: debugContext?.source || 'translation'
+      });
+
+      if (!response) {
+        throw new Error('DeepL 翻译服务没有返回结果，请稍后再试');
+      }
+
+      if (response?.error) {
+        const err = new Error(response.error);
+        if (response.status) err.status = response.status;
+        if (response.code) err.code = response.code;
+        throw err;
+      }
+
+      return response?.translation || '';
     },
 
     // OpenAI接口翻译
@@ -583,7 +664,7 @@ window.getTranslationSettings = () => {
   return new Promise((resolve) => {
     chrome.storage.sync.get(['translationApi', 'targetLanguage'], (data) => {
       const rawService = data.translationApi || 'google';
-      const service = rawService === 'siliconflow' ? 'siliconflow' : 'google';
+      const service = rawService === 'siliconflow' || rawService === 'deepl' ? rawService : 'google';
       resolve({
         service: service,    // 默认使用 Google
         targetLang: data.targetLanguage || 'zh-CN'  // 默认翻译为中文
@@ -676,17 +757,17 @@ async function getPromptSettings() {
 window.getTranslationService = () => {
   return new Promise((resolve) => {
     chrome.storage.sync.get(
-      ['translationApi', 'siliconflowApiKey', 'siliconflowApiUrl', 'siliconflowModel', 'targetLanguage'],
+      ['translationApi', 'siliconflowApiKey', 'siliconflowApiUrl', 'siliconflowModel', 'deeplApiKey', 'targetLanguage'],
       (data) => {
         const rawService = data.translationApi || 'google';
-        const service = rawService === 'siliconflow' || rawService === 'google' ? rawService : 'google';
+        const service = rawService === 'siliconflow' || rawService === 'deepl' || rawService === 'google' ? rawService : 'google';
 
-        const apiKey = service === 'siliconflow' ? (data.siliconflowApiKey || '') : '';
+        const apiKey = service === 'siliconflow' ? (data.siliconflowApiKey || '') : service === 'deepl' ? (data.deeplApiKey || '') : '';
         const apiUrl = data.siliconflowApiUrl || 'https://api.openai.com/v1/chat/completions';
         const model = data.siliconflowModel || 'gpt-5.4-codex';
 
-        // OpenAI 通用接口未配置 key 时，自动回退到 Google（避免把用户卡死在不可用状态）
-        if (service === 'siliconflow' && !apiKey) {
+        // 付费接口未配置 key 时，自动回退到 Google（避免把用户卡死在不可用状态）
+        if ((service === 'siliconflow' || service === 'deepl') && !apiKey) {
           resolve({
             service: 'google',
             apiKey: '',

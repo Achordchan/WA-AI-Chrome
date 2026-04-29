@@ -68,6 +68,7 @@
       const showToast = deps.showToast || window.showToast;
       const showExtensionInvalidatedError = deps.showExtensionInvalidatedError || window.showExtensionInvalidatedError;
       const settingsFormService = window.WAAP?.services?.settingsFormService;
+      const translationTestService = window.WAAP?.services?.settingsTranslationTestService;
       const adminPresetService = window.WAAP?.services?.settingsAdminPresetService;
       const getTranslationPromptDefaults = () => {
         try {
@@ -92,6 +93,61 @@
 3) 不要翻译人名/品牌名/产品型号/URL（除非原文本身就是翻译后的形式）；
 4) 保持原语气、敬语与情绪。`
         };
+      };
+
+      const openOpenAIApiGuideModal = () => {
+        try {
+          const existing = document.querySelector('.api-guide-modal-overlay');
+          if (existing) existing.remove();
+
+          const overlay = document.createElement('div');
+          overlay.className = 'api-guide-modal-overlay';
+          overlay.setAttribute('role', 'dialog');
+          overlay.setAttribute('aria-modal', 'true');
+
+          const card = document.createElement('div');
+          card.className = 'api-guide-modal-card';
+
+          const closeBtn = document.createElement('button');
+          closeBtn.type = 'button';
+          closeBtn.className = 'api-guide-modal-close';
+          closeBtn.setAttribute('aria-label', '关闭教程');
+          closeBtn.textContent = '×';
+
+          const image = document.createElement('img');
+          image.className = 'api-guide-modal-img';
+          image.alt = 'OpenAI兼容接口 API URL、API Key、模型名称填写教程';
+          image.src = chrome.runtime.getURL('images/tutorials/openai-compatible-api-guide.png');
+
+          const close = () => {
+            try {
+              document.removeEventListener('keydown', onKeyDown);
+              overlay.remove();
+            } catch (e) {
+              // ignore
+            }
+          };
+          const onKeyDown = (event) => {
+            if (event.key === 'Escape') close();
+          };
+
+          closeBtn.addEventListener('click', close);
+          overlay.addEventListener('click', (event) => {
+            if (event.target === overlay) close();
+          });
+          document.addEventListener('keydown', onKeyDown);
+
+          card.appendChild(closeBtn);
+          card.appendChild(image);
+          overlay.appendChild(card);
+          document.body.appendChild(overlay);
+        } catch (e) {
+          try {
+            if (typeof showToast === 'function') showToast('打开教程失败', 'error', 2600);
+          } catch (e2) {
+            // ignore
+          }
+        }
       };
 
       const tabButtons = content.querySelectorAll('.settings-tab');
@@ -797,7 +853,7 @@
           const langPrefs = await getStoredChatLanguagePreferences();
 
           const payload = {
-            version: '3.2.5',
+            version: '3.2.6',
             exportedAt: new Date().toISOString(),
             weatherCountryCorrections: weatherCorrections || {},
             weatherCountryResolved: weatherResolved || {},
@@ -1280,9 +1336,29 @@
       const translationApiSelect = content.querySelector('#translationApi');
       if (translationApiSelect) {
         translationApiSelect.addEventListener('change', () => {
-          settingsFormService?.updateTranslationSettingsUI?.(content);
+          settingsFormService?.updateTranslationSettingsUI?.(content, { focusInput: true });
+          translationTestService?.syncStatus?.(content);
         });
       }
+
+      ['deeplApiKey', 'siliconflowApiKey', 'siliconflowApiUrl', 'siliconflowModel'].forEach((id) => {
+        const input = content.querySelector(`#${id}`);
+        if (!input) return;
+        input.addEventListener('input', async () => {
+          await (settingsFormService?.clearTranslationVerificationIfDirty?.(content) || Promise.resolve(false));
+          await (translationTestService?.syncStatus?.(content) || Promise.resolve(false));
+        });
+      });
+
+      content.querySelector('#testDeepLTranslation')?.addEventListener('click', () => {
+        translationTestService?.runTest?.(content, 'deepl', { showToast });
+      });
+
+      content.querySelector('#testOpenAITranslation')?.addEventListener('click', () => {
+        translationTestService?.runTest?.(content, 'siliconflow', { showToast });
+      });
+
+      content.querySelector('#openOpenAIApiGuide')?.addEventListener('click', openOpenAIApiGuideModal);
 
       const sttEnabledToggle = content.querySelector('#sttEnabled');
       const sttSettings = content.querySelector('#stt-settings');
@@ -1301,7 +1377,11 @@
             const ok = adminPresetService?.openDialog?.({
               document,
               modal,
-              showToast
+              showToast,
+              onApplied: () => {
+                settingsFormService?.updateTranslationSettingsUI?.(content);
+                translationTestService?.syncStatus?.(content);
+              }
             });
             if (ok) return;
           } catch (e) {
@@ -1438,51 +1518,76 @@
         // ignore
       }
 
-      function saveSettings() {
+      async function saveSettings() {
         try {
+          const validation = settingsFormService?.validateTranslationSettings?.(content) || { ok: true };
+          if (!validation.ok) {
+            try {
+              if (typeof showToast === 'function') showToast(validation.message || '请填写必填项', 'error', 3600);
+            } catch (e) {
+              // ignore
+            }
+            return false;
+          }
+
+          const verification = await (settingsFormService?.validateTranslationVerification?.(content) || Promise.resolve({ ok: true }));
+          if (!verification.ok) {
+            try {
+              if (typeof showToast === 'function') showToast(verification.message || '请先通过测试翻译', 'error', 3600);
+            } catch (e) {
+              // ignore
+            }
+            translationTestService?.syncStatus?.(content);
+            return false;
+          }
+
           const formData = settingsFormService?.collectFormData?.(content) || {};
 
-          chrome.storage.sync.set(formData, () => {
-            if (chrome.runtime.lastError) {
-              console.error('保存设置时出错:', chrome.runtime.lastError);
+          return await new Promise((resolve) => {
+            chrome.storage.sync.set(formData, () => {
+              if (chrome.runtime.lastError) {
+                console.error('保存设置时出错:', chrome.runtime.lastError);
+                try {
+                  if (typeof showExtensionInvalidatedError === 'function') showExtensionInvalidatedError();
+                } catch (e) {
+                  // ignore
+                }
+                resolve(false);
+                return;
+              }
+
               try {
-                if (typeof showExtensionInvalidatedError === 'function') showExtensionInvalidatedError();
+                if (typeof deps.onSaved === 'function') {
+                  deps.onSaved(formData);
+                }
               } catch (e) {
                 // ignore
               }
-              return;
-            }
 
-            try {
-              if (typeof deps.onSaved === 'function') {
-                deps.onSaved(formData);
-              }
-            } catch (e) {
-              // ignore
-            }
-
-            try {
-              if (typeof showToast === 'function') showToast('设置已保存');
-            } catch (e) {
-              // ignore
-            }
-
-            try {
-              const settingsModal = document.getElementById('settings-modal');
-              if (settingsModal) {
-                settingsModal.remove();
-              }
-            } catch (e) {
-              // ignore
-            }
-
-            setTimeout(() => {
               try {
-                chrome.runtime.sendMessage({ action: 'reload_plugin' });
-              } catch (msgError) {
-                console.error('发送重载消息失败:', msgError);
+                if (typeof showToast === 'function') showToast('设置已保存');
+              } catch (e) {
+                // ignore
               }
-            }, 500);
+
+              try {
+                const settingsModal = document.getElementById('settings-modal');
+                if (settingsModal) {
+                  settingsModal.remove();
+                }
+              } catch (e) {
+                // ignore
+              }
+
+              setTimeout(() => {
+                try {
+                  chrome.runtime.sendMessage({ action: 'reload_plugin' });
+                } catch (msgError) {
+                  console.error('发送重载消息失败:', msgError);
+                }
+              }, 500);
+              resolve(true);
+            });
           });
         } catch (error) {
           console.error('保存设置时出错:', error);
@@ -1491,6 +1596,7 @@
           } catch (e) {
             // ignore
           }
+          return false;
         }
       }
 
@@ -1514,6 +1620,7 @@
               settingsFormService?.applyStoredSettings?.(content, data || {}, {
                 getTranslationPromptDefaults
               });
+              translationTestService?.syncStatus?.(content);
 
               settingsDirty = false;
               setTimeout(() => {
@@ -1534,14 +1641,10 @@
       }
 
       if (saveBtn) {
-        saveBtn.addEventListener('click', () => {
-          saveSettings();
+        saveBtn.addEventListener('click', async () => {
+          const saved = await saveSettings();
+          if (!saved) return;
           settingsDirty = false;
-          try {
-            modal.remove();
-          } catch (e) {
-            // ignore
-          }
         });
       }
 

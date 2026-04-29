@@ -125,6 +125,7 @@
           }
 
           applyAdminPreset(documentRef);
+          deps.onApplied?.();
           showToast?.('已应用管理员预设', 'success');
           close();
         } catch (e) {

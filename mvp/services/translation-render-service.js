@@ -173,8 +173,16 @@
           const totalTokens = usage && usage.total_tokens != null ? usage.total_tokens : null;
           const latencyMsRaw = safeMeta?.latencyMs ?? safeMeta?.durationMs;
           const latencyMs = Number.isFinite(Number(latencyMsRaw)) ? Math.round(Number(latencyMsRaw)) : null;
+          const service = String(safeMeta?.service || '').trim().toLowerCase();
+          const isAiService = service === 'siliconflow' || service === 'openai' || !!usage;
+          const getModelText = () => {
+            if (safeMeta?.model) return String(safeMeta.model);
+            if (service === 'google') return 'Google 翻译';
+            if (service === 'deepl') return 'DeepL 翻译';
+            return 'N/A';
+          };
 
-          const model = safeMeta?.model ? String(safeMeta.model) : 'N/A';
+          const model = getModelText();
           const latencyText = latencyMs != null ? `${latencyMs} ms` : 'N/A';
           const tokenText = totalTokens != null ? String(totalTokens) : 'N/A';
 
@@ -193,7 +201,7 @@
           check.innerHTML =
             '<svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-1.1 13.4-3.3-3.3 1.4-1.4 1.9 1.9 4.6-4.6 1.4 1.4-6 6Z"/></svg>';
           const titleText = doc.createElement('span');
-          titleText.textContent = 'AI 请求已完成';
+          titleText.textContent = isAiService ? 'AI 请求已完成' : '请求已完成';
           titleWrap.appendChild(check);
           titleWrap.appendChild(titleText);
 
@@ -216,7 +224,7 @@
 
           appendRow('模型', model);
           appendRow('运行时间', latencyText);
-          appendRow('预计消耗', `Token 数：${tokenText}`);
+          if (isAiService) appendRow('预计消耗', `Token 数：${tokenText}`);
 
           const actions = doc.createElement('div');
           actions.className = 'translation-meta-popover-actions';

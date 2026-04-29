@@ -129,14 +129,17 @@
           if (!s) return 'N/A';
           if (s === 'siliconflow') return 'OpenAI(兼容)';
           if (s === 'google') return 'Google';
+          if (s === 'deepl') return 'DeepL';
           return s;
         } catch (e) {
           return 'N/A';
         }
       };
 
+      const rawService = String(meta.service || '').trim().toLowerCase();
+      const isAiService = rawService === 'siliconflow' || rawService === 'openai' || !!meta.usage;
       const service = displayServiceName(meta.service);
-      const model = meta.model ? String(meta.model) : 'N/A';
+      const model = meta.model ? String(meta.model) : rawService === 'google' ? 'Google 翻译' : rawService === 'deepl' ? 'DeepL 翻译' : 'N/A';
       const latencyMsRaw = meta.latencyMs ?? meta.durationMs;
       const latencyMs = Number.isFinite(Number(latencyMsRaw)) ? Math.round(Number(latencyMsRaw)) : null;
 
@@ -145,7 +148,9 @@
 
       const latencyText = latencyMs != null ? `${latencyMs}ms` : 'N/A';
       const tokenText = totalTokens != null ? String(totalTokens) : 'N/A';
-      return `服务：${service}  模型：${model}  响应：${latencyText}  Token：${tokenText}`;
+      return isAiService
+        ? `服务：${service}  模型：${model}  响应：${latencyText}  Token：${tokenText}`
+        : `服务：${service}  模型：${model}  响应：${latencyText}`;
     } catch (e) {
       return '';
     }
@@ -158,8 +163,10 @@
       const totalTokens = usage && usage.total_tokens != null ? usage.total_tokens : null;
       const latencyMsRaw = safeMeta?.latencyMs ?? safeMeta?.durationMs;
       const latencyMs = Number.isFinite(Number(latencyMsRaw)) ? Math.round(Number(latencyMsRaw)) : null;
+      const service = String(safeMeta?.service || '').trim().toLowerCase();
+      const isAiService = service === 'siliconflow' || service === 'openai' || !!usage;
 
-      const model = safeMeta?.model ? String(safeMeta.model) : 'N/A';
+      const model = safeMeta?.model ? String(safeMeta.model) : service === 'google' ? 'Google 翻译' : service === 'deepl' ? 'DeepL 翻译' : 'N/A';
       const latencyText = latencyMs != null ? `${latencyMs} ms` : 'N/A';
       const tokenText = totalTokens != null ? String(totalTokens) : 'N/A';
 
@@ -178,7 +185,7 @@
       check.innerHTML =
         '<svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm-1.1 13.4-3.3-3.3 1.4-1.4 1.9 1.9 4.6-4.6 1.4 1.4-6 6Z"/></svg>';
       const titleText = document.createElement('span');
-      titleText.textContent = 'AI 请求已完成';
+      titleText.textContent = isAiService ? 'AI 请求已完成' : '请求已完成';
       titleWrap.appendChild(check);
       titleWrap.appendChild(titleText);
 
@@ -201,7 +208,7 @@
 
       appendRow('模型', model);
       appendRow('运行时间', latencyText);
-      appendRow('预计消耗', `Token 数：${tokenText}`);
+      if (isAiService) appendRow('预计消耗', `Token 数：${tokenText}`);
 
       const actions = document.createElement('div');
       actions.className = 'translation-meta-popover-actions';

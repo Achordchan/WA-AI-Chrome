@@ -31,6 +31,35 @@
     return '中文';
   }
 
+  function safeToast(message, type = 'info', duration = 3200) {
+    try {
+      if (typeof window.showToast === 'function') {
+        window.showToast(message, type, duration);
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  function isDeepLUnsupportedTargetError(error) {
+    try {
+      return error?.code === 'DEEPL_UNSUPPORTED_TARGET_LANG';
+    } catch (e) {
+      return false;
+    }
+  }
+
+  async function translateWithDeepLOrGoogleFallback(text, apiKey, targetLang, deps = {}, source = 'input-translate') {
+    const ApiServices = deps.ApiServices || window.ApiServices;
+    try {
+      return await ApiServices.translation.deepl(text, apiKey, targetLang, { source });
+    } catch (error) {
+      if (!isDeepLUnsupportedTargetError(error)) throw error;
+      safeToast('DeepL 暂不支持该目标语言，已自动改用 Google 翻译', 'info', 3200);
+      return await ApiServices.translation.google(text, 'auto', targetLang);
+    }
+  }
+
   async function translateText(text, targetLang = 'zh', deps = {}) {
     const getTranslationService = deps.getTranslationService || window.getTranslationService;
     const ApiServices = deps.ApiServices || window.ApiServices;
@@ -52,6 +81,8 @@
         translation = await ApiServices.translation[service](text, apiKey, apiUrl, model, targetLang, {
           source: 'input-translate'
         });
+      } else if (service === 'deepl') {
+        translation = await translateWithDeepLOrGoogleFallback(text, apiKey, targetLang, deps, 'input-translate');
       } else {
         translation = await ApiServices.translation.google(text, 'auto', targetLang);
       }
@@ -133,6 +164,9 @@
           source: type === 'ai' ? 'input-translate-perform-ai' : 'input-translate-perform'
         });
       }
+      if (service === 'deepl') {
+        return await translateWithDeepLOrGoogleFallback(text, apiKey, targetLang, deps, 'input-translate-perform');
+      }
       return await ApiServices.translation.google(text, 'auto', targetLang);
     } catch (error) {
       throw error;
@@ -160,6 +194,8 @@
           translation = await ApiServices.translation[service](text, apiKey, apiUrl, model, targetLang, {
             source: type === 'ai' ? 'input-translate-modal-ai' : 'input-translate-modal'
           });
+        } else if (service === 'deepl') {
+          translation = await translateWithDeepLOrGoogleFallback(text, apiKey, targetLang, deps, 'input-translate-modal');
         } else {
           translation = await ApiServices.translation.google(text, 'auto', targetLang);
         }

@@ -5,44 +5,38 @@ function showUpdateModal() {
       <div class="update-modal-content">
         <div class="update-modal-header">
                 <h3>WhatsApp Assistant Pro+ 更新说明</h3>
-      <span class="version">V3.2.5</span>
+      <span class="version">V3.2.6</span>
           <button class="modal-close">×</button>
         </div>
         <div class="update-modal-body">
           
+          <div class="update-section update-notice-section">
+            <h4>开源说明与永久免费承诺</h4>
+            <p>最近有人 clone 了仓库，改掉版权信息后拿去出售，所以后续我可能会考虑闭源。届时大家仍然可以通过谷歌插件商店安装使用。</p>
+            <p>我可以明确承诺：这个插件永远不会有任何付费计划。插件本身只是外壳，翻译引擎你们既可以继续使用免费的 Google 翻译，也可以切换到 AI 模型。</p>
+            <p>本版已接入 DeepL，先免费开放给大家使用，可以联系我的邮箱获取apikey；如果后续确实好用，你们也可以自行购买它们的官方 API。</p>
+          </div>
           <div class="update-section">
-           
-            <h4>本次更新</h4>
+            <h4>本次更新重点</h4>
             <ul>
-              <li><strong>主链收口</strong> - MVP 成为唯一正式主链，运行路径更清晰</li>
-              <li><strong>媒体预览说明翻译恢复</strong> - 图片/视频发送前的说明输入框重新支持翻译按钮与回车快捷翻译</li>
-              <li><strong>同文直发恢复</strong> - 翻译结果与原文一致时，回车会直接发送，不再多按一次</li>
-              <li><strong>翻译反馈体验恢复</strong> - 回车快捷翻译重新显示“正在翻译中”提示与绿色包裹动效</li>
-              <li><strong>设置模块拆分</strong> - 设置表单与管理员预设逻辑拆到独立 service，便于后续维护</li>
+              <li><strong>DeepL 翻译接入</strong> - 文本翻译服务新增 DeepL，支持 Free / Pro Key 自动选择接口</li>
+              <li><strong>测试接口是否可用</strong> - OpenAI 与 DeepL 必须先完成真实测试翻译，当前配置验证通过后才允许保存</li>
+              <li><strong>OpenAI 接口教程</strong> - 设置页新增手绘教程（在这里墙裂推荐gpt-image2）</li>
+              <li><strong>设置页优化</strong> - API Key、教程、测试翻译集中展示</li>
             </ul>
           </div>
           <div class="update-section">
-            <h4>稳定性与安全</h4>
+            <h4>体验与转写修复</h4>
             <ul>
-              <li>分析面板、天气展示、错误提示中的动态内容改为安全渲染，降低注入风险</li>
-              <li>语音 blob 捕获桥接增加类型白名单、字段校验、尺寸限制与缓存清理</li>
-              <li>语音转写等待、自动初始化、号码提取与输入框安装改为事件驱动，不再依赖关键轮询</li>
-              <li>适配 WhatsApp 最新 DOM，修复顶部工具栏、消息按钮、输入框按钮挂载错位问题</li>
-              <li>修复天气/国家/时间显示错位，避免污染联系人标题文本</li>
+              <li>消息翻译信息框会区分普通请求和 AI 请求，Google / DeepL</li>
+              <li>语音转文字移除 30 秒时长硬限制，只保留服务商上传文件大小限制</li>
+              <li>OpenAI 高级选项收纳提示词设置</li>
+              <li>设置页深色 WhatsApp 环境下的下拉框可读性更稳定</li>
+
             </ul>
           </div>
           <div class="update-section">
-            <h4>功能细节修复</h4>
-            <ul>
-              <li>普通聊天输入框与媒体说明输入框都支持翻译按钮与回车快捷翻译</li>
-              <li>翻译按钮重新与表情区对齐，避免跑到顶部工具栏或出现高低不齐</li>
-              <li>天气/号码识别链路在新 DOM 下更稳定，减少“未检测到联系人号码”的误报</li>
-              <li>顶部天气条、国家显示、时间显示在切换聊天与刷新后更稳定</li>
-              <li>保留管理员预设与内置 Key 的现有策略，不影响原有使用习惯</li>
-            </ul>
-          </div>
-          <div class="update-section">
-            <h4>开源不易，请动动小手给项目一个Star，Google商店再给个五星好评就更好了。有任何问题联系开发者<a href="mailto:achordchan@gmail.com">achordchan@gmail.com</a>。</h4>
+            <h4>开发不易，请动动小手在Google插件商店给个五星好评吧。有任何问题联系开发者<a href="mailto:achordchan@gmail.com">achordchan@gmail.com</a>。</h4>
           </div>
         </div>
         <div class="update-modal-footer">
@@ -138,6 +132,25 @@ function showUpdateModal() {
       margin: 8px 0;
       color: #333;
     }
+
+    .update-notice-section {
+      padding: 14px 16px;
+      border: 1px solid #ffb4ab;
+      border-left: 5px solid #d93025;
+      border-radius: 10px;
+      background: #fff1f0;
+    }
+
+    .update-notice-section h4 {
+      color: #b42318;
+    }
+
+    .update-notice-section p {
+      margin: 8px 0;
+      color: #8a1c13;
+      line-height: 1.55;
+      font-weight: 600;
+    }
     
     .update-modal-footer {
       padding: 16px 20px;
@@ -213,9 +226,9 @@ async function checkAndShowUpdateLog() {
   try {
     const currentVersion = (() => {
       try {
-        return chrome && chrome.runtime && chrome.runtime.getManifest ? (chrome.runtime.getManifest().version || '3.2.5') : '3.2.5';
+        return chrome && chrome.runtime && chrome.runtime.getManifest ? (chrome.runtime.getManifest().version || '3.2.6') : '3.2.6';
       } catch (e) {
-        return '3.2.5';
+        return '3.2.6';
       }
     })(); // 当前版本号
     const data = await chrome.storage.local.get(['lastShownVersion']);

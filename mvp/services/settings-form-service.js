@@ -40,6 +40,11 @@
       'siliconflowApiKey',
       'siliconflowApiUrl',
       'siliconflowModel',
+      'deeplApiKey',
+      'translationServiceVerifiedProvider',
+      'translationServiceVerifiedSignature',
+      'translationServiceVerifiedAt',
+      'translationServiceVerifiedLabel',
       'openaiTemperature',
       'openaiReasoningEnabled',
       'translationPromptTemplate',
@@ -58,7 +63,195 @@
     ];
   }
 
-  function updateTranslationSettingsUI(root) {
+  function focusTranslationServiceInput(root, selectedService) {
+    try {
+      const settingsEl = getField(root, `${selectedService}-settings`);
+      if (!settingsEl || selectedService === 'google') return false;
+
+      settingsEl.classList.remove('waap-api-focus');
+      void settingsEl.offsetWidth;
+      settingsEl.classList.add('waap-api-focus');
+      setTimeout(() => {
+        try {
+          settingsEl.classList.remove('waap-api-focus');
+        } catch (e) {
+          // ignore
+        }
+      }, 1300);
+
+      const inputId = selectedService === 'deepl' ? 'deeplApiKey' : 'siliconflowApiKey';
+      const input = getField(root, inputId);
+      settingsEl.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => {
+        try {
+          input?.focus?.({ preventScroll: true });
+        } catch (e) {
+          input?.focus?.();
+        }
+      }, 180);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function updateDeepLPlanFeedback(root) {
+    try {
+      const feedback = getField(root, 'deeplVerificationBadge');
+      if (!feedback) return false;
+      const state = getTranslationVerificationState(root);
+      if (state.provider === 'deepl' && state.label) {
+        feedback.className = 'translation-test-badge is-success';
+        feedback.textContent = state.label;
+        feedback.style.display = 'inline-flex';
+      } else {
+        feedback.className = 'translation-test-badge is-empty';
+        feedback.textContent = '';
+        feedback.style.display = 'none';
+      }
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function getTranslationVerificationState(root) {
+    const state = root?.__waapTranslationVerification || {};
+    return {
+      provider: String(state.provider || ''),
+      signature: String(state.signature || ''),
+      verifiedAt: String(state.verifiedAt || ''),
+      label: String(state.label || '')
+    };
+  }
+
+  function setTranslationVerificationState(root, state = {}) {
+    try {
+      if (!root) return false;
+      root.__waapTranslationVerification = {
+        provider: String(state.provider || ''),
+        signature: String(state.signature || ''),
+        verifiedAt: String(state.verifiedAt || ''),
+        label: String(state.label || '')
+      };
+      updateDeepLPlanFeedback(root);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function getTranslationVerificationProfile(root, provider) {
+    const selected = provider || getField(root, 'translationApi')?.value || 'google';
+    if (selected === 'deepl') {
+      return {
+        provider: 'deepl',
+        apiKey: String(getField(root, 'deeplApiKey')?.value || '').trim()
+      };
+    }
+    if (selected === 'siliconflow') {
+      return {
+        provider: 'siliconflow',
+        apiKey: String(getField(root, 'siliconflowApiKey')?.value || '').trim(),
+        apiUrl: String(getField(root, 'siliconflowApiUrl')?.value || 'https://api.openai.com/v1/chat/completions').trim() || 'https://api.openai.com/v1/chat/completions',
+        model: String(getField(root, 'siliconflowModel')?.value || 'gpt-5.4-codex').trim() || 'gpt-5.4-codex'
+      };
+    }
+    return { provider: 'google' };
+  }
+
+  async function sha256Hex(text) {
+    const subtle = window.crypto?.subtle;
+    if (!subtle || typeof TextEncoder !== 'function') {
+      throw new Error('当前浏览器不支持验证签名');
+    }
+    const data = new TextEncoder().encode(String(text || ''));
+    const hash = await subtle.digest('SHA-256', data);
+    return Array.from(new Uint8Array(hash))
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('');
+  }
+
+  async function buildTranslationVerificationSignature(root, provider) {
+    const profile = getTranslationVerificationProfile(root, provider);
+    return sha256Hex(JSON.stringify(profile));
+  }
+
+  async function validateTranslationVerification(root) {
+    try {
+      const service = getField(root, 'translationApi')?.value || 'google';
+      if (service === 'google') return { ok: true };
+
+      const base = validateTranslationSettings(root);
+      if (!base.ok) return base;
+
+      const signature = await buildTranslationVerificationSignature(root, service);
+      const state = getTranslationVerificationState(root);
+      if (state.provider === service && state.signature === signature) {
+        return { ok: true };
+      }
+
+      focusTranslationServiceInput(root, service);
+      return {
+        ok: false,
+        message: service === 'deepl'
+          ? '请先通过 DeepL 测试翻译，再保存设置'
+          : '请先通过 OpenAI 测试翻译，再保存设置'
+      };
+    } catch (e) {
+      return { ok: false, message: e?.message || '验证翻译服务失败' };
+    }
+  }
+
+  async function clearTranslationVerificationIfDirty(root) {
+    try {
+      const service = getField(root, 'translationApi')?.value || 'google';
+      if (service === 'google') return false;
+      const state = getTranslationVerificationState(root);
+      if (!state.signature || state.provider !== service) return false;
+      const signature = await buildTranslationVerificationSignature(root, service);
+      if (signature === state.signature) return false;
+      setTranslationVerificationState(root, {});
+      return true;
+    } catch (e) {
+      setTranslationVerificationState(root, {});
+      return true;
+    }
+  }
+
+  function validateTranslationSettings(root) {
+    try {
+      const service = getField(root, 'translationApi')?.value || 'google';
+      if (service === 'siliconflow') {
+        const apiKey = String(getField(root, 'siliconflowApiKey')?.value || '').trim();
+        if (!apiKey) {
+          focusTranslationServiceInput(root, service);
+          return {
+            ok: false,
+            message: '选择 OpenAI 通用接口时，OpenAI API Key 为必填项'
+          };
+        }
+      }
+
+      if (service === 'deepl') {
+        const apiKey = String(getField(root, 'deeplApiKey')?.value || '').trim();
+        if (!apiKey) {
+          focusTranslationServiceInput(root, service);
+          updateDeepLPlanFeedback(root);
+          return {
+            ok: false,
+            message: '选择 DeepL 翻译时，DeepL API Key 为必填项'
+          };
+        }
+      }
+
+      return { ok: true };
+    } catch (e) {
+      return { ok: true };
+    }
+  }
+
+  function updateTranslationSettingsUI(root, options = {}) {
     try {
       const select = getField(root, 'translationApi');
       const selectedService = select?.value || 'google';
@@ -67,6 +260,10 @@
       });
       const settingsEl = getField(root, `${selectedService}-settings`);
       setDisplay(settingsEl, true);
+      updateDeepLPlanFeedback(root);
+      if (options.focusInput === true) {
+        focusTranslationServiceInput(root, selectedService);
+      }
     } catch (e) {
       // ignore
     }
@@ -205,12 +402,22 @@
       translationReasoningPromptTemplate: getField(root, 'translationReasoningPromptTemplate')?.value || ''
     };
 
+    const verificationState = getTranslationVerificationState(root);
+    formData.translationServiceVerifiedProvider = verificationState.provider;
+    formData.translationServiceVerifiedSignature = verificationState.signature;
+    formData.translationServiceVerifiedAt = verificationState.verifiedAt;
+    formData.translationServiceVerifiedLabel = verificationState.label;
+
     if (formData.translationApi === 'siliconflow') {
       formData.siliconflowApiKey = getField(root, 'siliconflowApiKey')?.value || '';
       formData.siliconflowApiUrl = getField(root, 'siliconflowApiUrl')?.value || '';
       formData.siliconflowModel = getField(root, 'siliconflowModel')?.value || '';
       formData.openaiTemperature = parseFloat(String(getField(root, 'openaiTemperature')?.value || '0.7'));
       formData.openaiReasoningEnabled = getField(root, 'openaiReasoningEnabled')?.checked === true;
+    }
+
+    if (formData.translationApi === 'deepl') {
+      formData.deeplApiKey = getField(root, 'deeplApiKey')?.value || '';
     }
 
     if (formData.aiEnabled) {
@@ -231,7 +438,9 @@
         ? deps.getTranslationPromptDefaults()
         : { normal: '', reasoning: '' };
 
-      const allowedTranslationApi = data?.translationApi === 'siliconflow' ? 'siliconflow' : 'google';
+      const allowedTranslationApi = data?.translationApi === 'siliconflow' || data?.translationApi === 'deepl'
+        ? data.translationApi
+        : 'google';
       const translationApi = getField(root, 'translationApi');
       if (translationApi) translationApi.value = allowedTranslationApi;
       const targetLanguage = getField(root, 'targetLanguage');
@@ -266,6 +475,15 @@
       if (apiUrl) apiUrl.value = String(data?.siliconflowApiUrl || '');
       const model = getField(root, 'siliconflowModel');
       if (model) model.value = String(data?.siliconflowModel || '');
+      const deeplApiKey = getField(root, 'deeplApiKey');
+      if (deeplApiKey) deeplApiKey.value = String(data?.deeplApiKey || '');
+      setTranslationVerificationState(root, {
+        provider: data?.translationServiceVerifiedProvider,
+        signature: data?.translationServiceVerifiedSignature,
+        verifiedAt: data?.translationServiceVerifiedAt,
+        label: data?.translationServiceVerifiedLabel
+      });
+      updateDeepLPlanFeedback(root);
 
       const temperatureSlider = getField(root, 'openaiTemperature');
       const temperatureValue = getField(root, 'openaiTemperatureValue');
@@ -332,6 +550,15 @@
   window.WAAP.services.settingsFormService = {
     getStorageKeys,
     updateTranslationSettingsUI,
+    focusTranslationServiceInput,
+    updateDeepLPlanFeedback,
+    validateTranslationSettings,
+    buildTranslationVerificationSignature,
+    getTranslationVerificationProfile,
+    getTranslationVerificationState,
+    setTranslationVerificationState,
+    validateTranslationVerification,
+    clearTranslationVerificationIfDirty,
     updateSttSettingsUI,
     updateAiSettingsUI,
     updateWeatherOptionsUI,

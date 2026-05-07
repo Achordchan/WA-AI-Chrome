@@ -5,7 +5,7 @@
 <img src="images/icon.svg" width="128" height="128" alt="WhatsApp Assistant Pro+ Logo">
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-V3.2.6-green.svg)](https://github.com/Achordchan/WA-AI-chrome/releases)
+[![Version](https://img.shields.io/badge/version-V3.2.7-green.svg)](https://github.com/Achordchan/WA-AI-chrome/releases)
 ![Chrome Web Store](https://img.shields.io/chrome-web-store/rating/pending)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/Achordchan/WA-AI-chrome/pulls)
 
@@ -17,14 +17,14 @@
 
 ## ✨ 核心特性
 
-### 版本 V3.2.6 (最新版本)
-- DeepL 翻译接入：文本翻译服务新增 DeepL，支持 Free / Pro Key 自动选择接口
-- 测试通过才生效：OpenAI 与 DeepL 必须先完成真实测试翻译，当前配置验证通过后才允许保存
-- OpenAI 接口教程：设置页新增手绘教程，说明 API URL、API Key、模型名称的填写方式
-- 设置页体验优化：API Key、教程、测试翻译集中展示，高级提示词折叠收纳
-- 语音转文字优化：移除 30 秒时长硬限制，只保留服务商上传文件大小限制
-- 信息框优化：Google / DeepL 请求不再显示 AI Token 信息，展示更符合实际服务类型
-- 免费承诺：插件永远不会有任何付费计划，可继续使用免费 Google 翻译，也可切换 AI 模型或 DeepL
+### 版本 V3.2.7 (最新版本)
+- DeepLX 翻译接入：文本翻译服务新增 DeepLX，独立于 DeepL 官方接口，按 DeepLX 响应读取 data 字段
+- 批量翻译升级：批量翻译支持当前选择的翻译服务，不再固定使用 Google 翻译
+- 限流风险拦截：非 Google 服务批量翻译会先提示限流和额度风险，可取消、仍要进行或改用 Google
+- 设置页联系我：作者卡新增联系我入口，可打开 Achord WhatsApp 对话并自动插入调试信息
+- 联系方式修复：调试信息不再拼进 URL 参数，先跳转对话，再写入输入框
+- 配置安全清理：移除管理员预设入口、硬编码 Key 和相关残留代码
+- 免费承诺：插件永远不会有任何付费计划，可继续使用免费 Google 翻译，也可切换 AI 模型、DeepL 或 DeepLX
 
 ### 🤖 AI 功能
 - 🎯 **实时消息翻译** - 支持多种语言互译
@@ -67,6 +67,8 @@
 - [通义千问](https://tongyi.aliyun.com/) - 阿里云 AI 翻译
 - [火山翻译](https://translate.volcengine.com/) - 字节跳动翻译引擎
 - [Google 翻译](https://translate.google.com/) - 免费翻译服务
+- [DeepL](https://www.deepl.com/) - 官方 DeepL 翻译服务
+- [DeepLX](https://api.deeplx.org/) - DeepLX 翻译接口
 - [百度翻译](https://fanyi.baidu.com/) - 百度翻译 API
 
 ### 🌤️ 天气服务
@@ -112,6 +114,8 @@
 | DeepSeek | `sk-xxx` | AI 翻译 & 对话分析 | [获取 API Key](https://deepseek.com/) |
 | 通义千问 | `sk-xxx` | AI 翻译 & 智能分析 | [获取 API Key](https://tongyi.aliyun.com/) |
 | 火山翻译 | `xxx` | 专业翻译服务 | [获取 API Key](https://translate.volcengine.com/) |
+| DeepL | `xxx` | 官方 DeepL 翻译 | [获取 API Key](https://www.deepl.com/) |
+| DeepLX | `xxx` | DeepLX 翻译 | [获取 API Key](https://connect.linux.do/) |
 
 ### ⚙️ 配置步骤
 1. 点击 Chrome 工具栏中的扩展图标
@@ -173,15 +177,14 @@
 
 ## 📈 更新日志
 
-### V3.2.6 (最新版本)
-- 重要说明：最近有人 clone 仓库、修改版权后出售，因此后续可能会考虑闭源；即使闭源，大家仍然可以通过谷歌插件商店安装使用。
-- 免费承诺：这个插件永远不会有任何付费计划。插件本身只是外壳，翻译引擎可以继续使用免费的 Google，也可以切换到 AI 模型。
-- DeepL 接入：本版新增 DeepL 翻译服务，先免费开放给大家使用；如果后续确实好用，也可以自行购买 DeepL 官方 API。
-- 保存前验证：OpenAI 与 DeepL 新增测试翻译控制器，必须真实返回正确结果后才允许保存并生效。
-- 设置页优化：DeepL / OpenAI Key 填写、教程、测试状态集中展示，目标语言与自动翻译选项移动到接口配置之后。
-- 教程补充：OpenAI 兼容接口新增手绘填写指南，说明 API URL、API Key、模型名称的填写逻辑。
-- 信息展示修复：Google / DeepL 的消息翻译信息框改为“请求已完成”，不再显示 AI Token 消耗。
-- 语音转文字优化：移除 30 秒时长硬限制，只保留服务商上传文件大小限制，长一点的语音不再被前端直接拦截。
+### V3.2.7 (最新版本)
+- DeepLX 接入：新增 DeepLX 文本翻译服务，Api Key 由用户到 LINUX DO Connect 自行申请，响应按 data 字段解析。
+- 批量翻译升级：批量翻译会跟随当前文本翻译服务，非 Google 服务执行前提示限流和额度风险。
+- Google 智能跳过提示：默认文本翻译服务已经是 Google 时，批量翻译直接执行，不再弹出风险窗口。
+- 设置页联系我：作者卡新增联系我入口，复用 Achord WhatsApp 联系能力，并自动附带调试信息。
+- 联系方式修复：联系 Achord 不再通过 URL 携带调试信息，先进入对话，再把调试信息写入输入框。
+- 未保存拦截保留：设置页存在未保存修改时，点击联系我仍会先触发关闭确认。
+- 管理员预设清理：移除管理员预设功能、按钮、硬编码 Key 和相关残留代码。
 
 ### 版本 V3.1
 - 输入框快捷翻译发送：回车先翻译，再回车发送
@@ -189,7 +192,7 @@
 - 输入框为空时可快速设置目标语言并保存
 - OpenAI 通用接口翻译提示词增强，支持更多目标语言
 - 修复 AI 分析抓取消息为 0 条的问题
-- 设置面板体验优化（防误触关闭、管理员预设一键填充）
+- 设置面板体验优化（防误触关闭）
 
 [查看完整更新日志](./CHANGELOG.md)
 

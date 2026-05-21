@@ -42,17 +42,11 @@
 
 ### 📦 安装方式
 
-#### 方式一：Chrome 网上应用店（推荐）
+#### 方式：Chrome 网上应用店
 1. 访问 [Chrome 网上应用店](https://chrome.google.com/webstore/pending)
 2. 搜索 "WhatsApp Assistant Pro+"
 3. 点击"添加至 Chrome"
 
-#### 方式二：开发者模式安装
-1. 下载最新 [Release](https://github.com/Achordchan/WA-AI-chrome/releases)
-2. 解压到本地文件夹
-3. 打开 Chrome 扩展管理页面 (`chrome://extensions/`)
-4. 开启"开发者模式"
-5. 点击"加载已解压的扩展程序"，选择解压的文件夹
 
 ### 🎯 使用步骤
 1. 安装完成后，访问 [WhatsApp Web](https://web.whatsapp.com/)
@@ -143,19 +137,6 @@
 - 详细描述期望的功能
 - 说明使用场景和价值
 
-### 🔧 代码贡献
-1. Fork 本项目
-2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
-3. 遵循代码规范，添加必要的注释
-4. 提交修改 (`git commit -m 'Add some AmazingFeature'`)
-5. 推送到分支 (`git push origin feature/AmazingFeature`)
-6. 创建 Pull Request
-
-### 📋 开发规范
-- 使用 ESLint 进行代码检查
-- 遵循 [JavaScript Standard Style](https://standardjs.com/)
-- 为新功能添加适当的注释
-- 测试新功能的兼容性
 
 ## 📝 许可证
 

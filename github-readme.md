@@ -5,7 +5,7 @@
 <img src="images/icon.svg" width="128" height="128" alt="WhatsApp Assistant Pro+ Logo">
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-V3.2.6-green.svg)](https://github.com/Achordchan/WA-AI-chrome/releases)
+[![Version](https://img.shields.io/badge/version-V3.2.8-green.svg)](https://github.com/Achordchan/WA-AI-chrome/releases)
 
 ![Chrome Web Store](https://img.shields.io/chrome-web-store/rating/pending)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/Achordchan/WA-AI-chrome/pulls)
@@ -18,15 +18,15 @@
 
 ## 核心特性
 
-### 全新功能 (V3.2.6)
+### 版本 V3.2.8 (最新版本)
+- 快捷翻译权限模型重构：设置页作为全局总开关，输入框翻译面板按聊天对象独立启用，每个对话默认关闭。
+- 联系人级持久化：目标语言和快捷翻译偏好按对象保存，刷新 WhatsApp、重开设置页、重开弹窗后保持一致。
+- 隐私保护升级：记录表新增“快捷翻译”列，导入、导出、单条重置、全部清空同步覆盖语言与快捷翻译偏好。
+- 群聊边界收敛：群聊不加载顶部个性化信息和输入框翻译按钮，群内单条消息翻译保持可用。
+- WhatsApp DOM 适配：修复有备注联系人号码识别失败、翻译 Tooltip 重复叠加、点击外部关闭不稳定等问题。
+- 个性化显示重构：国家、天气、时间拆分为可选能力，天气和时间可后台依赖国家识别，不强制展示国家标签。
+- 输入框语言记忆收紧：不再读取滞后的 `currentPhoneNumber`，不再写入 `name:default` 共享记录，避免不同对话语言互相覆盖。
 
-- DeepL 翻译接入 - 文本翻译服务新增 DeepL，支持 Free / Pro Key 自动选择接口
-- 测试通过才生效 - OpenAI 与 DeepL 必须先完成真实测试翻译，当前配置验证通过后才允许保存
-- OpenAI 接口教程 - 设置页新增手绘教程，说明 API URL、API Key、模型名称的填写方式
-- 设置页体验优化 - API Key、教程、测试翻译集中展示，高级提示词折叠收纳
-- 语音转文字优化 - 移除 30 秒时长硬限制，只保留服务商上传文件大小限制
-- 信息框优化 - Google / DeepL 请求不再显示 AI Token 信息，展示更符合实际服务类型
-- 免费承诺 - 插件永远不会有任何付费计划，可继续使用免费 Google 翻译，也可切换 AI 模型或 DeepL
 ### 🤖 AI 功能
 - 🎯 **实时消息翻译** - 支持多种语言互译
 - 🤖 **AI 对话分析** - 智能分析对话内容和情感
@@ -68,6 +68,8 @@
 - [通义千问](https://tongyi.aliyun.com/) - 阿里云 AI 翻译
 - [火山翻译](https://translate.volcengine.com/) - 字节跳动翻译引擎
 - [Google 翻译](https://translate.google.com/) - 免费翻译服务
+- [DeepL](https://www.deepl.com/) - 官方 DeepL 翻译服务
+- [DeepLX](https://api.deeplx.org/) - DeepLX 翻译接口
 - [百度翻译](https://fanyi.baidu.com/) - 百度翻译 API
 
 ### 🌤️ 天气服务
@@ -86,7 +88,7 @@
 ### 🌍 智能号码识别 & 天气信息
 <img src="screenshots/phone-weather-preview.png" width="600" alt="号码识别和天气信息">
 
-### 🤖 AI 翻译 & 对话分析  
+### 🤖 AI 翻译 & 对话分析
 <img src="screenshots/translation-preview.png" width="600" alt="翻译功能">
 
 ### ⚙️ 设置面板
@@ -113,6 +115,8 @@
 | DeepSeek | `sk-xxx` | AI 翻译 & 对话分析 | [获取 API Key](https://deepseek.com/) |
 | 通义千问 | `sk-xxx` | AI 翻译 & 智能分析 | [获取 API Key](https://tongyi.aliyun.com/) |
 | 火山翻译 | `xxx` | 专业翻译服务 | [获取 API Key](https://translate.volcengine.com/) |
+| DeepL | `xxx` | 官方 DeepL 翻译 | [获取 API Key](https://www.deepl.com/) |
+| DeepLX | `xxx` | DeepLX 翻译 | [获取 API Key](https://connect.linux.do/) |
 
 ### ⚙️ 配置步骤
 1. 点击 Chrome 工具栏中的扩展图标
@@ -174,15 +178,13 @@
 
 ## 📈 更新日志
 
-### V3.2.6 (最新版本)
-- 重要说明：最近有人 clone 仓库、修改版权后出售，因此后续可能会考虑闭源；即使闭源，大家仍然可以通过谷歌插件商店安装使用。
-- 免费承诺：这个插件永远不会有任何付费计划。插件本身只是外壳，翻译引擎可以继续使用免费的 Google，也可以切换到 AI 模型。
-- DeepL 接入：本版新增 DeepL 翻译服务，先免费开放给大家使用；如果后续确实好用，也可以自行购买 DeepL 官方 API。
-- 保存前验证：OpenAI 与 DeepL 新增测试翻译控制器，必须真实返回正确结果后才允许保存并生效。
-- 设置页优化：DeepL / OpenAI Key 填写、教程、测试状态集中展示，目标语言与自动翻译选项移动到接口配置之后。
-- 教程补充：OpenAI 兼容接口新增手绘填写指南，说明 API URL、API Key、模型名称的填写逻辑。
-- 信息展示修复：Google / DeepL 的消息翻译信息框改为“请求已完成”，不再显示 AI Token 消耗。
-- 语音转文字优化：移除 30 秒时长硬限制，只保留服务商上传文件大小限制，长一点的语音不再被前端直接拦截。
+### V3.2.8 (最新版本)
+- 重构输入框快捷翻译：全局总开关 + 聊天对象级开关，默认关闭，Enter 触发路径只在明确授权的单聊中生效。
+- 新增 `waapChatQuickTranslateSendPreferencesV1` 本地偏好，和目标语言偏好使用同一聊天对象 key 体系。
+- 隐私保护记录新增快捷翻译状态，导入、导出、单条重置、全部清空覆盖语言偏好与快捷翻译偏好。
+- 群聊支持边界收敛：禁用顶部个性化信息和输入框翻译按钮，保留单条消息翻译。
+- 适配 WhatsApp Web DOM 更新，提升备注联系人号码识别稳定性，修复 Tooltip 多实例叠加和外部点击关闭问题。
+- 收紧输入框语言偏好 key：移除 `currentPhoneNumber` 直读和 `name:default` 共享写入，降低聊天切换后的串号风险。
 
 [查看完整更新日志](./CHANGELOG.md)
 
@@ -209,7 +211,7 @@ A: 天气信息基于号码归属地获取，可能存在以下情况：
 <details>
 <summary><strong>Q: 如何获取 API Key？</strong></summary>
 
-A: 
+A:
 1. **DeepSeek**: 访问 [deepseek.com](https://deepseek.com) 注册账号
 2. **通义千问**: 访问 [tongyi.aliyun.com](https://tongyi.aliyun.com) 申请
 3. **火山翻译**: 访问 [translate.volcengine.com](https://translate.volcengine.com) 开通服务
@@ -245,4 +247,4 @@ A:
 
 Made with ❤️ by [Achord](https://github.com/Achordchan)
 
-</div> 
+</div>

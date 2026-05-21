@@ -4,39 +4,38 @@ function showUpdateModal() {
     <div class="update-modal">
       <div class="update-modal-content">
         <div class="update-modal-header">
-                <h3>WhatsApp Assistant Pro+ 更新说明</h3>
-      <span class="version">V3.2.6</span>
+          <h3>WhatsApp Assistant Pro+ 更新说明</h3>
+          <span class="version">V3.2.8</span>
           <button class="modal-close">×</button>
         </div>
         <div class="update-modal-body">
-          
           <div class="update-section update-notice-section">
             <h4>开源说明与永久免费承诺</h4>
             <p>最近有人 clone 了仓库，改掉版权信息后拿去出售，所以后续我可能会考虑闭源。届时大家仍然可以通过谷歌插件商店安装使用。</p>
             <p>我可以明确承诺：这个插件永远不会有任何付费计划。插件本身只是外壳，翻译引擎你们既可以继续使用免费的 Google 翻译，也可以切换到 AI 模型。</p>
-            <p>本版已接入 DeepL，先免费开放给大家使用，可以联系我的邮箱获取apikey；如果后续确实好用，你们也可以自行购买它们的官方 API。</p>
+            <p>3.2.8 聚焦 WhatsApp Web DOM 适配、群聊边界收敛、输入框快捷翻译权限模型和隐私数据可视化。</p>
           </div>
           <div class="update-section">
             <h4>本次更新重点</h4>
             <ul>
-              <li><strong>DeepL 翻译接入</strong> - 文本翻译服务新增 DeepL，支持 Free / Pro Key 自动选择接口</li>
-              <li><strong>测试接口是否可用</strong> - OpenAI 与 DeepL 必须先完成真实测试翻译，当前配置验证通过后才允许保存</li>
-              <li><strong>OpenAI 接口教程</strong> - 设置页新增手绘教程（在这里墙裂推荐gpt-image2）</li>
-              <li><strong>设置页优化</strong> - API Key、教程、测试翻译集中展示</li>
+              <li><strong>快捷翻译权限模型重构</strong> - 设置页改为全局总开关，每个对话默认关闭，需要在输入框翻译面板单独开启</li>
+              <li><strong>联系人级持久化</strong> - 快捷翻译偏好按聊天对象保存，刷新页面、重开弹窗和重开设置页后保持一致</li>
+              <li><strong>隐私保护表升级</strong> - 新增快捷翻译列，导入、导出、单条重置和全部清空同步覆盖语言与快捷翻译偏好</li>
+              <li><strong>群聊边界优化</strong> - 群聊不再加载顶部个性化信息和输入框翻译按钮，单条消息翻译保持可用</li>
             </ul>
           </div>
           <div class="update-section">
-            <h4>体验与转写修复</h4>
+            <h4>稳定性修复</h4>
             <ul>
-              <li>消息翻译信息框会区分普通请求和 AI 请求，Google / DeepL</li>
-              <li>语音转文字移除 30 秒时长硬限制，只保留服务商上传文件大小限制</li>
-              <li>OpenAI 高级选项收纳提示词设置</li>
-              <li>设置页深色 WhatsApp 环境下的下拉框可读性更稳定</li>
-
+              <li>适配 WhatsApp Web DOM 更新，修复有备注联系人号码识别失败的问题</li>
+              <li>翻译信息 Tooltip 改为单例状态，重复点击不会叠加遮罩，点击外部可稳定关闭</li>
+              <li>个性化显示拆分国家、天气、时间能力，天气和时间可后台依赖国家识别但不强制展示国家标签</li>
+              <li>回车快捷翻译触发条件优化为：总开关开启、当前对话开启、非群聊</li>
+              <li>输入框语言记忆不再读取滞后的 currentPhoneNumber，也不再写入 name:default 共享记录</li>
             </ul>
           </div>
           <div class="update-section">
-            <h4>开发不易，请动动小手在Google插件商店给个五星好评吧。有任何问题联系开发者<a href="mailto:achordchan@gmail.com">achordchan@gmail.com</a>。</h4>
+            <h4>开发不易，请动动小手在 Google 插件商店给个五星好评。有任何问题联系开发者 <a href="mailto:achordchan@gmail.com">achordchan@gmail.com</a>。</h4>
           </div>
         </div>
         <div class="update-modal-footer">
@@ -226,9 +225,9 @@ async function checkAndShowUpdateLog() {
   try {
     const currentVersion = (() => {
       try {
-        return chrome && chrome.runtime && chrome.runtime.getManifest ? (chrome.runtime.getManifest().version || '3.2.6') : '3.2.6';
+        return chrome && chrome.runtime && chrome.runtime.getManifest ? (chrome.runtime.getManifest().version || '3.2.8') : '3.2.8';
       } catch (e) {
-        return '3.2.6';
+        return '3.2.8';
       }
     })(); // 当前版本号
     const data = await chrome.storage.local.get(['lastShownVersion']);

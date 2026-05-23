@@ -1,10 +1,7 @@
 <div align="center">
 ## 由于存在未经授权的重新发布及出售行为，活跃开发已转移至私有仓库。##
+下载地址：https://chromewebstore.google.com/detail/whatsapp-assistant-pro+/ijdbbpgihmfldjbanfkpbhkkciglcenp
   
-#### 方式：Chrome 网上应用店
-1. 访问 [Chrome 网上应用店]([https://chrome.google.com/webstore/pending](https://chromewebstore.google.com/detail/whatsapp-assistant-pro+/ijdbbpgihmfldjbanfkpbhkkciglcenp))
-2. 点击"添加至 Chrome"
-
 # WhatsApp Assistant Pro+
 
 <img src="images/icon.svg" width="128" height="128" alt="WhatsApp Assistant Pro+ Logo">

@@ -1,6 +1,9 @@
 <div align="center">
 ## 由于存在未经授权的重新发布及出售行为，活跃开发已转移至私有仓库。##
-
+#### 方式：Chrome 网上应用店
+1. 访问 [Chrome 网上应用店](https://chrome.google.com/webstore/pending)
+2. 搜索 "WhatsApp Assistant Pro+"
+3. 点击"添加至 Chrome"
 
 # WhatsApp Assistant Pro+
 

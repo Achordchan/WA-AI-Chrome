@@ -1,4 +1,6 @@
 <div align="center">
+## 由于存在未经授权的重新发布及出售行为，活跃开发已转移至私有仓库。##
+
 
 # WhatsApp Assistant Pro+
 
